@@ -19,12 +19,14 @@ dependencies {
     compileOnly("org.projectlombok:lombok:1.18.22")
     annotationProcessor("org.projectlombok:lombok:1.18.22")
     compileOnly("io.papermc.paper:paper-api:1.18.2-R0.1-SNAPSHOT")
-    compileOnly("dev.plex:Plex:0.9")
+    compileOnly("dev.plex:server:1.1-SNAPSHOT")
+    compileOnly("dev.morphia.morphia:morphia-core:2.2.6")
+    compileOnly("org.json:json:20220320")
 }
 
 group = "dev.plex"
 version = "1.0"
-description = "ExampleModule"
+description = "The guilds module for Plex"
 
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(17))
@@ -39,7 +41,7 @@ publishing {
 }
 
 tasks.getByName<Jar>("jar") {
-    archiveBaseName.set("Plex-ExampleModule")
+    archiveBaseName.set("Plex-Guilds")
     archiveVersion.set("")
 }
 
