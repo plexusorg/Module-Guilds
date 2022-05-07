@@ -5,6 +5,7 @@ import dev.plex.data.SQLGuildManager;
 import dev.plex.data.SQLManager;
 import dev.plex.guild.Guild;
 import dev.plex.guild.GuildHolder;
+import dev.plex.handler.ChatHandlerImpl;
 import dev.plex.listener.impl.ChatListener;
 import dev.plex.module.PlexModule;
 import dev.plex.storage.StorageType;
@@ -46,6 +47,8 @@ public class Guilds extends PlexModule
                this.registerCommand(new GuildCommand());
             });
         }
+
+        this.getPlex().setChatHandler(new ChatHandlerImpl());
 
 
         this.addDefaultMessage("guildsHelpCommand", "<gradient:gold:yellow>======</gradient>Guild Menu<gradient:gold:yellow>======</gradient><newline>\n" +
