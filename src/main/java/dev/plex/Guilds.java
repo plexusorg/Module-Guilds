@@ -5,9 +5,11 @@ import dev.plex.data.SQLGuildManager;
 import dev.plex.data.SQLManager;
 import dev.plex.guild.Guild;
 import dev.plex.guild.GuildHolder;
+import dev.plex.listener.impl.ChatListener;
 import dev.plex.module.PlexModule;
 import dev.plex.storage.StorageType;
 import dev.plex.util.PlexLog;
+import io.papermc.paper.event.player.AsyncChatEvent;
 import lombok.Getter;
 
 import java.util.Arrays;
@@ -18,7 +20,7 @@ import java.util.Arrays;
 public class Guilds extends PlexModule
 {
     private static Guilds module;
-    private GuildHolder guildHolder = new GuildHolder();
+    private final GuildHolder guildHolder = new GuildHolder();
 
     private SQLGuildManager sqlGuildManager;
 
@@ -31,7 +33,6 @@ public class Guilds extends PlexModule
     @Override
     public void enable()
     {
-
         if (getPlex().getStorageType() == StorageType.MONGODB)
         {
             getPlex().getMongoConnection().getDatastore().getMapper().map(Guild.class);

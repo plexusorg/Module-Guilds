@@ -1,11 +1,13 @@
 package dev.plex.guild;
 
 import com.google.common.collect.Lists;
+import dev.plex.guild.data.Member;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 public class GuildHolder
 {
@@ -23,7 +25,7 @@ public class GuildHolder
 
     public Optional<Guild> getGuild(UUID uuid)
     {
-        return GUILDS.stream().filter(guild -> guild.getOwner().equals(uuid) || guild.getMembers().contains(uuid)).findFirst();
+        return GUILDS.stream().filter(guild -> guild.getOwner().equals(uuid) || guild.getMembers().stream().map(Member::uuid).toList().contains(uuid)).findFirst();
     }
 
 }

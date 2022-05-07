@@ -28,7 +28,7 @@ public class SQLGuildManager
     private static final String SELECT_GUILD = "SELECT * FROM `guilds`";
     private static final String SELECT_GUILD_OWNER = "SELECT * FROM `guilds` WHERE owner=?";
     private static final String SELECT_GUILD_MEMBER_MYSQL = "SELECT * FROM `guilds` WHERE json_search(members, ?, ?) IS NOT NULL LIMIT 1";
-    private static final String INSERT_GUILD = "INSERT INTO `guilds` (`name`, `owner`, `createdAt`, `members`, `moderators`, `prefix`, `motd`, `home`, `tagEnabled`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    private static final String INSERT_GUILD = "INSERT INTO `guilds` (`name`, `owner`, `createdAt`, `members`, `moderators`, `prefix`, `motd`, `ranks`, `defaultRank`, `home`, `tagEnabled`) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     private static final String DELETE_GUILD = "DELETE FROM `guilds` WHERE owner=?";
 
     public CompletableFuture<Guild> insertGuild(Guild guild)
@@ -41,12 +41,14 @@ public class SQLGuildManager
                 statement.setString(1, guild.getName());
                 statement.setString(2, guild.getOwner().toString());
                 statement.setLong(3, guild.getCreatedAt().toInstant().toEpochMilli());
-                statement.setString(4, GSON.toJson(guild.getMembers().stream().map(UUID::toString).collect(Collectors.toList())));
+                statement.setString(4, GSON.toJson(guild.getMembers()));
                 statement.setString(5, GSON.toJson(guild.getModerators().stream().map(UUID::toString).collect(Collectors.toList())));
                 statement.setString(6, guild.getPrefix());
                 statement.setString(7, guild.getMotd());
-                statement.setString(8, GSON.toJson(guild.getHome()));
-                statement.setBoolean(9, guild.isTagEnabled());
+                statement.setString(8, GSON.toJson(guild.getRanks()));
+                statement.setString(9, GSON.toJson(guild.getDefaultRank()));
+                statement.setString(10, GSON.toJson(guild.getHome()));
+                statement.setBoolean(11, guild.isTagEnabled());
                 statement.execute();
                 return guild;
             } catch (SQLException e)

@@ -27,6 +27,8 @@ public class SQLManager
                             "`home` VARCHAR(1000)," +
                             "`members` LONGTEXT, " +
                             "`moderators` LONGTEXT, " +
+                            "`ranks` LONGTEXT, " +
+                            "`defaultRank` LONGTEXT, " +
                             "`tagEnabled` BOOLEAN" +
                             ");"
             ).execute();
