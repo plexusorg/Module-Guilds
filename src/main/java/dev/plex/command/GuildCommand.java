@@ -5,9 +5,7 @@ import com.google.common.collect.Lists;
 import dev.plex.command.annotation.CommandParameters;
 import dev.plex.command.annotation.CommandPermissions;
 import dev.plex.command.source.RequiredCommandSource;
-import dev.plex.command.sub.CreateSubCommand;
-import dev.plex.command.sub.InfoSubCommand;
-import dev.plex.command.sub.PrefixSubCommand;
+import dev.plex.command.sub.*;
 import dev.plex.rank.enums.Rank;
 import dev.plex.util.GuildUtil;
 import dev.plex.util.PlexLog;
@@ -35,6 +33,10 @@ public class GuildCommand extends PlexCommand
             this.registerSubCommand(new CreateSubCommand());
             this.registerSubCommand(new InfoSubCommand());
             this.registerSubCommand(new PrefixSubCommand());
+            this.registerSubCommand(new SetWarpSubCommand());
+            this.registerSubCommand(new WarpSubCommand());
+            this.registerSubCommand(new WarpListSubCommand());
+            this.registerSubCommand(new ChatSubCommand());
         } catch (Exception e)
         {
             GuildUtil.throwExceptionSync(e);

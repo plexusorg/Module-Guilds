@@ -27,6 +27,7 @@ public class InfoSubCommand extends PlexCommand
     }
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy hh:mm:ss a");
+
     @Override
     protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] strings)
     {
@@ -39,19 +40,16 @@ public class InfoSubCommand extends PlexCommand
                 send(player, mmString(""));
                 try
                 {
-                    send(player, mmString("<gold>Owner: <yellow>" + DataUtils.getPlayer(guild.getOwner(), false).getName()));
+                    send(player, mmString("<gold>Owner: <yellow>" + DataUtils.getPlayer(guild.getOwner().getUuid(), false).getName()));
                 } catch (NullPointerException e)
                 {
                     send(player, mmString("<gold>Owner: <yellow>Unable to load cache..."));
                 }
-                send(player, mmString("<gold>Members (" + guild.getMembers().size() + "): " + StringUtils.join(guild.getMembers().stream().map(member -> DataUtils.getPlayer(member.uuid(), false).getName()).toList(), ", ")));
+                send(player, mmString("<gold>Members (" + guild.getMembers().size() + "): " + StringUtils.join(guild.getMembers().stream().map(member -> DataUtils.getPlayer(member.getUuid(), false).getName()).toList(), ", ")));
                 send(player, mmString("<gold>Moderators (" + guild.getModerators().size() + "): " + StringUtils.join(guild.getModerators().stream().map(uuid -> DataUtils.getPlayer(uuid, false).getName()).toList(), ", ")));
                 send(player, mmString("<gold>Prefix: " + (guild.getPrefix() == null ? "N/A" : guild.getPrefix())));
                 send(player, mmString("<gold>Created At: " + formatter.format(guild.getCreatedAt())));
-            }, () ->
-            {
-                send(player, messageComponent("guildNotFound"));
-            });
+            }, () -> send(player, messageComponent("guildNotFound")));
         });
         return null;
     }

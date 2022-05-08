@@ -5,25 +5,21 @@ import dev.plex.command.PlexCommand;
 import dev.plex.command.annotation.CommandParameters;
 import dev.plex.command.annotation.CommandPermissions;
 import dev.plex.command.source.RequiredCommandSource;
-import dev.plex.guild.Guild;
 import dev.plex.rank.enums.Rank;
-import dev.plex.util.PlexUtils;
+import dev.plex.util.CustomLocation;
 import dev.plex.util.minimessage.SafeMiniMessage;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.minimessage.MiniMessage;
-import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
-import net.kyori.adventure.text.minimessage.tag.standard.StandardTags;
 import org.apache.commons.lang.StringUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-@CommandParameters(name = "prefix", aliases = "tag,settag,setprefix", usage = "/guild <command> <prefix>")
-@CommandPermissions(level = Rank.OP, source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.prefix")
-public class PrefixSubCommand extends PlexCommand
+@CommandParameters(name = "setwarp", aliases = "makewarp,createwarp", usage = "/guild <command> <name>")
+@CommandPermissions(level = Rank.OP, source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.setwarp")
+public class SetWarpSubCommand extends PlexCommand
 {
-    public PrefixSubCommand()
+    public SetWarpSubCommand()
     {
         super(false);
     }
@@ -41,14 +37,18 @@ public class PrefixSubCommand extends PlexCommand
                 send(player, messageComponent("guildNotOwner"));
                 return;
             }
-            if (args[0].equalsIgnoreCase("clear") || args[0].equalsIgnoreCase("off"))
+            if (args[0].length() > 16)
             {
-                guild.setPrefix(null);
-                send(player, messageComponent("guildPrefixCleared"));
+                send(player, mmString("<red>The max length of a warp name is 16 characters!"));
                 return;
             }
-            guild.setPrefix(StringUtils.join(args, " "));
-            send(player, messageComponent("guildPrefixSet", SafeMiniMessage.mmDeserializeWithoutEvents(guild.getPrefix())));
+            if (guild.getWarps().containsKey(args[0].toLowerCase()))
+            {
+                send(player, messageComponent("guildWarpExists", args[0]));
+                return;
+            }
+            guild.getWarps().put(args[0].toLowerCase(), CustomLocation.fromLocation(player.getLocation()));
+            send(player, messageComponent("guildWarpCreated", args[0]));
         }, () -> send(player, messageComponent("guildNotFound")));
         return null;
     }

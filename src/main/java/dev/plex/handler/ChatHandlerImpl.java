@@ -4,6 +4,7 @@ import dev.plex.Guilds;
 import dev.plex.Plex;
 import dev.plex.api.chat.IChatHandler;
 import dev.plex.cache.PlayerCache;
+import dev.plex.guild.data.Member;
 import dev.plex.player.PlexPlayer;
 import dev.plex.util.PlexUtils;
 import dev.plex.util.minimessage.SafeMiniMessage;
@@ -17,9 +18,13 @@ import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.text.minimessage.tag.standard.StandardTags;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
+import org.apache.commons.lang.StringUtils;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -32,6 +37,29 @@ public class ChatHandlerImpl implements IChatHandler
     public void doChat(AsyncChatEvent event)
     {
         event.renderer(renderer);
+        Player player = event.getPlayer();
+        Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresent(guild ->
+        {
+            Member member = guild.getMember(player.getUniqueId());
+            if (member == null)
+            {
+                return;
+            }
+            if (!member.isChat())
+            {
+                return;
+            }
+            guild.getMembers().stream().map(Member::getPlayer).filter(Objects::nonNull).forEach(player1 ->
+            {
+                player1.sendMessage(PlexUtils.messageComponent("guildChatMessage", player.getName(), PlainTextComponentSerializer.plainText().serialize(event.message())));
+            });
+            if (Guilds.get().getConfig().isBoolean("guilds.log-chat-message"))
+            {
+                Bukkit.getConsoleSender().sendMessage(PlexUtils.messageComponent("guildChatConsoleLog", guild.getName(), guild.getGuildUuid(), player.getName(), PlainTextComponentSerializer.plainText().serialize(event.message())));
+            }
+            event.setCancelled(true);
+        });
+
     }
 
     public static class PlexChatRenderer implements ChatRenderer

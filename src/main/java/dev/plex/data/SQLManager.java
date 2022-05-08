@@ -21,7 +21,7 @@ public class SQLManager
                     "CREATE TABLE IF NOT EXISTS `guilds` (" +
                             "`guildUuid` VARCHAR(46) NOT NULL, " +
                             "`name` VARCHAR(2000) NOT NULL, " +
-                            "`owner` VARCHAR(46) NOT NULL, " +
+                            "`owner` LONGTEXT NOT NULL, " +
                             "`createdAt` BIGINT NOT NULL, " +
                             "`prefix` VARCHAR(2000), " +
                             "`motd` VARCHAR(3000), " +
@@ -30,7 +30,9 @@ public class SQLManager
                             "`moderators` LONGTEXT, " +
                             "`ranks` LONGTEXT, " +
                             "`defaultRank` LONGTEXT, " +
+                            "`warps` LONGTEXT, " +
                             "`tagEnabled` BOOLEAN, " +
+                            "`isPublic` BOOLEAN, " +
                             "PRIMARY KEY (`guildUuid`)" +
                             ");"
             ).execute();
