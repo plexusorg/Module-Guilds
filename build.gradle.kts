@@ -1,4 +1,3 @@
-import java.nio.charset.StandardCharsets
 plugins {
     java
     `maven-publish`
