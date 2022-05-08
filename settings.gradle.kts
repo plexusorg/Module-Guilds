@@ -1,2 +1,2 @@
-rootProject.name = "module-guilds"
+rootProject.name = "Module-Guilds"
 
