@@ -44,7 +44,7 @@ public class InfoSubCommand extends PlexCommand
                 {
                     send(player, mmString("<gold>Owner: <yellow>Unable to load cache..."));
                 }
-                send(player, mmString("<gold>Members (" + guild.getMembers().size() + "): " + StringUtils.join(guild.getMembers().stream().map(uuid -> DataUtils.getPlayer(uuid, false).getName()).toList(), ", ")));
+                send(player, mmString("<gold>Members (" + guild.getMembers().size() + "): " + StringUtils.join(guild.getMembers().stream().map(member -> DataUtils.getPlayer(member.uuid(), false).getName()).toList(), ", ")));
                 send(player, mmString("<gold>Moderators (" + guild.getModerators().size() + "): " + StringUtils.join(guild.getModerators().stream().map(uuid -> DataUtils.getPlayer(uuid, false).getName()).toList(), ", ")));
                 send(player, mmString("<gold>Prefix: " + (guild.getPrefix() == null ? "N/A" : guild.getPrefix())));
                 send(player, mmString("<gold>Created At: " + formatter.format(guild.getCreatedAt())));
