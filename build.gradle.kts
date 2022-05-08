@@ -1,3 +1,4 @@
+import java.nio.charset.StandardCharsets
 plugins {
     java
     `maven-publish`
@@ -48,5 +49,9 @@ tasks.getByName<Jar>("jar") {
 tasks {
     javadoc {
         options.memberLevel = JavadocMemberLevel.PRIVATE
+    }
+    compileJava {
+        options.encoding = StandardCharsets.UTF_8.name()
+        options.release.set(17)
     }
 }

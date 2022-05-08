@@ -7,6 +7,7 @@ import dev.plex.command.annotation.CommandPermissions;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.command.sub.CreateSubCommand;
 import dev.plex.command.sub.InfoSubCommand;
+import dev.plex.command.sub.PrefixSubCommand;
 import dev.plex.rank.enums.Rank;
 import dev.plex.util.GuildUtil;
 import dev.plex.util.PlexLog;
@@ -29,17 +30,15 @@ public class GuildCommand extends PlexCommand
 
     public GuildCommand()
     {
-        System.out.println("Aaa");
-        PlexLog.log("Test");
         try
         {
             this.registerSubCommand(new CreateSubCommand());
             this.registerSubCommand(new InfoSubCommand());
+            this.registerSubCommand(new PrefixSubCommand());
         } catch (Exception e)
         {
             GuildUtil.throwExceptionSync(e);
         }
-        PlexLog.log("Registered");
     }
 
     @Override

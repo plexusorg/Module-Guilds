@@ -19,6 +19,7 @@ public class SQLManager
         {
             connection.prepareStatement(
                     "CREATE TABLE IF NOT EXISTS `guilds` (" +
+                            "`guildUuid` VARCHAR(46) NOT NULL, " +
                             "`name` VARCHAR(2000) NOT NULL, " +
                             "`owner` VARCHAR(46) NOT NULL, " +
                             "`createdAt` BIGINT NOT NULL, " +
@@ -29,7 +30,8 @@ public class SQLManager
                             "`moderators` LONGTEXT, " +
                             "`ranks` LONGTEXT, " +
                             "`defaultRank` LONGTEXT, " +
-                            "`tagEnabled` BOOLEAN" +
+                            "`tagEnabled` BOOLEAN, " +
+                            "PRIMARY KEY (`guildUuid`)" +
                             ");"
             ).execute();
         } catch (SQLException e)

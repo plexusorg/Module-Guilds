@@ -19,6 +19,7 @@ import java.util.UUID;
 @Entity("guilds")
 public class Guild
 {
+    private final UUID guildUuid;
     private final String name;
     private final UUID owner;
     private final ZonedDateTime createdAt;
@@ -34,6 +35,6 @@ public class Guild
 
     public static Guild create(Player player, String guildName)
     {
-        return new Guild(guildName, player.getUniqueId(), ZonedDateTime.now(ZoneId.of(Plex.get().config.getString("server.timezone"))));
+        return new Guild(UUID.randomUUID(), guildName, player.getUniqueId(), ZonedDateTime.now(ZoneId.of(Plex.get().config.getString("server.timezone"))));
     }
 }

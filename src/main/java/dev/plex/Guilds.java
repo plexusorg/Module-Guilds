@@ -54,15 +54,20 @@ public class Guilds extends PlexModule
         this.addDefaultMessage("guildsHelpCommand", "<gradient:gold:yellow>======</gradient>Guild Menu<gradient:gold:yellow>======</gradient><newline>\n" +
                 "<newline><gold>/guild <gray>Returns this menu\n" +
                 "<newline><gold>/guild help");
-        this.addDefaultMessage("guildCommandNotFound", "<red>'{0}'<gold> is not a valid sub command!", "{0} - The sub command");
+        this.addDefaultMessage("guildCommandNotFound", "<red>'{0}'<gold> is not a valid sub command!", "0 - The sub command");
         this.addDefaultMessage("guildNotFound", "<red>You're currently not a part of a guild!");
         this.addDefaultMessage("alreadyInGuild", "<red>You're currently in a guild. Please do <gold>/guild leave<red> if you're a member, or if you're an owner with members, <gold>/guild promote <player><red> then <gold>/guild leave<red>, or just an owner, <gold>/guild disband<red>.");
+        this.addDefaultMessage("guildNotOwner", "<red>You're not the owner of this guild!");
+        this.addDefaultMessage("guildPrefixSet", "<green>You have changed the guild prefix to '<gold>{0}</gold>'", "0 - The new prefix");
+        this.addDefaultMessage("guildPrefixCleared", "<green>Your guild's prefix has been cleared.");
     }
 
     @Override
     public void disable()
     {
         // Unregistering listeners / commands is handled by Plex
+        this.getGuildHolder().getGuilds().forEach(sqlGuildManager::updateGuild);
+        this.getPlex().setChatHandler(new ChatListener.ChatHandlerImpl());
     }
 
     private void addDefaultMessage(String message, Object initValue)

@@ -31,43 +31,31 @@ public class ChatHandlerImpl implements IChatHandler
     @Override
     public void doChat(AsyncChatEvent event)
     {
-        PlexPlayer plexPlayer = PlayerCache.getPlexPlayerMap().get(event.getPlayer().getUniqueId());
-        Component prefix = Plex.get().getRankManager().getPrefix(plexPlayer);
-
-        if (prefix != null)
-        {
-            renderer.hasPrefix = true;
-            renderer.prefix = prefix;
-        } else
-        {
-            renderer.hasPrefix = false;
-            renderer.prefix = null;
-        }
-
         event.renderer(renderer);
     }
 
     public static class PlexChatRenderer implements ChatRenderer
     {
-        public boolean hasPrefix;
-        public Component prefix;
-
         @Override
         public @NotNull Component render(@NotNull Player source, @NotNull Component sourceDisplayName, @NotNull Component message, @NotNull Audience viewer)
         {
             String text = PlexUtils.getTextFromComponent(message);
 
+            PlexPlayer plexPlayer = PlayerCache.getPlexPlayerMap().get(source.getUniqueId());
+            Component prefix = Plex.get().getRankManager().getPrefix(plexPlayer);
+
             AtomicBoolean guildPrefix = new AtomicBoolean(false);
             AtomicReference<Component> component = new AtomicReference<>(Component.empty());
-            Guilds.get().getGuildHolder().getGuild(source.getUniqueId()).ifPresent(guild -> {
+            Guilds.get().getGuildHolder().getGuild(source.getUniqueId()).ifPresent(guild ->
+            {
                 if (guild.getPrefix() != null)
                 {
-                    component.set(component.get().append(MiniMessage.miniMessage().deserialize(guild.getPrefix())));
+                    component.set(component.get().append(SafeMiniMessage.mmDeserializeWithoutEvents(guild.getPrefix())));
                     guildPrefix.set(true);
                 }
             });
 
-            if (hasPrefix)
+            if (prefix != null)
             {
                 if (guildPrefix.get())
                 {
