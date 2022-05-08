@@ -1,4 +1,3 @@
-import java.nio.charset.StandardCharsets
 plugins {
     java
     `maven-publish`
@@ -17,8 +16,8 @@ repositories {
 }
 
 dependencies {
-    compileOnly("org.projectlombok:lombok:1.18.22")
-    annotationProcessor("org.projectlombok:lombok:1.18.22")
+    compileOnly("org.projectlombok:lombok:1.18.24")
+    annotationProcessor("org.projectlombok:lombok:1.18.24")
     compileOnly("io.papermc.paper:paper-api:1.18.2-R0.1-SNAPSHOT")
     compileOnly("dev.plex:server:1.1-SNAPSHOT")
     compileOnly("dev.morphia.morphia:morphia-core:2.2.6")
@@ -27,7 +26,7 @@ dependencies {
 
 group = "dev.plex"
 version = "1.0"
-description = "The guilds module for Plex"
+description = "The Guilds module for Plex"
 
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(17))
@@ -47,11 +46,13 @@ tasks.getByName<Jar>("jar") {
 }
 
 tasks {
-    javadoc {
-        options.memberLevel = JavadocMemberLevel.PRIVATE
-    }
     compileJava {
-        options.encoding = StandardCharsets.UTF_8.name()
-        options.release.set(17)
+        options.encoding = Charsets.UTF_8.name()
+    }
+    javadoc {
+        options.encoding = Charsets.UTF_8.name()
+    }
+    processResources {
+        filteringCharset = Charsets.UTF_8.name()
     }
 }
