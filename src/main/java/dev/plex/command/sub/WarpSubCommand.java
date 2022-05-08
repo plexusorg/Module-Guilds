@@ -8,6 +8,7 @@ import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.rank.enums.Rank;
 import dev.plex.util.CustomLocation;
 import net.kyori.adventure.text.Component;
+import org.apache.commons.lang.StringUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -30,12 +31,13 @@ public class WarpSubCommand extends PlexCommand
         }
         assert player != null;
         Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresentOrElse(guild -> {
-            if (!guild.getWarps().containsKey(args[0].toLowerCase()))
+            String warpName = StringUtils.join(args, " ");
+            if (!guild.getWarps().containsKey(warpName.toLowerCase()))
             {
-                send(player, messageComponent("guildWarpNotFound", args[0]));
+                send(player, messageComponent("guildWarpNotFound", warpName));
                 return;
             }
-            player.teleportAsync(guild.getWarps().get(args[0].toLowerCase()).toLocation());
+            player.teleportAsync(guild.getWarps().get(warpName.toLowerCase()).toLocation());
         }, () -> send(player, messageComponent("guildNotFound")));
         return null;
     }

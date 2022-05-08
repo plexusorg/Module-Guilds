@@ -65,6 +65,7 @@ public class Guilds extends PlexModule
         this.addDefaultMessage("guildNotOwner", "<red>You're not the owner of this guild!");
         this.addDefaultMessage("guildPrefixSet", "<green>You have changed the guild prefix to '<gold>{0}</gold><green>'", "0 - The new prefix");
         this.addDefaultMessage("guildPrefixCleared", "<green>Your guild's prefix has been cleared.");
+        this.addDefaultMessage("guildWarpAlphanumeric", "<red>Warp names may only contain alphabetical and/or numerical characters.");
         this.addDefaultMessage("guildWarpExists", "<red>'<gold>{0}</gold>'<red> is already an existing warp!", "0 - The warp name");
         this.addDefaultMessage("guildWarpNotFound", "<red>'<gold>{0}</gold>'<red> is not a valid warp!", "0 - The warp name");
         this.addDefaultMessage("guildWarpCreated", "<green>You have created a warp called '<dark_green>{0}</dark_green><green>'", "0 - The warp name");

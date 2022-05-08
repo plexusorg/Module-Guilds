@@ -15,10 +15,14 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Locale;
+import java.util.regex.Pattern;
+
 @CommandParameters(name = "setwarp", aliases = "makewarp,createwarp", usage = "/guild <command> <name>")
 @CommandPermissions(level = Rank.OP, source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.setwarp")
 public class SetWarpSubCommand extends PlexCommand
 {
+
     public SetWarpSubCommand()
     {
         super(false);
@@ -37,18 +41,24 @@ public class SetWarpSubCommand extends PlexCommand
                 send(player, messageComponent("guildNotOwner"));
                 return;
             }
-            if (args[0].length() > 16)
+            String warpName = StringUtils.join(args, " ");
+            if (warpName.length() > 16)
             {
                 send(player, mmString("<red>The max length of a warp name is 16 characters!"));
                 return;
             }
-            if (guild.getWarps().containsKey(args[0].toLowerCase()))
+            if (guild.getWarps().containsKey(warpName.toLowerCase()))
             {
-                send(player, messageComponent("guildWarpExists", args[0]));
+                send(player, messageComponent("guildWarpExists", warpName));
                 return;
             }
-            guild.getWarps().put(args[0].toLowerCase(), CustomLocation.fromLocation(player.getLocation()));
-            send(player, messageComponent("guildWarpCreated", args[0]));
+            if (!StringUtils.isAlphanumericSpace(warpName.toLowerCase(Locale.ROOT)))
+            {
+                send(player, messageComponent("guildWarpAlphanumeric"));
+                return;
+            }
+            guild.getWarps().put(warpName.toLowerCase(), CustomLocation.fromLocation(player.getLocation()));
+            send(player, messageComponent("guildWarpCreated", warpName));
         }, () -> send(player, messageComponent("guildNotFound")));
         return null;
     }
