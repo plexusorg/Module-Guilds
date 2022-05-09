@@ -8,7 +8,9 @@ import dev.plex.Plex;
 import dev.plex.guild.data.Member;
 import dev.plex.guild.data.Rank;
 import dev.plex.util.CustomLocation;
+import dev.plex.util.minimessage.SafeMiniMessage;
 import lombok.Data;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.entity.Player;
 
 import java.time.ZoneId;
@@ -20,14 +22,14 @@ import java.util.*;
 public class Guild
 {
     private final UUID guildUuid;
-    private final String name;
-    private final Member owner;
     private final ZonedDateTime createdAt;
     private transient final List<UUID> outgoingInvitations = Lists.newArrayList();
     private final List<Member> members = Lists.newArrayList();
     private final List<UUID> moderators = Lists.newArrayList();
     private final List<Rank> ranks = Lists.newArrayList();
     private final Map<String, CustomLocation> warps = Maps.newHashMap();
+    private String name;
+    private Member owner;
     private String prefix;
     private String motd;
     private CustomLocation home;
@@ -38,12 +40,19 @@ public class Guild
 
     public static Guild create(Player player, String guildName)
     {
-        return new Guild(UUID.randomUUID(), guildName, new Member(player.getUniqueId()), ZonedDateTime.now(ZoneId.of(Plex.get().config.getString("server.timezone"))));
+        Guild guild = new Guild(UUID.randomUUID(), ZonedDateTime.now(ZoneId.of(Plex.get().config.getString("server.timezone"))));
+        guild.setName(PlainTextComponentSerializer.plainText().serialize(SafeMiniMessage.mmDeserialize(guildName)));
+        guild.setOwner(new Member(player.getUniqueId()));
+        return guild;
     }
 
     public Member getMember(UUID uuid)
     {
-        return owner.getUuid().equals(uuid) ? owner : members.stream().filter(member -> member.getUuid().equals(uuid)).findFirst().get();
+        if (owner.getUuid().equals(uuid))
+        {
+            return owner;
+        }
+        return members.stream().filter(m -> m.getUuid().equals(uuid)).findFirst().orElse(null);
     }
 
     public List<Member> getMembers()

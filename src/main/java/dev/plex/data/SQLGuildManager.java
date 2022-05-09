@@ -103,9 +103,9 @@ public class SQLGuildManager
             while (set.next())
             {
                 Guild guild = new Guild(UUID.fromString(set.getString("guildUuid")),
-                        set.getString("name"),
-                        GSON.fromJson(set.getString("owner"), Member.class),
                         ZonedDateTime.ofInstant(Instant.ofEpochMilli(set.getLong("createdAt")), ZoneId.of(Plex.get().config.getString("server.timezone")).getRules().getOffset(Instant.now())));
+                guild.setName(set.getString("name"));
+                guild.setOwner(GSON.fromJson(set.getString("owner"), Member.class));
                 guild.getMembers().addAll(new Gson().fromJson(set.getString("members"), new TypeToken<List<Member>>()
                 {
                 }.getType()));

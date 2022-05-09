@@ -62,6 +62,8 @@ public class Guilds extends PlexModule
         this.addDefaultMessage("guildNotFound", "<red>You're currently not a part of a guild!");
         this.addDefaultMessage("alreadyInGuild", "<red>You're currently in a guild. Please do <gold>/guild leave<red> if you're a member, or if you're an owner with members, <gold>/guild promote <player><red> then <gold>/guild leave<red>, or just an owner, <gold>/guild disband<red>.");
         this.addDefaultMessage("guildNotOwner", "<red>You're not the owner of this guild!");
+        this.addDefaultMessage("guildMemberNotFound", "<red>This guild member could not be found!");
+        this.addDefaultMessage("guildOwnerSet", "<green>You have successfully promoted <dark_green>{0}<green> to be the new guild owner. You have been set to a default guild member.");
 
         this.addDefaultMessage("guildPrefixSet", "<green>You have changed the guild prefix to '<gold>{0}</gold><green>'", "0 - The new prefix");
         this.addDefaultMessage("guildPrefixCleared", "<green>Your guild's prefix has been cleared.");

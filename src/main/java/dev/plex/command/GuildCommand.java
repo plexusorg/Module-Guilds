@@ -40,6 +40,7 @@ public class GuildCommand extends PlexCommand
             this.registerSubCommand(new ChatSubCommand());
             this.registerSubCommand(new SetHomeSubCommand());
             this.registerSubCommand(new HomeSubCommand());
+            this.registerSubCommand(new OwnerSubCommand());
         } catch (Exception e)
         {
             GuildUtil.throwExceptionSync(e);
