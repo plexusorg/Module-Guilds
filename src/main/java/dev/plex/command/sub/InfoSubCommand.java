@@ -17,7 +17,7 @@ import org.jetbrains.annotations.Nullable;
 import java.time.format.DateTimeFormatter;
 import java.util.concurrent.CompletableFuture;
 
-@CommandParameters(name = "info", aliases = "information", usage = "/guild <command>")
+@CommandParameters(name = "info", aliases = "information", usage = "/guild <command>", description = "Shows the guild's information")
 @CommandPermissions(level = Rank.OP, source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.info")
 public class InfoSubCommand extends PlexCommand
 {

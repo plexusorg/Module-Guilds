@@ -18,7 +18,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
-@CommandParameters(name = "setwarp", aliases = "makewarp,createwarp", usage = "/guild <command> <name>")
+@CommandParameters(name = "setwarp", aliases = "makewarp,createwarp", usage = "/guild <command> <name>", description = "Creates a new warp at player's location with a specified name")
 @CommandPermissions(level = Rank.OP, source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.setwarp")
 public class SetWarpSubCommand extends PlexCommand
 {

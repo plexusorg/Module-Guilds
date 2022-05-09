@@ -13,7 +13,7 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-@CommandParameters(name = "sethome", aliases = "setspawn", usage = "/guild <command>")
+@CommandParameters(name = "sethome", aliases = "setspawn", usage = "/guild <command>", description = "Sets the guild's home")
 @CommandPermissions(level = Rank.OP, source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.sethome")
 public class SetHomeSubCommand extends PlexCommand
 {

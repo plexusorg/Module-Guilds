@@ -19,7 +19,7 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-@CommandParameters(name = "prefix", aliases = "tag,settag,setprefix", usage = "/guild <command> <prefix>")
+@CommandParameters(name = "prefix", aliases = "tag,settag,setprefix", usage = "/guild <command> <prefix>", description = "Sets the guild's default prefix")
 @CommandPermissions(level = Rank.OP, source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.prefix")
 public class PrefixSubCommand extends PlexCommand
 {

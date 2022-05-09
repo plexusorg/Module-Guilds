@@ -56,9 +56,8 @@ public class Guilds extends PlexModule
         this.getPlex().setChatHandler(new ChatHandlerImpl());
 
 
-        this.addDefaultMessage("guildsHelpCommand", "<gradient:gold:yellow>======</gradient>Guild Menu<gradient:gold:yellow>======</gradient><newline>\n" +
-                "<newline><gold>/guild <gray>Returns this menu\n" +
-                "<newline><gold>/guild help");
+        this.addDefaultMessage("guildsHelpCommand", "<gradient:gold:yellow>======</gradient>Guild Menu<gradient:gold:yellow>======</gradient><newline><newline>{0}", "0 - The commands list");
+        this.addDefaultMessage("guildsCommandDisplay", "<gold>{0} <yellow>{1}", "0 - The command name", "1 - The command description");
         this.addDefaultMessage("guildCommandNotFound", "<red>'<gold>{0}</gold>'<red> is not a valid sub command!", "0 - The sub command");
         this.addDefaultMessage("guildNotFound", "<red>You're currently not a part of a guild!");
         this.addDefaultMessage("alreadyInGuild", "<red>You're currently in a guild. Please do <gold>/guild leave<red> if you're a member, or if you're an owner with members, <gold>/guild promote <player><red> then <gold>/guild leave<red>, or just an owner, <gold>/guild disband<red>.");

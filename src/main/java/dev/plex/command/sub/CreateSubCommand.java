@@ -14,7 +14,7 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-@CommandParameters(name = "create", aliases = "make", usage = "/guild <command> <name>")
+@CommandParameters(name = "create", aliases = "make", usage = "/guild <command> <name>", description = "Creates a guild with a specified name")
 @CommandPermissions(level = Rank.OP, source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.create")
 public class CreateSubCommand extends PlexCommand
 {

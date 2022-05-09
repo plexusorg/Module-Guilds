@@ -13,7 +13,7 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-@CommandParameters(name = "home", aliases = "spawn", usage = "/guild <command>")
+@CommandParameters(name = "home", aliases = "spawn", usage = "/guild <command>", description = "Teleports to the guild home")
 @CommandPermissions(level = Rank.OP, source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.home")
 public class HomeSubCommand extends PlexCommand
 {

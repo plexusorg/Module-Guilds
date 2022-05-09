@@ -14,7 +14,7 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-@CommandParameters(name = "warp", aliases = "goto", usage = "/guild <command> <name>")
+@CommandParameters(name = "warp", aliases = "goto", usage = "/guild <command> <name>", description = "Warps to a specified guild warp")
 @CommandPermissions(level = Rank.OP, source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.warp")
 public class WarpSubCommand extends PlexCommand
 {

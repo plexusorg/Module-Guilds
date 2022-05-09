@@ -19,7 +19,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
 
-@CommandParameters(name = "chat", usage = "/guild <command> [message]")
+@CommandParameters(name = "chat", usage = "/guild <command> [message]", description = "Toggles guild chat or sends a guild chat message")
 @CommandPermissions(level = Rank.OP, source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.chat")
 public class ChatSubCommand extends PlexCommand
 {

@@ -8,8 +8,9 @@ import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.command.sub.*;
 import dev.plex.rank.enums.Rank;
 import dev.plex.util.GuildUtil;
-import dev.plex.util.PlexLog;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import org.apache.commons.lang.StringUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
@@ -50,7 +51,26 @@ public class GuildCommand extends PlexCommand
     {
         if (args.length == 0)
         {
-            return messageComponent("guildsHelpCommand");
+            return getSubs();
+        }
+        if (args[0].equalsIgnoreCase("help"))
+        {
+            if (args.length < 2)
+            {
+                return usage("/guild help <subcommand>");
+            }
+            PlexCommand subCommand = getSubCommand(args[1]);
+            if (subCommand == null)
+            {
+                return messageComponent("guildCommandNotFound", args[1]);
+            }
+            CommandPermissions permissions = subCommand.getClass().getDeclaredAnnotation(CommandPermissions.class);
+            return mmString("<gradient:gold:yellow>========<newline>").append(mmString("<gold>Command Name: <yellow>" + subCommand.getName())).append(Component.newline())
+                    .append(mmString("<gold>Command Aliases: <yellow>" + StringUtils.join(subCommand.getAliases(), ", "))).append(Component.newline())
+                    .append(mmString("<gold>Description: <yellow>" + subCommand.getDescription())).append(Component.newline())
+                    .append(mmString("<gold>Permission: <yellow>" + permissions.permission())).append(Component.newline())
+                    .append(mmString("<gold>Required Rank: <yellow>" + permissions.level().name())).append(Component.newline())
+                    .append(mmString("<gold>Required Source: <yellow>" + permissions.source().name()));
         }
         PlexCommand subCommand = getSubCommand(args[0]);
         if (subCommand == null)
@@ -126,4 +146,19 @@ public class GuildCommand extends PlexCommand
         }
         return ImmutableList.of();
     }
+
+    public Component getSubs()
+    {
+        Component commands = Component.empty();
+        for (int i = 0; i < this.subCommands.size(); i++)
+        {
+            commands = commands.append(messageComponent("guildsCommandDisplay", "/guild " + this.subCommands.get(i).getName(), this.subCommands.get(i).getDescription()).clickEvent(ClickEvent.suggestCommand("/guild help " + this.subCommands.get(i).getName())));
+            if (i < this.subCommands.size() - 1)
+            {
+                commands = commands.append(Component.newline());
+            }
+        }
+        return messageComponent("guildsHelpCommand", commands);
+    }
+
 }
