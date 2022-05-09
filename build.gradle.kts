@@ -20,8 +20,10 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok:1.18.24")
     compileOnly("io.papermc.paper:paper-api:1.18.2-R0.1-SNAPSHOT")
     compileOnly("dev.plex:server:1.1-SNAPSHOT")
+    compileOnly("dev.plex:api:1.1-SNAPSHOT")
     compileOnly("dev.morphia.morphia:morphia-core:2.2.6")
     compileOnly("org.json:json:20220320")
+    implementation("org.jetbrains:annotations:23.0.0")
 }
 
 group = "dev.plex"
