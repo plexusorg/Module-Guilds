@@ -41,6 +41,7 @@ public class GuildCommand extends PlexCommand
             this.registerSubCommand(new SetHomeSubCommand());
             this.registerSubCommand(new HomeSubCommand());
             this.registerSubCommand(new OwnerSubCommand());
+            this.registerSubCommand(new InviteSubCommand());
         } catch (Exception e)
         {
             GuildUtil.throwExceptionSync(e);
@@ -137,7 +138,7 @@ public class GuildCommand extends PlexCommand
             }
             return possibleCommands;
         }
-        if (args.length == 2)
+        if (args.length >= 2)
         {
             PlexCommand subCommand = getSubCommand(args[0]);
             if (subCommand != null)

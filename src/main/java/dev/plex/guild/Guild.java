@@ -23,7 +23,6 @@ public class Guild
 {
     private final UUID guildUuid;
     private final ZonedDateTime createdAt;
-    private transient final List<UUID> outgoingInvitations = Lists.newArrayList();
     private final List<Member> members = Lists.newArrayList();
     private final List<UUID> moderators = Lists.newArrayList();
     private final List<Rank> ranks = Lists.newArrayList();
@@ -53,6 +52,16 @@ public class Guild
             return owner;
         }
         return members.stream().filter(m -> m.getUuid().equals(uuid)).findFirst().orElse(null);
+    }
+
+    public void addMember(UUID uuid)
+    {
+        addMember(new Member(uuid));
+    }
+
+    public void addMember(Member member)
+    {
+        this.members.add(member);
     }
 
     public List<Member> getMembers()

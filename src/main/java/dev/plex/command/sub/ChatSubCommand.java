@@ -43,11 +43,11 @@ public class ChatSubCommand extends PlexCommand
             }
             guild.getMembers().stream().map(Member::getPlayer).filter(Objects::nonNull).forEach(player1 ->
             {
-                send(player1, messageComponent("guildChatMessage", player.getName(), StringUtils.join(args, ", ")));
+                send(player1, messageComponent("guildChatMessage", player.getName(), StringUtils.join(args, " ")));
             });
             if (Guilds.get().getConfig().isBoolean("guilds.log-chat-message"))
             {
-                send(Bukkit.getConsoleSender(), messageComponent("guildChatConsoleLog", guild.getName(), guild.getGuildUuid(), player.getName(), StringUtils.join(args, ", ")));
+                send(Bukkit.getConsoleSender(), messageComponent("guildChatConsoleLog", guild.getName(), guild.getGuildUuid(), player.getName(), StringUtils.join(args, " ")));
             }
         }, () -> send(player, messageComponent("guildNotFound")));
         return null;

@@ -80,6 +80,16 @@ public class Guilds extends PlexModule
         this.addDefaultMessage("guildChatMessage", "<blue>[GUILD] <aqua>{0} <yellow>{1}", "0 - The player name", "1 - The message");
         this.addDefaultMessage("guildChatToggled", "<green>Your chat has been toggled {0}", "0 - On / Off");
         this.addDefaultMessage("guildChatConsoleLog", "<blue>[GUILD - {0}:{1}] <aqua>{2} <yellow>{3}", "0 - The guild name", "1 - The guild unique identifier", "2 - The player name", "3 - The message");
+
+        this.addDefaultMessage("guildNoInvite", "<red>You don't have any pending invitations!");
+        this.addDefaultMessage("guildNotValidInvite", "<red>You don't have an invite from this guild!");
+        this.addDefaultMessage("guildInviteExists", "<red>You've already sent an invite to this person!");
+        this.addDefaultMessage("guildInviteSent", "<green>You have sent an invite to <dark_green>{0}", "0 - The invitee");
+        this.addDefaultMessage("guildInviteReceived", "<green>You have received an invite from <dark_green>{0}<green> for the guild <dark_green>{1}", "0 - The inviter", "1 - The guild name");
+        this.addDefaultMessage("guildMemberJoined", "<green>{0} has joined the guild!", "0 - The player who joined");
+        this.addDefaultMessage("guildMemberLeft", "<green>{0} has left the guild!", "0 - The player who left");
+        this.addDefaultMessage("guildDisbandNeeded", "<red>You need to disband your guild using <gold>/guild disband<red> or promote a new owner using <gold>/guild owner <player>");
+        this.addDefaultMessage("guildAutoDisbanded", "<green>Auto-disbanding your guild since there were no members");
     }
 
     @Override

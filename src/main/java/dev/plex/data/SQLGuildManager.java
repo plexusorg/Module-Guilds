@@ -63,6 +63,22 @@ public class SQLGuildManager
         });
     }
 
+    public CompletableFuture<Void> deleteGuild(UUID uuid)
+    {
+        return CompletableFuture.runAsync(() ->
+        {
+            try (Connection connection = Plex.get().getSqlConnection().getCon())
+            {
+                PreparedStatement statement = connection.prepareStatement(DELETE_GUILD);
+                statement.setString(1, uuid.toString());
+                statement.execute();
+            } catch (SQLException e)
+            {
+                GuildUtil.throwExceptionSync(e);
+            }
+        });
+    }
+
     public CompletableFuture<Guild> updateGuild(Guild guild)
     {
         return CompletableFuture.supplyAsync(() ->
@@ -106,9 +122,10 @@ public class SQLGuildManager
                         ZonedDateTime.ofInstant(Instant.ofEpochMilli(set.getLong("createdAt")), ZoneId.of(Plex.get().config.getString("server.timezone")).getRules().getOffset(Instant.now())));
                 guild.setName(set.getString("name"));
                 guild.setOwner(GSON.fromJson(set.getString("owner"), Member.class));
-                guild.getMembers().addAll(new Gson().fromJson(set.getString("members"), new TypeToken<List<Member>>()
+                List<Member> members = new Gson().fromJson(set.getString("members"), new TypeToken<List<Member>>()
                 {
-                }.getType()));
+                }.getType());
+                members.forEach(guild::addMember);
                 guild.getModerators().addAll(new Gson().fromJson(set.getString("moderators"), new TypeToken<List<String>>()
                 {
                 }.getType()));
