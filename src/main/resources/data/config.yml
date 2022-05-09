@@ -1,2 +1,8 @@
+###################
+#                 #
+#   Plex Guilds   #
+#                 #
+###################
+
 guilds:
   log-chat-message: true
