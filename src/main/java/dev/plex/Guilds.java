@@ -63,12 +63,19 @@ public class Guilds extends PlexModule
         this.addDefaultMessage("guildNotFound", "<red>You're currently not a part of a guild!");
         this.addDefaultMessage("alreadyInGuild", "<red>You're currently in a guild. Please do <gold>/guild leave<red> if you're a member, or if you're an owner with members, <gold>/guild promote <player><red> then <gold>/guild leave<red>, or just an owner, <gold>/guild disband<red>.");
         this.addDefaultMessage("guildNotOwner", "<red>You're not the owner of this guild!");
+
         this.addDefaultMessage("guildPrefixSet", "<green>You have changed the guild prefix to '<gold>{0}</gold><green>'", "0 - The new prefix");
         this.addDefaultMessage("guildPrefixCleared", "<green>Your guild's prefix has been cleared.");
+
         this.addDefaultMessage("guildWarpAlphanumeric", "<red>Warp names may only contain alphabetical and/or numerical characters.");
         this.addDefaultMessage("guildWarpExists", "<red>'<gold>{0}</gold>'<red> is already an existing warp!", "0 - The warp name");
         this.addDefaultMessage("guildWarpNotFound", "<red>'<gold>{0}</gold>'<red> is not a valid warp!", "0 - The warp name");
         this.addDefaultMessage("guildWarpCreated", "<green>You have created a warp called '<dark_green>{0}</dark_green><green>'", "0 - The warp name");
+
+        this.addDefaultMessage("guildHomeRemoved", "<green>You have removed the guild's home!");
+        this.addDefaultMessage("guildHomeSet", "<green>You have changed the guild's home!");
+        this.addDefaultMessage("guildHomeNotFound", "<red>This guild currently has no home set.");
+
         this.addDefaultMessage("guildChatMessage", "<blue>[GUILD] <aqua>{0} <yellow>{1}", "0 - The player name", "1 - The message");
         this.addDefaultMessage("guildChatToggled", "<green>Your chat has been toggled {0}", "0 - On / Off");
         this.addDefaultMessage("guildChatConsoleLog", "<blue>[GUILD - {0}:{1}] <aqua>{2} <yellow>{3}", "0 - The guild name", "1 - The guild unique identifier", "2 - The player name", "3 - The message");

@@ -36,7 +36,7 @@ public class SetWarpSubCommand extends PlexCommand
         }
         assert player != null;
         Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresentOrElse(guild -> {
-            if (!guild.getOwner().equals(player.getUniqueId()))
+            if (!guild.getOwner().getUuid().equals(player.getUniqueId()))
             {
                 send(player, messageComponent("guildNotOwner"));
                 return;

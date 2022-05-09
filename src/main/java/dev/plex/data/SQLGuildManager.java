@@ -15,7 +15,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -94,39 +93,49 @@ public class SQLGuildManager
         });
     }
 
+    private List<Guild> getGuildsSync()
+    {
+        List<Guild> guilds = Lists.newArrayList();
+        try (Connection connection = Plex.get().getSqlConnection().getCon())
+        {
+            PreparedStatement statement = connection.prepareStatement(SELECT_GUILD);
+            ResultSet set = statement.executeQuery();
+            while (set.next())
+            {
+                Guild guild = new Guild(UUID.fromString(set.getString("guildUuid")),
+                        set.getString("name"),
+                        GSON.fromJson(set.getString("owner"), Member.class),
+                        ZonedDateTime.ofInstant(Instant.ofEpochMilli(set.getLong("createdAt")), ZoneId.of(Plex.get().config.getString("server.timezone")).getRules().getOffset(Instant.now())));
+                guild.getMembers().addAll(new Gson().fromJson(set.getString("members"), new TypeToken<List<Member>>()
+                {
+                }.getType()));
+                guild.getModerators().addAll(new Gson().fromJson(set.getString("moderators"), new TypeToken<List<String>>()
+                {
+                }.getType()));
+                guild.setPrefix(set.getString("prefix"));
+                guild.setMotd(set.getString("motd"));
+                guild.setHome(GSON.fromJson(set.getString("home"), CustomLocation.class));
+                guild.setTagEnabled(set.getBoolean("tagEnabled"));
+                Map<String, CustomLocation> warps = GSON.fromJson(set.getString("warps"), new TypeToken<Map<String, CustomLocation>>()
+                {
+                }.getType());
+                PlexLog.debug("Loaded {0} warps for {1} guild", warps.size(), guild.getName());
+                guild.getWarps().putAll(GSON.fromJson(set.getString("warps"), new TypeToken<Map<String, CustomLocation>>()
+                {
+                }.getType()));
+                guild.setPublic(set.getBoolean("isPublic"));
+                guilds.add(guild);
+            }
+        } catch (SQLException e)
+        {
+            GuildUtil.throwExceptionSync(e);
+        }
+        return guilds;
+    }
+
     public CompletableFuture<List<Guild>> getGuilds()
     {
-        return CompletableFuture.supplyAsync(() ->
-        {
-            List<Guild> guilds = Lists.newArrayList();
-            try (Connection connection = Plex.get().getSqlConnection().getCon())
-            {
-                PreparedStatement statement = connection.prepareStatement(SELECT_GUILD);
-                ResultSet set = statement.executeQuery();
-                while (set.next())
-                {
-                    Guild guild = new Guild(UUID.fromString(set.getString("guildUuid")),
-                            set.getString("name"),
-                            GSON.fromJson(set.getString("owner"), Member.class),
-                            ZonedDateTime.ofInstant(Instant.ofEpochMilli(set.getLong("createdAt")), ZoneId.of(Plex.get().config.getString("server.timezone")).getRules().getOffset(Instant.now())));
-                    guild.getMembers().addAll(new Gson().fromJson(set.getString("members"), new TypeToken<List<String>>(){}.getType()));
-                    guild.getModerators().addAll(new Gson().fromJson(set.getString("moderators"), new TypeToken<List<String>>(){}.getType()));
-                    guild.setPrefix(set.getString("prefix"));
-                    guild.setMotd(set.getString("motd"));
-                    guild.setHome(GSON.fromJson(set.getString("home"), CustomLocation.class));
-                    guild.setTagEnabled(set.getBoolean("tagEnabled"));
-                    Map<String, CustomLocation> warps = GSON.fromJson(set.getString("warps"), new TypeToken<Map<String, CustomLocation>>(){}.getType());
-                    PlexLog.debug("Loaded {0} warps for {1} guild", warps.size(), guild.getName());
-                    guild.getWarps().putAll(GSON.fromJson(set.getString("warps"), new TypeToken<Map<String, CustomLocation>>(){}.getType()));
-                    guild.setPublic(set.getBoolean("isPublic"));
-                    guilds.add(guild);
-                }
-            } catch (SQLException e)
-            {
-                GuildUtil.throwExceptionSync(e);
-            }
-            return guilds;
-        });
+        return CompletableFuture.supplyAsync(this::getGuildsSync);
     }
 
 }
