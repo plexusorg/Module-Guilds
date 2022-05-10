@@ -21,7 +21,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
-@CommandParameters(name = "guild", description = "Guild menu", aliases = "guilds")
+@CommandParameters(name = "guild", description = "Guild menu", aliases = "guilds,g")
 @CommandPermissions(level = Rank.OP, permission = "plex.guilds.guild")
 public class GuildCommand extends PlexCommand
 {
