@@ -60,6 +60,7 @@ public class Guilds extends PlexModule
         this.addDefaultMessage("guildsCommandDisplay", "<gold>{0} <yellow>{1}", "0 - The command name", "1 - The command description");
         this.addDefaultMessage("guildCommandNotFound", "<red>'<gold>{0}</gold>'<red> is not a valid sub command!", "0 - The sub command");
         this.addDefaultMessage("guildNotFound", "<red>You're currently not a part of a guild!");
+        this.addDefaultMessage("guildInThis", "<red>You're currently a part of this guild!");
         this.addDefaultMessage("alreadyInGuild", "<red>You're currently in a guild. Please do <gold>/guild leave<red> if you're a member, or if you're an owner with members, <gold>/guild promote <player><red> then <gold>/guild leave<red>, or just an owner, <gold>/guild disband<red>.");
         this.addDefaultMessage("guildNotOwner", "<red>You're not the owner of this guild!");
         this.addDefaultMessage("guildMemberNotFound", "<red>This guild member could not be found!");
@@ -85,7 +86,7 @@ public class Guilds extends PlexModule
         this.addDefaultMessage("guildNotValidInvite", "<red>You don't have an invite from this guild!");
         this.addDefaultMessage("guildInviteExists", "<red>You've already sent an invite to this person!");
         this.addDefaultMessage("guildInviteSent", "<green>You have sent an invite to <dark_green>{0}", "0 - The invitee");
-        this.addDefaultMessage("guildInviteReceived", "<green>You have received an invite from <dark_green>{0}<green> for the guild <dark_green>{1}", "0 - The inviter", "1 - The guild name");
+        this.addDefaultMessage("guildInviteReceived", "<gold>You have received an invite from <yellow>{0}<gold> for the guild <yellow>{1}<newline><newline><green><bold><click:run_command:/guild invite accept {1}>[ACCEPT]<newline><newline><!bold><gold>You may also run <yellow>/guild invite accept {1}<gold> to accept this invite. It will expire in 5 minutes", "0 - The inviter", "1 - The guild name");
         this.addDefaultMessage("guildMemberJoined", "<green>{0} has joined the guild!", "0 - The player who joined");
         this.addDefaultMessage("guildMemberLeft", "<green>{0} has left the guild!", "0 - The player who left");
         this.addDefaultMessage("guildDisbandNeeded", "<red>You need to disband your guild using <gold>/guild disband<red> or promote a new owner using <gold>/guild owner <player>");

@@ -20,7 +20,11 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
+// TODO: 5/9/2022 5 minute timeout for invites
+// TODO: 5/9/2022 deny command maybe?
+// TODO: 5/9/2022 deny members from inviting themselves or existing members in the current guild
 
 @CommandParameters(name = "invite", aliases = "inv", usage = "/guild <command> <player name>", description = "Invites a player to the guild")
 @CommandPermissions(level = Rank.OP, source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.invite")
@@ -48,13 +52,21 @@ public class InviteSubCommand extends PlexCommand
             String guildName = StringUtils.join(args, " ", 1, args.length);
             GuildHolder.PENDING_INVITES.get(player.getUniqueId()).stream().filter(guild -> guild.getName().equalsIgnoreCase(guildName)).findFirst().ifPresentOrElse(guild ->
             {
+                AtomicBoolean continueCheck = new AtomicBoolean(true);
                 Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresent(guild1 ->
                 {
+                    if (guild1.getGuildUuid().equals(guild.getGuildUuid()))
+                    {
+                        send(player, messageComponent("guildInThis"));
+                        continueCheck.set(false);
+                        return;
+                    }
                     if (guild1.getOwner().getUuid().equals(player.getUniqueId()))
                     {
                         if (guild1.getMembers().size() - 1 > 0)
                         {
                             send(player, messageComponent("guildDisbandNeeded"));
+                            continueCheck.set(false);
                             return;
                         } else
                         {
@@ -70,6 +82,10 @@ public class InviteSubCommand extends PlexCommand
                     });
                     guild1.getMembers().removeIf(member -> member.getUuid().equals(player.getUniqueId()));
                 });
+                if (!continueCheck.get())
+                {
+                    return;
+                }
                 GuildHolder.PENDING_INVITES.remove(player.getUniqueId());
                 guild.addMember(player.getUniqueId());
                 guild.getMembers().stream().map(Member::getPlayer).filter(Objects::nonNull).forEach(player1 ->

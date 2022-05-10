@@ -15,7 +15,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
 
 @CommandParameters(name = "info", aliases = "information", usage = "/guild <command>", description = "Shows the guild's information")
 @CommandPermissions(level = Rank.OP, source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.info")
@@ -45,7 +47,8 @@ public class InfoSubCommand extends PlexCommand
                 {
                     send(player, mmString("<gold>Owner: <yellow>Unable to load cache..."));
                 }
-                send(player, mmString("<gold>Members (" + guild.getMembers().size() + "): " + StringUtils.join(guild.getMembers().stream().map(member -> DataUtils.getPlayer(member.getUuid(), false).getName()).toList(), ", ")));
+                List<String> members = guild.getMembers().stream().filter(member -> !member.getUuid().equals(guild.getOwner().getUuid())).map(member -> DataUtils.getPlayer(member.getUuid(), false).getName()).toList();
+                send(player, mmString("<gold>Members (" + members.size() + "): " + StringUtils.join(members, ", ")));
                 send(player, mmString("<gold>Moderators (" + guild.getModerators().size() + "): " + StringUtils.join(guild.getModerators().stream().map(uuid -> DataUtils.getPlayer(uuid, false).getName()).toList(), ", ")));
                 send(player, mmString("<gold>Prefix: " + (guild.getPrefix() == null ? "N/A" : guild.getPrefix())));
                 send(player, mmString("<gold>Created At: " + formatter.format(guild.getCreatedAt())));
