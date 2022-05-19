@@ -59,7 +59,6 @@ public class ChatHandlerImpl implements IChatHandler
             }
             event.setCancelled(true);
         });
-
     }
 
     public static class PlexChatRenderer implements ChatRenderer
@@ -69,7 +68,7 @@ public class ChatHandlerImpl implements IChatHandler
         {
             String text = PlexUtils.getTextFromComponent(message);
 
-            PlexPlayer plexPlayer = PlayerCache.getPlexPlayerMap().get(source.getUniqueId());
+            PlexPlayer plexPlayer = Plex.get().getPlayerCache().getPlexPlayerMap().get(source.getUniqueId());
             Component prefix = Plex.get().getRankManager().getPrefix(plexPlayer);
 
             AtomicBoolean guildPrefix = new AtomicBoolean(false);

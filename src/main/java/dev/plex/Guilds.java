@@ -16,7 +16,6 @@ import lombok.Getter;
 
 import java.util.Arrays;
 
-
 //TODO: Implement mongodb
 @Getter
 public class Guilds extends PlexModule
@@ -43,13 +42,16 @@ public class Guilds extends PlexModule
         {
             getPlex().getMongoConnection().getDatastore().getMapper().map(Guild.class);
             getPlex().getMongoConnection().getDatastore().ensureIndexes();
-        } else {
+        }
+        else
+        {
             SQLManager.makeTables();
             sqlGuildManager = new SQLGuildManager();
-            sqlGuildManager.getGuilds().whenComplete((guilds, throwable) -> {
-               PlexLog.debug("Finished loading {0} guilds", guilds.size());
-               guilds.forEach(guildHolder::addGuild);
-               this.registerCommand(new GuildCommand());
+            sqlGuildManager.getGuilds().whenComplete((guilds, throwable) ->
+            {
+                PlexLog.debug("Finished loading {0} guilds", guilds.size());
+                guilds.forEach(guildHolder::addGuild);
+                this.registerCommand(new GuildCommand());
             });
         }
 
