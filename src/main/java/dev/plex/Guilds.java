@@ -6,15 +6,10 @@ import dev.plex.data.SQLGuildManager;
 import dev.plex.data.SQLManager;
 import dev.plex.guild.Guild;
 import dev.plex.guild.GuildHolder;
-import dev.plex.handler.ChatHandlerImpl;
-import dev.plex.listener.impl.ChatListener;
 import dev.plex.module.PlexModule;
 import dev.plex.storage.StorageType;
 import dev.plex.util.PlexLog;
-import io.papermc.paper.event.player.AsyncChatEvent;
 import lombok.Getter;
-
-import java.util.Arrays;
 
 //TODO: Implement mongodb
 @Getter
@@ -55,7 +50,7 @@ public class Guilds extends PlexModule
             });
         }
 
-        Plex.get().setChatHandler(new ChatHandlerImpl());
+        //Plex.get().setChat(new ChatHandlerImpl());
 
         addDefaultMessage("guildsHelpCommand", "<gradient:gold:yellow>======</gradient>Guild Menu<gradient:gold:yellow>======</gradient><newline><newline>{0}", "0 - The commands list");
         addDefaultMessage("guildsCommandDisplay", "<gold>{0} <yellow>{1}", "0 - The command name", "1 - The command description");
@@ -99,7 +94,7 @@ public class Guilds extends PlexModule
     {
         // Unregistering listeners / commands is handled by Plex
         this.getGuildHolder().getGuilds().forEach(sqlGuildManager::updateGuild);
-        this.getPlex().setChatHandler(new ChatListener.ChatHandlerImpl());
+        //this.getPlex().setChat(new ChatListener.PlexChatRenderer());
     }
 
     public static Guilds get()

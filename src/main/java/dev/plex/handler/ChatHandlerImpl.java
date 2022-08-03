@@ -2,14 +2,15 @@ package dev.plex.handler;
 
 import dev.plex.Guilds;
 import dev.plex.Plex;
-import dev.plex.api.chat.IChatHandler;
-import dev.plex.cache.PlayerCache;
 import dev.plex.guild.data.Member;
 import dev.plex.player.PlexPlayer;
 import dev.plex.util.PlexUtils;
 import dev.plex.util.minimessage.SafeMiniMessage;
 import io.papermc.paper.chat.ChatRenderer;
 import io.papermc.paper.event.player.AsyncChatEvent;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextReplacementConfig;
@@ -19,21 +20,17 @@ import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.text.minimessage.tag.standard.StandardTags;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
-import org.apache.commons.lang3.StringUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.Objects;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-
-public class ChatHandlerImpl implements IChatHandler
+public class ChatHandlerImpl
 {
     private final static TextReplacementConfig URL_REPLACEMENT_CONFIG = TextReplacementConfig.builder().match("(https?|ftp|file)://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]").replacement((matchResult, builder) -> Component.empty().content(matchResult.group()).clickEvent(ClickEvent.openUrl(matchResult.group()))).build();
     private final PlexChatRenderer renderer = new PlexChatRenderer();
 
-    @Override
+    @EventHandler
     public void doChat(AsyncChatEvent event)
     {
         event.renderer(renderer);
