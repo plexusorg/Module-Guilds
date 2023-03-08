@@ -26,7 +26,7 @@ public class Guilds extends PlexModule
     public void load()
     {
         module = this;
-        config = new ModuleConfig(this, "data/config.yml", "config.yml");
+        config = new ModuleConfig(this, "guilds/config.yml", "config.yml");
         config.load();
     }
 
