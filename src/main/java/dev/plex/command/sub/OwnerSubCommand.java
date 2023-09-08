@@ -8,7 +8,6 @@ import dev.plex.command.annotation.CommandPermissions;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.data.Member;
 import dev.plex.player.PlexPlayer;
-import dev.plex.rank.enums.Rank;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -16,7 +15,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 @CommandParameters(name = "owner", aliases = "setowner", usage = "/guild <command> <player name>", description = "Sets the guild owner")
-@CommandPermissions(level = Rank.OP, source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.owner")
+@CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.owner")
 public class OwnerSubCommand extends PlexCommand
 {
     public OwnerSubCommand()

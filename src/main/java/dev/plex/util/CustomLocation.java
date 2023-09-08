@@ -10,6 +10,7 @@ public class CustomLocation
     private final String worldName;
     private final double x, y, z;
     private final float yaw, pitch;
+
     public static CustomLocation fromLocation(Location location)
     {
         return new CustomLocation(location.getWorld().getName(), location.getX(), location.getY(), location.getZ(), location.getYaw(), location.getPitch());

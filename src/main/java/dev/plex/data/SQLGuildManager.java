@@ -55,7 +55,8 @@ public class SQLGuildManager
                 statement.setBoolean(14, guild.isPublic());
                 statement.execute();
                 return guild;
-            } catch (SQLException e)
+            }
+            catch (SQLException e)
             {
                 GuildUtil.throwExceptionSync(e);
                 return null;
@@ -72,7 +73,8 @@ public class SQLGuildManager
                 PreparedStatement statement = connection.prepareStatement(DELETE_GUILD);
                 statement.setString(1, uuid.toString());
                 statement.execute();
-            } catch (SQLException e)
+            }
+            catch (SQLException e)
             {
                 GuildUtil.throwExceptionSync(e);
             }
@@ -101,7 +103,8 @@ public class SQLGuildManager
                 statement.setString(13, guild.getGuildUuid().toString());
                 statement.executeUpdate();
                 return guild;
-            } catch (SQLException e)
+            }
+            catch (SQLException e)
             {
                 GuildUtil.throwExceptionSync(e);
                 return null;
@@ -143,7 +146,8 @@ public class SQLGuildManager
                 guild.setPublic(set.getBoolean("isPublic"));
                 guilds.add(guild);
             }
-        } catch (SQLException e)
+        }
+        catch (SQLException e)
         {
             GuildUtil.throwExceptionSync(e);
         }

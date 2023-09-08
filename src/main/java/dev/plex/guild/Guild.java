@@ -2,8 +2,6 @@ package dev.plex.guild;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import dev.morphia.annotations.Entity;
-import dev.morphia.annotations.Transient;
 import dev.plex.Plex;
 import dev.plex.guild.data.Member;
 import dev.plex.guild.data.Rank;
@@ -15,10 +13,11 @@ import org.bukkit.entity.Player;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @Data
-@Entity("guilds")
 public class Guild
 {
     private final UUID guildUuid;

@@ -1,7 +1,6 @@
 package dev.plex.data;
 
 import dev.plex.Plex;
-import dev.plex.storage.StorageType;
 
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -10,11 +9,6 @@ public class SQLManager
 {
     public static void makeTables()
     {
-        if (Plex.get().getStorageType() == StorageType.MONGODB)
-        {
-            return;
-        }
-
         try (Connection connection = Plex.get().getSqlConnection().getCon())
         {
             connection.prepareStatement(
@@ -36,10 +30,10 @@ public class SQLManager
                             "PRIMARY KEY (`guildUuid`)" +
                             ");"
             ).execute();
-        } catch (SQLException e)
+        }
+        catch (SQLException e)
         {
             e.printStackTrace();
         }
     }
-
 }

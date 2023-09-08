@@ -6,7 +6,6 @@ import dev.plex.command.PlexCommand;
 import dev.plex.command.annotation.CommandParameters;
 import dev.plex.command.annotation.CommandPermissions;
 import dev.plex.command.source.RequiredCommandSource;
-import dev.plex.rank.enums.Rank;
 import net.kyori.adventure.text.Component;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.command.CommandSender;
@@ -17,10 +16,9 @@ import org.jetbrains.annotations.Nullable;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 
 @CommandParameters(name = "info", aliases = "information", usage = "/guild <command>", description = "Shows the guild's information")
-@CommandPermissions(level = Rank.OP, source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.info")
+@CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.info")
 public class InfoSubCommand extends PlexCommand
 {
     public InfoSubCommand()
@@ -43,7 +41,8 @@ public class InfoSubCommand extends PlexCommand
                 try
                 {
                     send(player, mmString("<gold>Owner: <yellow>" + DataUtils.getPlayer(guild.getOwner().getUuid(), false).getName()));
-                } catch (NullPointerException e)
+                }
+                catch (NullPointerException e)
                 {
                     send(player, mmString("<gold>Owner: <yellow>Unable to load cache..."));
                 }

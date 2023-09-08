@@ -6,7 +6,6 @@ import dev.plex.command.annotation.CommandParameters;
 import dev.plex.command.annotation.CommandPermissions;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.command.sub.*;
-import dev.plex.rank.enums.Rank;
 import dev.plex.util.GuildUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -22,7 +21,7 @@ import java.util.List;
 import java.util.Locale;
 
 @CommandParameters(name = "guild", description = "Guild menu", aliases = "guilds,g")
-@CommandPermissions(level = Rank.OP, permission = "plex.guilds.guild")
+@CommandPermissions(permission = "plex.guilds.guild")
 public class GuildCommand extends PlexCommand
 {
     private final List<PlexCommand> subCommands = Lists.newArrayList();
@@ -42,7 +41,8 @@ public class GuildCommand extends PlexCommand
             this.registerSubCommand(new HomeSubCommand());
             this.registerSubCommand(new OwnerSubCommand());
             this.registerSubCommand(new InviteSubCommand());
-        } catch (Exception e)
+        }
+        catch (Exception e)
         {
             GuildUtil.throwExceptionSync(e);
         }
@@ -71,7 +71,6 @@ public class GuildCommand extends PlexCommand
                     .append(mmString("<gold>Command Aliases: <yellow>" + StringUtils.join(subCommand.getAliases(), ", "))).append(Component.newline())
                     .append(mmString("<gold>Description: <yellow>" + subCommand.getDescription())).append(Component.newline())
                     .append(mmString("<gold>Permission: <yellow>" + permissions.permission())).append(Component.newline())
-                    .append(mmString("<gold>Required Rank: <yellow>" + permissions.level().name())).append(Component.newline())
                     .append(mmString("<gold>Required Source: <yellow>" + permissions.source().name()));
         }
         PlexCommand subCommand = getSubCommand(args[0]);
@@ -91,7 +90,7 @@ public class GuildCommand extends PlexCommand
             return messageComponent("noPermissionConsole");
         }
 
-        checkRank(player, permissions.level(), permissions.permission());
+        checkPermission(player, permissions.permission());
 
         return subCommand.execute(commandSender, player, Arrays.copyOfRange(args, 1, args.length));
     }

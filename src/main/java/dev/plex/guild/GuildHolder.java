@@ -20,7 +20,9 @@ public class GuildHolder
         if (PENDING_INVITES.containsKey(uuid))
         {
             PENDING_INVITES.get(uuid).add(guild);
-        } else {
+        }
+        else
+        {
             PENDING_INVITES.put(uuid, Lists.newArrayList(guild));
         }
         return true;
@@ -38,7 +40,7 @@ public class GuildHolder
 
     public Optional<Guild> getGuild(UUID uuid)
     {
-        return GUILDS.stream().filter(guild -> (guild.getOwner() != null &&  guild.getOwner().getUuid().equals(uuid)) || guild.getMembers().stream().map(Member::getUuid).toList().contains(uuid)).findFirst();
+        return GUILDS.stream().filter(guild -> (guild.getOwner() != null && guild.getOwner().getUuid().equals(uuid)) || guild.getMembers().stream().map(Member::getUuid).toList().contains(uuid)).findFirst();
     }
 
     public Collection<Guild> getGuilds()

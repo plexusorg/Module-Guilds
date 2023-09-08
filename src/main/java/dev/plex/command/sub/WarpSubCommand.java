@@ -5,8 +5,6 @@ import dev.plex.command.PlexCommand;
 import dev.plex.command.annotation.CommandParameters;
 import dev.plex.command.annotation.CommandPermissions;
 import dev.plex.command.source.RequiredCommandSource;
-import dev.plex.rank.enums.Rank;
-import dev.plex.util.CustomLocation;
 import net.kyori.adventure.text.Component;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.command.CommandSender;
@@ -15,13 +13,14 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 @CommandParameters(name = "warp", aliases = "goto", usage = "/guild <command> <name>", description = "Warps to a specified guild warp")
-@CommandPermissions(level = Rank.OP, source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.warp")
+@CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.warp")
 public class WarpSubCommand extends PlexCommand
 {
     public WarpSubCommand()
     {
         super(false);
     }
+
     @Override
     protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
     {
@@ -30,7 +29,8 @@ public class WarpSubCommand extends PlexCommand
             return usage();
         }
         assert player != null;
-        Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresentOrElse(guild -> {
+        Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresentOrElse(guild ->
+        {
             String warpName = StringUtils.join(args, " ");
             if (!guild.getWarps().containsKey(warpName.toLowerCase()))
             {

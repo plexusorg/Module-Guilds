@@ -20,14 +20,13 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok:1.18.28")
     compileOnly("io.papermc.paper:paper-api:1.20.1-R0.1-SNAPSHOT")
     implementation("org.apache.commons:commons-lang3:3.12.0")
-    compileOnly("dev.plex:server:1.3")
-    compileOnly("dev.morphia.morphia:morphia-core:2.3.5")
+    compileOnly("dev.plex:server:1.4-SNAPSHOT")
     compileOnly("org.json:json:20230618")
     implementation("org.jetbrains:annotations:24.0.1")
 }
 
 group = "dev.plex"
-version = "1.3"
+version = "1.4-SNAPSHOT"
 description = "The Guilds module for Plex"
 
 java {
@@ -43,7 +42,7 @@ publishing {
 }
 
 tasks.getByName<Jar>("jar") {
-    archiveBaseName.set("Plex-Guilds")
+    archiveBaseName.set("Module-Guilds")
     archiveVersion.set("")
 }
 

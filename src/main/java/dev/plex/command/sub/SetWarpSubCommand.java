@@ -5,9 +5,7 @@ import dev.plex.command.PlexCommand;
 import dev.plex.command.annotation.CommandParameters;
 import dev.plex.command.annotation.CommandPermissions;
 import dev.plex.command.source.RequiredCommandSource;
-import dev.plex.rank.enums.Rank;
 import dev.plex.util.CustomLocation;
-import dev.plex.util.minimessage.SafeMiniMessage;
 import net.kyori.adventure.text.Component;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.command.CommandSender;
@@ -16,17 +14,16 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Locale;
-import java.util.regex.Pattern;
 
 @CommandParameters(name = "setwarp", aliases = "makewarp,createwarp", usage = "/guild <command> <name>", description = "Creates a new warp at player's location with a specified name")
-@CommandPermissions(level = Rank.OP, source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.setwarp")
+@CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.setwarp")
 public class SetWarpSubCommand extends PlexCommand
 {
-
     public SetWarpSubCommand()
     {
         super(false);
     }
+
     @Override
     protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
     {
@@ -35,7 +32,8 @@ public class SetWarpSubCommand extends PlexCommand
             return usage();
         }
         assert player != null;
-        Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresentOrElse(guild -> {
+        Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresentOrElse(guild ->
+        {
             if (!guild.getOwner().getUuid().equals(player.getUniqueId()))
             {
                 send(player, messageComponent("guildNotOwner"));

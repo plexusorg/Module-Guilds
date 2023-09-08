@@ -6,8 +6,6 @@ import dev.plex.command.annotation.CommandParameters;
 import dev.plex.command.annotation.CommandPermissions;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.data.Member;
-import dev.plex.rank.enums.Rank;
-import dev.plex.util.PlexLog;
 import net.kyori.adventure.text.Component;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -20,7 +18,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.Objects;
 
 @CommandParameters(name = "chat", usage = "/guild <command> [message]", description = "Toggles guild chat or sends a guild chat message")
-@CommandPermissions(level = Rank.OP, source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.chat")
+@CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.chat")
 public class ChatSubCommand extends PlexCommand
 {
     public ChatSubCommand()

@@ -5,7 +5,6 @@ import dev.plex.command.PlexCommand;
 import dev.plex.command.annotation.CommandParameters;
 import dev.plex.command.annotation.CommandPermissions;
 import dev.plex.command.source.RequiredCommandSource;
-import dev.plex.rank.enums.Rank;
 import dev.plex.util.CustomLocation;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
@@ -14,10 +13,9 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 @CommandParameters(name = "sethome", aliases = "setspawn", usage = "/guild <command>", description = "Sets the guild's home")
-@CommandPermissions(level = Rank.OP, source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.sethome")
+@CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.sethome")
 public class SetHomeSubCommand extends PlexCommand
 {
-
     public SetHomeSubCommand()
     {
         super(false);

@@ -4,14 +4,11 @@ import dev.plex.command.GuildCommand;
 import dev.plex.config.ModuleConfig;
 import dev.plex.data.SQLGuildManager;
 import dev.plex.data.SQLManager;
-import dev.plex.guild.Guild;
 import dev.plex.guild.GuildHolder;
 import dev.plex.module.PlexModule;
-import dev.plex.storage.StorageType;
 import dev.plex.util.PlexLog;
 import lombok.Getter;
 
-//TODO: Implement mongodb
 @Getter
 public class Guilds extends PlexModule
 {
@@ -33,22 +30,14 @@ public class Guilds extends PlexModule
     @Override
     public void enable()
     {
-        if (Plex.get().getStorageType() == StorageType.MONGODB)
+        SQLManager.makeTables();
+        sqlGuildManager = new SQLGuildManager();
+        sqlGuildManager.getGuilds().whenComplete((guilds, throwable) ->
         {
-            Plex.get().getMongoConnection().getDatastore().getMapper().map(Guild.class);
-            Plex.get().getMongoConnection().getDatastore().ensureIndexes();
-        }
-        else
-        {
-            SQLManager.makeTables();
-            sqlGuildManager = new SQLGuildManager();
-            sqlGuildManager.getGuilds().whenComplete((guilds, throwable) ->
-            {
-                PlexLog.debug("Finished loading {0} guilds", guilds.size());
-                guilds.forEach(guildHolder::addGuild);
-                this.registerCommand(new GuildCommand());
-            });
-        }
+            PlexLog.debug("Finished loading {0} guilds", guilds.size());
+            guilds.forEach(guildHolder::addGuild);
+            this.registerCommand(new GuildCommand());
+        });
 
         //Plex.get().setChat(new ChatHandlerImpl());
 

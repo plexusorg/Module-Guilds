@@ -9,7 +9,6 @@ import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
 import dev.plex.guild.GuildHolder;
 import dev.plex.guild.data.Member;
-import dev.plex.rank.enums.Rank;
 import dev.plex.util.PlexLog;
 import net.kyori.adventure.text.Component;
 import org.apache.commons.lang3.StringUtils;
@@ -27,7 +26,7 @@ import java.util.stream.Collectors;
 // TODO: 5/9/2022 deny members from inviting themselves or existing members in the current guild
 
 @CommandParameters(name = "invite", aliases = "inv", usage = "/guild <command> <player name>", description = "Invites a player to the guild")
-@CommandPermissions(level = Rank.OP, source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.invite")
+@CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.invite")
 public class InviteSubCommand extends PlexCommand
 {
     public InviteSubCommand()
@@ -68,7 +67,8 @@ public class InviteSubCommand extends PlexCommand
                             send(player, messageComponent("guildDisbandNeeded"));
                             continueCheck.set(false);
                             return;
-                        } else
+                        }
+                        else
                         {
                             Guilds.get().getSqlGuildManager().deleteGuild(guild1.getGuildUuid()).whenComplete((unused, throwable) ->
                             {
@@ -118,8 +118,14 @@ public class InviteSubCommand extends PlexCommand
     @Override
     public @NotNull List<String> tabComplete(@NotNull CommandSender sender, @NotNull String alias, @NotNull String[] args) throws IllegalArgumentException
     {
-        if (!(sender instanceof Player player)) return ImmutableList.of();
-        if (args.length == 0) return ImmutableList.of();
+        if (!(sender instanceof Player player))
+        {
+            return ImmutableList.of();
+        }
+        if (args.length == 0)
+        {
+            return ImmutableList.of();
+        }
         if (args[0].equalsIgnoreCase("accept") && args.length == 2)
         {
             if (!GuildHolder.PENDING_INVITES.containsKey(player.getUniqueId()))
