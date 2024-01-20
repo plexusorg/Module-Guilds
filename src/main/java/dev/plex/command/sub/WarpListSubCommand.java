@@ -7,14 +7,14 @@ import dev.plex.command.annotation.CommandParameters;
 import dev.plex.command.annotation.CommandPermissions;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
+import java.util.Collections;
+import java.util.List;
+import java.util.Set;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.List;
-import java.util.Set;
 
 @CommandParameters(name = "warps", aliases = "listwarps", usage = "/guild <command>", description = "Displays a clickable list of warps")
 @CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.warps")
@@ -52,5 +52,11 @@ public class WarpListSubCommand extends PlexCommand
             }
         }
         return parent;
+    }
+
+    @Override
+    public @NotNull List<String> smartTabComplete(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
+    {
+        return Collections.emptyList();
     }
 }

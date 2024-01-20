@@ -5,6 +5,8 @@ import dev.plex.command.PlexCommand;
 import dev.plex.command.annotation.CommandParameters;
 import dev.plex.command.annotation.CommandPermissions;
 import dev.plex.command.source.RequiredCommandSource;
+import java.util.Collections;
+import java.util.List;
 import net.kyori.adventure.text.Component;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.command.CommandSender;
@@ -40,5 +42,11 @@ public class WarpSubCommand extends PlexCommand
             player.teleportAsync(guild.getWarps().get(warpName.toLowerCase()).toLocation());
         }, () -> send(player, messageComponent("guildNotFound")));
         return null;
+    }
+
+    @Override
+    public @NotNull List<String> smartTabComplete(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
+    {
+        return Collections.emptyList();
     }
 }

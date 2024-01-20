@@ -6,6 +6,9 @@ import dev.plex.command.annotation.CommandParameters;
 import dev.plex.command.annotation.CommandPermissions;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.data.Member;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
 import net.kyori.adventure.text.Component;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -14,8 +17,6 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
-
-import java.util.Objects;
 
 @CommandParameters(name = "chat", usage = "/guild <command> [message]", description = "Toggles guild chat or sends a guild chat message")
 @CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.chat")
@@ -49,5 +50,11 @@ public class ChatSubCommand extends PlexCommand
             }
         }, () -> send(player, messageComponent("guildNotFound")));
         return null;
+    }
+
+    @Override
+    public @NotNull List<String> smartTabComplete(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
+    {
+        return Collections.emptyList();
     }
 }

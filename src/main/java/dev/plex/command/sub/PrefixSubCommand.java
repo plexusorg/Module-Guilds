@@ -6,6 +6,8 @@ import dev.plex.command.annotation.CommandParameters;
 import dev.plex.command.annotation.CommandPermissions;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.util.minimessage.SafeMiniMessage;
+import java.util.Collections;
+import java.util.List;
 import net.kyori.adventure.text.Component;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.command.CommandSender;
@@ -47,5 +49,11 @@ public class PrefixSubCommand extends PlexCommand
             send(player, messageComponent("guildPrefixSet", SafeMiniMessage.mmDeserializeWithoutEvents(guild.getPrefix())));
         }, () -> send(player, messageComponent("guildNotFound")));
         return null;
+    }
+
+    @Override
+    public @NotNull List<String> smartTabComplete(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
+    {
+        return Collections.emptyList();
     }
 }

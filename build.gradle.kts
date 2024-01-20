@@ -16,13 +16,13 @@ repositories {
 }
 
 dependencies {
-    compileOnly("org.projectlombok:lombok:1.18.28")
-    annotationProcessor("org.projectlombok:lombok:1.18.28")
-    compileOnly("io.papermc.paper:paper-api:1.20.1-R0.1-SNAPSHOT")
-    implementation("org.apache.commons:commons-lang3:3.12.0")
+    compileOnly("org.projectlombok:lombok:1.18.30")
+    annotationProcessor("org.projectlombok:lombok:1.18.30")
+    compileOnly("io.papermc.paper:paper-api:1.20.4-R0.1-SNAPSHOT")
+    implementation("org.apache.commons:commons-lang3:3.14.0")
     compileOnly("dev.plex:server:1.4-SNAPSHOT")
-    compileOnly("org.json:json:20230618")
-    implementation("org.jetbrains:annotations:24.0.1")
+    compileOnly("org.json:json:20231013")
+    implementation("org.jetbrains:annotations:24.1.0")
 }
 
 group = "dev.plex"
