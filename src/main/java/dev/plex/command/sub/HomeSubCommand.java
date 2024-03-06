@@ -1,45 +1,45 @@
 package dev.plex.command.sub;
 
 import dev.plex.Guilds;
-import dev.plex.command.PlexCommand;
+import dev.plex.command.SubCommand;
 import dev.plex.command.annotation.CommandParameters;
 import dev.plex.command.annotation.CommandPermissions;
 import dev.plex.command.source.RequiredCommandSource;
-import java.util.Collections;
-import java.util.List;
+import dev.plex.guild.GuildMember;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
-@CommandParameters(name = "home", aliases = "spawn", usage = "/guild <command>", description = "Teleports to the guild home")
+import java.util.Collections;
+import java.util.List;
+
+@CommandParameters(name = "home", usage = "/guild <command>", description = "Teleport to your guild's home location")
 @CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.home")
-public class HomeSubCommand extends PlexCommand
+public class HomeSubCommand extends SubCommand
 {
-    public HomeSubCommand()
-    {
-        super(false);
-    }
-
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
+    public Component run(CommandSender sender, Player player, String[] args)
     {
         assert player != null;
-        Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresentOrElse(guild ->
-        {
-            if (guild.getHome() == null)
-            {
-                send(player, messageComponent("guildHomeNotFound"));
-                return;
-            }
-            player.teleportAsync(guild.getHome().toLocation());
-        }, () -> send(player, messageComponent("guildNotFound")));
+        GuildMember member = Guilds.get().getMemberData().getMember(player).orElseThrow();
+        member.getGuild().ifPresentOrElse(guild ->
+                {
+                    if (guild.getHome() == null)
+                    {
+                        send(player, messageComponent("guildHomeNotFound"));
+                        return;
+                    }
+
+                    player.teleportAsync(guild.getHome());
+                    send(player, messageComponent("guildHomeTeleport"));
+                },
+                () -> send(player, messageComponent("guildNotFound")));
         return null;
     }
 
     @Override
-    public @NotNull List<String> smartTabComplete(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
+    public @NotNull List<String> smartTabComplete(@NotNull CommandSender sender, @NotNull String s, @NotNull String[] args) throws IllegalArgumentException
     {
         return Collections.emptyList();
     }

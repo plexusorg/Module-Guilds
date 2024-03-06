@@ -1,14 +1,14 @@
 package dev.plex.command.sub;
 
-import com.google.common.collect.Lists;
 import dev.plex.Guilds;
 import dev.plex.command.SubCommand;
 import dev.plex.command.annotation.CommandParameters;
 import dev.plex.command.annotation.CommandPermissions;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.GuildMember;
+import dev.plex.util.PlexUtils;
 import net.kyori.adventure.text.Component;
-import org.apache.commons.lang3.StringUtils;
+import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -16,30 +16,38 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Collections;
 import java.util.List;
 
-@CommandParameters(name = "warp", usage = "/guild <command> [name]", description = "List existing warps under your guild or warp to a specified guild warp location")
-@CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.warp")
-public class WarpSubCommand extends SubCommand
+@CommandParameters(name = "setowner", usage = "/guild <command> <player>", description = "Transfer the ownership of your guild to another player")
+@CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.setowner")
+public class SetOwnerSubCommand extends SubCommand
 {
     @Override
     public Component run(CommandSender sender, Player player, String[] args)
     {
+        if (args.length != 1)
+        {
+            return usage();
+        }
+
         assert player != null;
         GuildMember member = Guilds.get().getMemberData().getMember(player).orElseThrow();
         member.getGuild().ifPresentOrElse(guild ->
                 {
-                    if (args.length == 0)
+                    if (!guild.isOwner(member))
                     {
-                        send(player, guild.getWarps());
+                        send(player, messageComponent("guildNotOwner"));
                         return;
                     }
 
-                    String name = StringUtils.join(args, " ").toLowerCase();
-                    guild.getWarp(name).ifPresentOrElse(warp ->
-                            {
-                                player.teleportAsync(warp.getLocation());
-                                send(player, messageComponent("guildWarpSuccess", name));
-                            },
-                            () -> send(player, messageComponent("guildWarpNotFound", name)));
+                    Player target = getNonNullPlayer(args[0]);
+                    GuildMember targetMember = Guilds.get().getMemberData().getMember(target).orElseThrow();
+                    if (targetMember.getGuild().isEmpty() || !targetMember.getGuild().get().equals(guild))
+                    {
+                        send(player, messageComponent("guildMemberNotFound"));
+                        return;
+                    }
+
+                    guild.setOwner(targetMember);
+                    send(player, messageComponent("guildOwnerSet", target.getName()));
                 },
                 () -> send(player, messageComponent("guildNotFound")));
         return null;
@@ -50,10 +58,7 @@ public class WarpSubCommand extends SubCommand
     {
         if (args.length == 1 && silentCheckPermission(sender, getPermission()))
         {
-            GuildMember member = Guilds.get().getMemberData().getMember((Player) sender).orElseThrow();
-            List<String> names = Lists.newArrayList();
-            member.getGuild().ifPresent(guild -> names.addAll(guild.getWarpNames()));
-            return names;
+            return PlexUtils.getPlayerNameList();
         }
         return Collections.emptyList();
     }

@@ -16,28 +16,33 @@ import org.jetbrains.annotations.NotNull;
 import java.util.Collections;
 import java.util.List;
 
-@CommandParameters(name = "warp", usage = "/guild <command> [name]", description = "List existing warps under your guild or warp to a specified guild warp location")
-@CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.warp")
-public class WarpSubCommand extends SubCommand
+@CommandParameters(name = "deletewarp", aliases = "delwarp,removewarp", usage = "/guild <command> <name>", description = "Deletes a guild warp")
+@CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.deletewarp")
+public class DeleteWarpSubCommand extends SubCommand
 {
     @Override
     public Component run(CommandSender sender, Player player, String[] args)
     {
+        if (args.length == 0)
+        {
+            return usage();
+        }
+
         assert player != null;
         GuildMember member = Guilds.get().getMemberData().getMember(player).orElseThrow();
         member.getGuild().ifPresentOrElse(guild ->
                 {
-                    if (args.length == 0)
+                    if (!guild.isModerator(member))
                     {
-                        send(player, guild.getWarps());
+                        send(player, messageComponent("guildNotMod"));
                         return;
                     }
 
                     String name = StringUtils.join(args, " ").toLowerCase();
-                    guild.getWarp(name).ifPresentOrElse(warp ->
+                    guild.getWarp(name).ifPresentOrElse(guildWarp ->
                             {
-                                player.teleportAsync(warp.getLocation());
-                                send(player, messageComponent("guildWarpSuccess", name));
+                                guild.deleteWarp(guildWarp);
+                                send(player, messageComponent("guildWarpRemoved", name));
                             },
                             () -> send(player, messageComponent("guildWarpNotFound", name)));
                 },

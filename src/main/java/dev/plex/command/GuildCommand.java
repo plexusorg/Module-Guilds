@@ -1,165 +1,117 @@
 package dev.plex.command;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import dev.plex.Guilds;
+import dev.plex.command.sub.*;
 import dev.plex.command.annotation.CommandParameters;
 import dev.plex.command.annotation.CommandPermissions;
 import dev.plex.command.source.RequiredCommandSource;
-import dev.plex.command.sub.*;
-import dev.plex.util.GuildUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
-import org.apache.commons.lang3.StringUtils;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
-import java.util.Locale;
 
-@CommandParameters(name = "guild", description = "Guild menu", aliases = "guilds,g")
+@CommandParameters(name = "guild", description = "Main guild command", aliases = "guilds,g")
 @CommandPermissions(permission = "plex.guilds.guild")
 public class GuildCommand extends PlexCommand
 {
-    private final List<PlexCommand> subCommands = Lists.newArrayList();
+    private final List<SubCommand> subcommands = Lists.newArrayList();
 
     public GuildCommand()
     {
         try
         {
-            this.registerSubCommand(new CreateSubCommand());
-            this.registerSubCommand(new InfoSubCommand());
-            this.registerSubCommand(new PrefixSubCommand());
-            this.registerSubCommand(new SetWarpSubCommand());
-            this.registerSubCommand(new WarpSubCommand());
-            this.registerSubCommand(new WarpListSubCommand());
-            this.registerSubCommand(new ChatSubCommand());
-            this.registerSubCommand(new SetHomeSubCommand());
-            this.registerSubCommand(new HomeSubCommand());
-            this.registerSubCommand(new OwnerSubCommand());
-            this.registerSubCommand(new InviteSubCommand());
+            subcommands.add(new CreateSubCommand());
+            subcommands.add(new DeleteWarpSubCommand());
+            subcommands.add(new DisbandSubCommand());
+            subcommands.add(new HomeSubCommand());
+            subcommands.add(new InfoSubCommand());
+            subcommands.add(new MotdSubCommand());
+            subcommands.add(new PrefixSubCommand());
+            subcommands.add(new SetHomeSubCommand());
+            subcommands.add(new SetOwnerSubCommand());
+            subcommands.add(new SetWarpSubCommand());
+            subcommands.add(new WarpSubCommand());
         }
-        catch (Exception e)
+        catch (Exception ex)
         {
-            GuildUtil.throwExceptionSync(e);
+            Guilds.logException(ex);
         }
     }
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
+    protected Component execute(@NotNull CommandSender sender, @Nullable Player player, @NotNull String[] args)
     {
         if (args.length == 0)
         {
             return getSubs();
         }
-        if (args[0].equalsIgnoreCase("help"))
-        {
-            if (args.length < 2)
-            {
-                return usage("/guild help <subcommand>");
-            }
-            PlexCommand subCommand = getSubCommand(args[1]);
-            if (subCommand == null)
-            {
-                return messageComponent("guildCommandNotFound", args[1]);
-            }
-            CommandPermissions permissions = subCommand.getClass().getDeclaredAnnotation(CommandPermissions.class);
-            return mmString("<gradient:gold:yellow>========<newline>").append(mmString("<gold>Command Name: <yellow>" + subCommand.getName())).append(Component.newline())
-                    .append(mmString("<gold>Command Aliases: <yellow>" + StringUtils.join(subCommand.getAliases(), ", "))).append(Component.newline())
-                    .append(mmString("<gold>Description: <yellow>" + subCommand.getDescription())).append(Component.newline())
-                    .append(mmString("<gold>Permission: <yellow>" + permissions.permission())).append(Component.newline())
-                    .append(mmString("<gold>Required Source: <yellow>" + permissions.source().name()));
-        }
-        PlexCommand subCommand = getSubCommand(args[0]);
+
+        SubCommand subCommand = getSubCommand(args[0]);
         if (subCommand == null)
         {
             return messageComponent("guildCommandNotFound", args[0]);
         }
 
         CommandPermissions permissions = subCommand.getClass().getDeclaredAnnotation(CommandPermissions.class);
-        if (permissions.source() == RequiredCommandSource.CONSOLE && commandSender instanceof Player)
+        if (permissions.source() == RequiredCommandSource.CONSOLE && sender instanceof Player)
         {
             return messageComponent("noPermissionInGame");
         }
 
-        if (permissions.source() == RequiredCommandSource.IN_GAME && commandSender instanceof ConsoleCommandSender)
+        if (permissions.source() == RequiredCommandSource.IN_GAME && isConsole(sender))
         {
             return messageComponent("noPermissionConsole");
         }
 
-        checkPermission(player, permissions.permission());
-
-        return subCommand.execute(commandSender, player, Arrays.copyOfRange(args, 1, args.length));
-    }
-
-    private PlexCommand getSubCommand(String label)
-    {
-        return subCommands.stream().filter(cmd ->
-        {
-            CommandParameters commandParameters = cmd.getClass().getDeclaredAnnotation(CommandParameters.class);
-            return commandParameters.name().equalsIgnoreCase(label) || Arrays.stream(commandParameters.aliases().split(",")).anyMatch(s -> s.equalsIgnoreCase(label));
-        }).findFirst().orElse(null);
-    }
-
-    private void registerSubCommand(PlexCommand subCommand)
-    {
-        if (!subCommand.getClass().isAnnotationPresent(CommandPermissions.class))
-        {
-            throw new RuntimeException("CommandPermissions annotation for guild sub command " + subCommand.getName() + " could not be found!");
-        }
-
-        if (!subCommand.getClass().isAnnotationPresent(CommandParameters.class))
-        {
-            throw new RuntimeException("CommandParameters annotation for guild sub command " + subCommand.getName() + " could not be found!");
-        }
-        this.subCommands.add(subCommand);
+        checkPermission(sender, permissions.permission());
+        return subCommand.run(sender, player, Arrays.copyOfRange(args, 1, args.length));
     }
 
     @Override
-    public @NotNull List<String> smartTabComplete(@NotNull CommandSender sender, @NotNull String alias, @NotNull String[] args) throws IllegalArgumentException
+    public @NotNull List<String> smartTabComplete(@NotNull CommandSender sender, @NotNull String s, @NotNull String[] args) throws IllegalArgumentException
     {
-        if (args.length == 1)
+        if (args.length == 1 && silentCheckPermission(sender, this.getPermission()))
         {
-            List<String> possibleCommands = Lists.newArrayList();
-            if (!args[0].isEmpty())
-            {
-                subCommands.forEach(plexCommand ->
-                {
-                    plexCommand.getAliases().stream().filter(s -> s.toLowerCase(Locale.ROOT).startsWith(args[0].toLowerCase(Locale.ROOT))).forEach(possibleCommands::add);
-                    if (plexCommand.getName().toLowerCase(Locale.ROOT).startsWith(args[0].toLowerCase(Locale.ROOT)))
-                    {
-                        possibleCommands.add(plexCommand.getName());
-                    }
-                });
-            }
-            return possibleCommands;
+            return subcommands.stream().map(PlexCommand::getName).toList();
         }
-        if (args.length >= 2)
+        else if (args.length >= 2)
         {
             PlexCommand subCommand = getSubCommand(args[0]);
-            if (subCommand != null)
+            if (subCommand != null && silentCheckPermission(sender, subCommand.getPermission()))
             {
-                return subCommand.tabComplete(sender, alias, Arrays.copyOfRange(args, 1, args.length));
+                return subCommand.smartTabComplete(sender, s, Arrays.copyOfRange(args, 1, args.length));
             }
         }
-        return ImmutableList.of();
+        return Collections.emptyList();
+    }
+
+    private SubCommand getSubCommand(String label)
+    {
+        return subcommands.stream().filter(cmd ->
+        {
+            CommandParameters parameters = cmd.getClass().getDeclaredAnnotation(CommandParameters.class);
+            return parameters.name().equalsIgnoreCase(label) || Arrays.stream(parameters.aliases().split(",")).anyMatch(s -> s.equalsIgnoreCase(label));
+        }).findFirst().orElse(null);
     }
 
     public Component getSubs()
     {
         Component commands = Component.empty();
-        for (int i = 0; i < this.subCommands.size(); i++)
+        for (int i = 0; i < this.subcommands.size(); i++)
         {
-            commands = commands.append(messageComponent("guildsCommandDisplay", "/guild " + this.subCommands.get(i).getName(), this.subCommands.get(i).getDescription()).clickEvent(ClickEvent.suggestCommand("/guild help " + this.subCommands.get(i).getName())));
-            if (i < this.subCommands.size() - 1)
+            commands = commands.append(messageComponent("guildsCommandDisplay", "/guild " + this.subcommands.get(i).getName(), this.subcommands.get(i).getDescription()).clickEvent(ClickEvent.suggestCommand("/guild help " + this.subcommands.get(i).getName())));
+            if (i < this.subcommands.size() - 1)
             {
                 commands = commands.append(Component.newline());
             }
         }
         return messageComponent("guildsHelpCommand", commands);
     }
-
 }

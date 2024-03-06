@@ -1,63 +1,105 @@
 package dev.plex.command.sub;
 
 import dev.plex.Guilds;
-import dev.plex.cache.DataUtils;
-import dev.plex.command.PlexCommand;
+import dev.plex.command.SubCommand;
 import dev.plex.command.annotation.CommandParameters;
 import dev.plex.command.annotation.CommandPermissions;
-import dev.plex.command.source.RequiredCommandSource;
-import java.time.format.DateTimeFormatter;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
+import dev.plex.guild.Guild;
+import dev.plex.guild.GuildMember;
 import net.kyori.adventure.text.Component;
 import org.apache.commons.lang3.StringUtils;
+import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
-import org.jetbrains.annotations.Nullable;
 
-@CommandParameters(name = "info", aliases = "information", usage = "/guild <command>", description = "Shows the guild's information")
-@CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.info")
-public class InfoSubCommand extends PlexCommand
+import java.text.SimpleDateFormat;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+
+@CommandParameters(name = "info", usage = "/guild <command> [name]", description = "Shows your or a specified guild's information")
+@CommandPermissions(permission = "plex.guilds.info")
+public class InfoSubCommand extends SubCommand
 {
-    public InfoSubCommand()
-    {
-        super(false);
-    }
-
-    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy hh:mm:ss a");
+    private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] strings)
+    public Component run(CommandSender sender, Player player, String[] args)
     {
-        assert player != null;
-        CompletableFuture.runAsync(() ->
+        if (args.length == 0)
         {
-            Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresentOrElse(guild ->
+            if (isConsole(sender))
             {
-                send(player, mmString("<gradient:yellow:gold>====<aqua>" + guild.getName() + "<gradient:yellow:gold>===="));
-                send(player, mmString(""));
-                try
-                {
-                    send(player, mmString("<gold>Owner: <yellow>" + DataUtils.getPlayer(guild.getOwner().getUuid(), false).getName()));
-                }
-                catch (NullPointerException e)
-                {
-                    send(player, mmString("<gold>Owner: <yellow>Unable to load cache..."));
-                }
-                List<String> members = guild.getMembers().stream().filter(member -> !member.getUuid().equals(guild.getOwner().getUuid())).map(member -> DataUtils.getPlayer(member.getUuid(), false).getName()).toList();
-                send(player, mmString("<gold>Members (" + members.size() + "): " + StringUtils.join(members, ", ")));
-                send(player, mmString("<gold>Moderators (" + guild.getModerators().size() + "): " + StringUtils.join(guild.getModerators().stream().map(uuid -> DataUtils.getPlayer(uuid, false).getName()).toList(), ", ")));
-                send(player, mmString("<gold>Prefix: " + (guild.getPrefix() == null ? "N/A" : guild.getPrefix())));
-                send(player, mmString("<gold>Created At: " + formatter.format(guild.getCreatedAt())));
-            }, () -> send(player, messageComponent("guildNotFound")));
-        });
+                return messageComponent("noPermissionConsole");
+            }
+
+            assert player != null;
+            GuildMember member = Guilds.get().getMemberData().getMember(player).orElseThrow();
+            member.getGuild().ifPresentOrElse(guild ->
+                    {
+                        Component info = Component.empty()
+                                .append(mmString("<gradient:yellow:gold>====<aqua>" + guild.getName() + "<gradient:yellow:gold>===="))
+                                .appendNewline()
+                                .append(mmString("<gold>UUID: <yellow>" + guild.getUuid().toString()))
+                                .appendNewline()
+                                .append(mmString("<gold>Display Name:</gold> " + guild.getDisplayName()))
+                                .appendNewline()
+                                .append(mmString("<gold>Owner: <yellow>" + guild.getOwner().getPlayer().getName()))
+                                .appendNewline()
+                                .append(mmString("<gold>Members (" + guild.getMemberNames().size() + "): <yellow>" + StringUtils.join(guild.getMemberNames(), ", ")))
+                                .appendNewline()
+                                .append(mmString("<gold>Moderators (" + guild.getModerators().size() + "): <yellow>" + StringUtils.join(guild.getModeratorNames(), ", ")))
+                                .appendNewline()
+                                .append(mmString("<gold>Privacy: <yellow>" + guild.getPrivacy().toString()))
+                                .appendNewline()
+                                .append(mmString("<gold>Created At: <yellow>" + dateFormat.format(guild.getCreatedAt())));
+                        send(player, info);
+                    },
+                    () -> send(player, messageComponent("guildNotFound")));
+        }
+        else
+        {
+            String name = StringUtils.join(args, " ");
+            Optional<Guild> optionalGuild;
+
+            Player target = Bukkit.getPlayer(name);
+            if (target != null)
+            {
+                optionalGuild = Guilds.get().getMemberData().getMember(target).orElseThrow().getGuild();
+            }
+            else
+            {
+                optionalGuild = Guilds.get().getGuildData().getGuildByName(name);
+            }
+
+            optionalGuild.ifPresentOrElse(guild ->
+                    {
+                        Component info = Component.empty()
+                                .append(mmString("<gradient:yellow:gold>====<aqua>" + guild.getName() + "<gradient:yellow:gold>===="))
+                                .appendNewline()
+                                .append(mmString("<gold>UUID: <yellow>" + guild.getUuid().toString()))
+                                .appendNewline()
+                                .append(mmString("<gold>Display Name:</gold> " + guild.getDisplayName()))
+                                .appendNewline()
+                                .append(mmString("<gold>Owner: <yellow>" + guild.getOwner().getPlayer().getName()))
+                                .appendNewline()
+                                .append(mmString("<gold>Members (" + guild.getMemberNames().size() + "): <yellow>" + StringUtils.join(guild.getMemberNames(), ", ")))
+                                .appendNewline()
+                                .append(mmString("<gold>Moderators (" + guild.getModerators().size() + "): <yellow>" + StringUtils.join(guild.getModeratorNames(), ", ")))
+                                .appendNewline()
+                                .append(mmString("<gold>Privacy: <yellow>" + guild.getPrivacy().toString()))
+                                .appendNewline()
+                                .append(mmString("<gold>Created At: <yellow>" + dateFormat.format(guild.getCreatedAt())));
+                        send(sender, info);
+                    },
+                    () -> send(sender, messageComponent("guildNotExist", name)));
+        }
         return null;
     }
 
     @Override
-    public @NotNull List<String> smartTabComplete(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
+    public @NotNull List<String> smartTabComplete(@NotNull CommandSender sender, @NotNull String s, @NotNull String[] args) throws IllegalArgumentException
     {
         return Collections.emptyList();
     }

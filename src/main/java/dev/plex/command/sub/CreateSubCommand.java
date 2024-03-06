@@ -2,12 +2,12 @@ package dev.plex.command.sub;
 
 import dev.plex.Guilds;
 import dev.plex.command.PlexCommand;
+import dev.plex.command.SubCommand;
 import dev.plex.command.annotation.CommandParameters;
 import dev.plex.command.annotation.CommandPermissions;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
-import java.util.Collections;
-import java.util.List;
+import dev.plex.guild.GuildMember;
 import net.kyori.adventure.text.Component;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.command.CommandSender;
@@ -15,37 +15,40 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-@CommandParameters(name = "create", aliases = "make", usage = "/guild <command> <name>", description = "Creates a guild with a specified name")
+import java.util.Collections;
+import java.util.List;
+
+@CommandParameters(name = "create", usage = "/guild <command> <name>", description = "Create a brand new guild")
 @CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.create")
-public class CreateSubCommand extends PlexCommand
+public class CreateSubCommand extends SubCommand
 {
-    public CreateSubCommand()
+    @Override
+    public Component run(@NotNull CommandSender sender, @Nullable Player player, @NotNull String[] args)
     {
-        super(false);
+        if (args.length > 0)
+        {
+            assert player != null;
+            GuildMember member = Guilds.get().getMemberData().getMember(player).orElseThrow();
+            if (member.getGuild().isPresent())
+            {
+                return messageComponent("alreadyInGuild");
+            }
+
+            String name = StringUtils.join(args, " ");
+            if (!StringUtils.isAlphanumericSpace(name))
+            {
+                return messageComponent("guildAlphanumericName");
+            }
+
+            Guild guild = Guild.create(member, name);
+            return mmString("Successfully created guild named " + guild.getName());
+        }
+
+        return usage();
     }
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
-    {
-        if (args.length == 0)
-        {
-            return usage();
-        }
-        assert player != null;
-        if (Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).isPresent())
-        {
-            return messageComponent("alreadyInGuild");
-        }
-        Guilds.get().getSqlGuildManager().insertGuild(Guild.create(player, StringUtils.join(args, " "))).whenComplete((guild, throwable) ->
-        {
-            Guilds.get().getGuildHolder().addGuild(guild);
-            send(player, mmString("Created guild named " + guild.getName()));
-        });
-        return null;
-    }
-
-    @Override
-    public @NotNull List<String> smartTabComplete(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
+    public @NotNull List<String> smartTabComplete(@NotNull CommandSender sender, @NotNull String s, @NotNull String[] args) throws IllegalArgumentException
     {
         return Collections.emptyList();
     }
