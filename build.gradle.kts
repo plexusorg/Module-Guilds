@@ -16,21 +16,21 @@ repositories {
 }
 
 dependencies {
-    compileOnly("org.projectlombok:lombok:1.18.30")
-    annotationProcessor("org.projectlombok:lombok:1.18.30")
-    compileOnly("io.papermc.paper:paper-api:1.20.4-R0.1-SNAPSHOT")
-    implementation("org.apache.commons:commons-lang3:3.14.0")
-    compileOnly("dev.plex:server:1.4-SNAPSHOT")
-    compileOnly("org.json:json:20231013")
-    implementation("org.jetbrains:annotations:24.1.0")
+    compileOnly("org.projectlombok:lombok:1.18.34")
+    annotationProcessor("org.projectlombok:lombok:1.18.34")
+    compileOnly("io.papermc.paper:paper-api:1.21.1-R0.1-SNAPSHOT")
+    implementation("org.apache.commons:commons-lang3:3.17.0")
+    compileOnly("dev.plex:server:1.5-SNAPSHOT")
+    compileOnly("org.json:json:20240303")
+    implementation("org.jetbrains:annotations:26.0.1")
 }
 
 group = "dev.plex"
-version = "1.4-SNAPSHOT"
+version = "1.5-SNAPSHOT"
 description = "The Guilds module for Plex"
 
 java {
-    toolchain.languageVersion.set(JavaLanguageVersion.of(17))
+    toolchain.languageVersion.set(JavaLanguageVersion.of(21))
 }
 
 publishing {
