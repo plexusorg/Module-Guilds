@@ -1,9 +1,7 @@
 package dev.plex.command.sub;
 
 import dev.plex.Guilds;
-import dev.plex.command.PlexCommand;
-import dev.plex.command.annotation.CommandParameters;
-import dev.plex.command.annotation.CommandPermissions;
+import dev.plex.command.SimplePlexCommand;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.data.Member;
 import java.util.Collections;
@@ -18,13 +16,16 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-@CommandParameters(name = "chat", usage = "/guild <command> [message]", description = "Toggles guild chat or sends a guild chat message")
-@CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.chat")
-public class ChatSubCommand extends PlexCommand
+public class ChatSubCommand extends SimplePlexCommand
 {
     public ChatSubCommand()
     {
-        super(false);
+        super(command("chat")
+                .description("Toggles guild chat or sends a guild chat message")
+                .usage("/guild <command> [message]")
+                .permission("plex.guilds.chat")
+                .source(RequiredCommandSource.IN_GAME)
+                .build());
     }
 
     @Override
@@ -44,7 +45,7 @@ public class ChatSubCommand extends PlexCommand
             {
                 send(player1, messageComponent("guildChatMessage", player.getName(), StringUtils.join(args, " ")));
             });
-            if (Guilds.get().getConfig().isBoolean("guilds.log-chat-message"))
+            if (Guilds.get().getConfig().getBoolean("guilds.log-chat-message"))
             {
                 send(Bukkit.getConsoleSender(), messageComponent("guildChatConsoleLog", guild.getName(), guild.getGuildUuid(), player.getName(), StringUtils.join(args, " ")));
             }
@@ -53,7 +54,7 @@ public class ChatSubCommand extends PlexCommand
     }
 
     @Override
-    public @NotNull List<String> smartTabComplete(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
+    protected @NotNull List<String> suggestions(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
     {
         return Collections.emptyList();
     }

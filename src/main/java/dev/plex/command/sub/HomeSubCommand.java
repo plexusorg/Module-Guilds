@@ -1,9 +1,7 @@
 package dev.plex.command.sub;
 
 import dev.plex.Guilds;
-import dev.plex.command.PlexCommand;
-import dev.plex.command.annotation.CommandParameters;
-import dev.plex.command.annotation.CommandPermissions;
+import dev.plex.command.SimplePlexCommand;
 import dev.plex.command.source.RequiredCommandSource;
 import java.util.Collections;
 import java.util.List;
@@ -13,13 +11,17 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-@CommandParameters(name = "home", aliases = "spawn", usage = "/guild <command>", description = "Teleports to the guild home")
-@CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.home")
-public class HomeSubCommand extends PlexCommand
+public class HomeSubCommand extends SimplePlexCommand
 {
     public HomeSubCommand()
     {
-        super(false);
+        super(command("home")
+                .description("Teleports to the guild home")
+                .usage("/guild <command>")
+                .aliases("spawn")
+                .permission("plex.guilds.home")
+                .source(RequiredCommandSource.IN_GAME)
+                .build());
     }
 
     @Override
@@ -39,7 +41,7 @@ public class HomeSubCommand extends PlexCommand
     }
 
     @Override
-    public @NotNull List<String> smartTabComplete(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
+    protected @NotNull List<String> suggestions(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
     {
         return Collections.emptyList();
     }

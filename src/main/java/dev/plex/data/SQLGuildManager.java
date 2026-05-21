@@ -2,13 +2,12 @@ package dev.plex.data;
 
 import com.google.common.collect.Lists;
 import com.google.common.reflect.TypeToken;
+import dev.plex.Guilds;
 import com.google.gson.Gson;
-import dev.plex.Plex;
 import dev.plex.guild.Guild;
 import dev.plex.guild.data.Member;
 import dev.plex.util.CustomLocation;
 import dev.plex.util.GuildUtil;
-import dev.plex.util.PlexLog;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -34,11 +33,10 @@ public class SQLGuildManager
 
     public CompletableFuture<Guild> insertGuild(Guild guild)
     {
-        return CompletableFuture.supplyAsync(() ->
+        return supplyStorageAsync(connection ->
         {
-            try (Connection connection = Plex.get().getSqlConnection().getCon())
+            try (PreparedStatement statement = connection.prepareStatement(INSERT_GUILD))
             {
-                PreparedStatement statement = connection.prepareStatement(INSERT_GUILD);
                 statement.setString(1, guild.getGuildUuid().toString());
                 statement.setString(2, guild.getName());
                 statement.setString(3, GSON.toJson(guild.getOwner()));
@@ -56,38 +54,28 @@ public class SQLGuildManager
                 statement.execute();
                 return guild;
             }
-            catch (SQLException e)
-            {
-                GuildUtil.throwExceptionSync(e);
-                return null;
-            }
         });
     }
 
     public CompletableFuture<Void> deleteGuild(UUID uuid)
     {
-        return CompletableFuture.runAsync(() ->
+        return supplyStorageAsync(connection ->
         {
-            try (Connection connection = Plex.get().getSqlConnection().getCon())
+            try (PreparedStatement statement = connection.prepareStatement(DELETE_GUILD))
             {
-                PreparedStatement statement = connection.prepareStatement(DELETE_GUILD);
                 statement.setString(1, uuid.toString());
                 statement.execute();
-            }
-            catch (SQLException e)
-            {
-                GuildUtil.throwExceptionSync(e);
+                return null;
             }
         });
     }
 
     public CompletableFuture<Guild> updateGuild(Guild guild)
     {
-        return CompletableFuture.supplyAsync(() ->
+        return supplyStorageAsync(connection ->
         {
-            try (Connection connection = Plex.get().getSqlConnection().getCon())
+            try (PreparedStatement statement = connection.prepareStatement(UPDATE_GUILD))
             {
-                PreparedStatement statement = connection.prepareStatement(UPDATE_GUILD);
                 statement.setString(1, guild.getName());
                 statement.setString(2, GSON.toJson(guild.getOwner()));
                 statement.setString(3, GSON.toJson(guild.getMembers()));
@@ -104,34 +92,36 @@ public class SQLGuildManager
                 statement.executeUpdate();
                 return guild;
             }
-            catch (SQLException e)
-            {
-                GuildUtil.throwExceptionSync(e);
-                return null;
-            }
         });
     }
 
-    private List<Guild> getGuildsSync()
+    private List<Guild> getGuildsSync(Connection connection) throws SQLException
     {
         List<Guild> guilds = Lists.newArrayList();
-        try (Connection connection = Plex.get().getSqlConnection().getCon())
+        try (PreparedStatement statement = connection.prepareStatement(SELECT_GUILD);
+             ResultSet set = statement.executeQuery())
         {
-            PreparedStatement statement = connection.prepareStatement(SELECT_GUILD);
-            ResultSet set = statement.executeQuery();
             while (set.next())
             {
+                String timezone = Guilds.get().api().configuration().mainConfig().getString("server.timezone", "Etc/UTC");
                 Guild guild = new Guild(UUID.fromString(set.getString("guildUuid")),
-                        ZonedDateTime.ofInstant(Instant.ofEpochMilli(set.getLong("createdAt")), ZoneId.of(Plex.get().config.getString("server.timezone")).getRules().getOffset(Instant.now())));
+                        ZonedDateTime.ofInstant(Instant.ofEpochMilli(set.getLong("createdAt")), ZoneId.of(timezone).getRules().getOffset(Instant.now())));
                 guild.setName(set.getString("name"));
                 guild.setOwner(GSON.fromJson(set.getString("owner"), Member.class));
                 List<Member> members = new Gson().fromJson(set.getString("members"), new TypeToken<List<Member>>()
                 {
                 }.getType());
-                members.forEach(guild::addMember);
-                guild.getModerators().addAll(new Gson().fromJson(set.getString("moderators"), new TypeToken<List<String>>()
+                if (members != null)
                 {
-                }.getType()));
+                    members.forEach(guild::addMember);
+                }
+                List<String> moderators = new Gson().fromJson(set.getString("moderators"), new TypeToken<List<String>>()
+                {
+                }.getType());
+                if (moderators != null)
+                {
+                    moderators.stream().map(UUID::fromString).forEach(guild.getModerators()::add);
+                }
                 guild.setPrefix(set.getString("prefix"));
                 guild.setMotd(set.getString("motd"));
                 guild.setHome(GSON.fromJson(set.getString("home"), CustomLocation.class));
@@ -139,24 +129,37 @@ public class SQLGuildManager
                 Map<String, CustomLocation> warps = GSON.fromJson(set.getString("warps"), new TypeToken<Map<String, CustomLocation>>()
                 {
                 }.getType());
-                PlexLog.debug("Loaded {0} warps for {1} guild", warps.size(), guild.getName());
-                guild.getWarps().putAll(GSON.fromJson(set.getString("warps"), new TypeToken<Map<String, CustomLocation>>()
+                if (warps != null)
                 {
-                }.getType()));
+                    Guilds.get().api().logging().debug("Loaded {0} warps for {1} guild", warps.size(), guild.getName());
+                    guild.getWarps().putAll(warps);
+                }
                 guild.setPublic(set.getBoolean("isPublic"));
                 guilds.add(guild);
             }
-        }
-        catch (SQLException e)
-        {
-            GuildUtil.throwExceptionSync(e);
         }
         return guilds;
     }
 
     public CompletableFuture<List<Guild>> getGuilds()
     {
-        return CompletableFuture.supplyAsync(this::getGuildsSync);
+        return supplyStorageAsync(this::getGuildsSync);
+    }
+
+    private <T> CompletableFuture<T> supplyStorageAsync(dev.plex.api.storage.StorageApi.SqlFunction<T> function)
+    {
+        return CompletableFuture.supplyAsync(() ->
+        {
+            try
+            {
+                return Guilds.get().api().storage().withConnection(function);
+            }
+            catch (SQLException e)
+            {
+                GuildUtil.throwExceptionSync(e);
+                return null;
+            }
+        }, Guilds.get().api().scheduler().asyncExecutor());
     }
 
 }

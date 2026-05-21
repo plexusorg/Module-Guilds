@@ -1,9 +1,7 @@
 package dev.plex.command.sub;
 
 import dev.plex.Guilds;
-import dev.plex.command.PlexCommand;
-import dev.plex.command.annotation.CommandParameters;
-import dev.plex.command.annotation.CommandPermissions;
+import dev.plex.command.SimplePlexCommand;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.util.CustomLocation;
 import java.util.Collections;
@@ -16,13 +14,17 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-@CommandParameters(name = "setwarp", aliases = "makewarp,createwarp", usage = "/guild <command> <name>", description = "Creates a new warp at player's location with a specified name")
-@CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.setwarp")
-public class SetWarpSubCommand extends PlexCommand
+public class SetWarpSubCommand extends SimplePlexCommand
 {
     public SetWarpSubCommand()
     {
-        super(false);
+        super(command("setwarp")
+                .description("Creates a new warp at player's location with a specified name")
+                .usage("/guild <command> <name>")
+                .aliases("makewarp,createwarp")
+                .permission("plex.guilds.setwarp")
+                .source(RequiredCommandSource.IN_GAME)
+                .build());
     }
 
     @Override
@@ -63,7 +65,7 @@ public class SetWarpSubCommand extends PlexCommand
     }
 
     @Override
-    public @NotNull List<String> smartTabComplete(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
+    protected @NotNull List<String> suggestions(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
     {
         return Collections.emptyList();
     }

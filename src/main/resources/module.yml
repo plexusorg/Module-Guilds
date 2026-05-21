@@ -1,4 +1,5 @@
 name: Module-Guilds
 main: dev.plex.Guilds
 description: The guilds module for Plex
-version: 1.5
+version: 2.0-SNAPSHOT
+apiCompatibility: 1

@@ -1,9 +1,7 @@
 package dev.plex.command.sub;
 
 import dev.plex.Guilds;
-import dev.plex.command.PlexCommand;
-import dev.plex.command.annotation.CommandParameters;
-import dev.plex.command.annotation.CommandPermissions;
+import dev.plex.command.SimplePlexCommand;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
 import java.util.Collections;
@@ -15,13 +13,17 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-@CommandParameters(name = "create", aliases = "make", usage = "/guild <command> <name>", description = "Creates a guild with a specified name")
-@CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.create")
-public class CreateSubCommand extends PlexCommand
+public class CreateSubCommand extends SimplePlexCommand
 {
     public CreateSubCommand()
     {
-        super(false);
+        super(command("create")
+                .description("Creates a guild with a specified name")
+                .usage("/guild <command> <name>")
+                .aliases("make")
+                .permission("plex.guilds.create")
+                .source(RequiredCommandSource.IN_GAME)
+                .build());
     }
 
     @Override
@@ -45,7 +47,7 @@ public class CreateSubCommand extends PlexCommand
     }
 
     @Override
-    public @NotNull List<String> smartTabComplete(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
+    protected @NotNull List<String> suggestions(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
     {
         return Collections.emptyList();
     }

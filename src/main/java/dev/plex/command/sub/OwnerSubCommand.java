@@ -1,13 +1,10 @@
 package dev.plex.command.sub;
 
 import dev.plex.Guilds;
-import dev.plex.cache.DataUtils;
-import dev.plex.command.PlexCommand;
-import dev.plex.command.annotation.CommandParameters;
-import dev.plex.command.annotation.CommandPermissions;
+import dev.plex.api.player.PlexPlayerView;
+import dev.plex.command.SimplePlexCommand;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.data.Member;
-import dev.plex.player.PlexPlayer;
 import java.util.Collections;
 import java.util.List;
 import net.kyori.adventure.text.Component;
@@ -16,13 +13,17 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-@CommandParameters(name = "owner", aliases = "setowner", usage = "/guild <command> <player name>", description = "Sets the guild owner")
-@CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.owner")
-public class OwnerSubCommand extends PlexCommand
+public class OwnerSubCommand extends SimplePlexCommand
 {
     public OwnerSubCommand()
     {
-        super(false);
+        super(command("owner")
+                .description("Sets the guild owner")
+                .usage("/guild <command> <player name>")
+                .aliases("setowner")
+                .permission("plex.guilds.owner")
+                .source(RequiredCommandSource.IN_GAME)
+                .build());
     }
 
     @Override
@@ -41,13 +42,13 @@ public class OwnerSubCommand extends PlexCommand
                 return;
             }
             Member memberSender = guild.getMember(player.getUniqueId());
-            PlexPlayer plexPlayer = DataUtils.getPlayer(args[0], false);
+            PlexPlayerView plexPlayer = api().players().byName(args[0]).orElse(null);
             if (plexPlayer == null)
             {
                 send(player, messageComponent("playerNotFound"));
                 return;
             }
-            Member member = guild.getMember(plexPlayer.getUuid());
+            Member member = guild.getMember(plexPlayer.uuid());
             if (member == null)
             {
                 send(player, messageComponent("guildMemberNotFound"));
@@ -56,13 +57,13 @@ public class OwnerSubCommand extends PlexCommand
             guild.setOwner(member);
             guild.getMembers().remove(member);
             guild.getMembers().add(memberSender);
-            send(player, messageComponent("guildOwnerSet", plexPlayer.getName()));
+            send(player, messageComponent("guildOwnerSet", plexPlayer.name()));
         }, () -> send(player, messageComponent("guildNotFound")));
         return null;
     }
 
     @Override
-    public @NotNull List<String> smartTabComplete(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
+    protected @NotNull List<String> suggestions(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
     {
         return Collections.emptyList();
     }

@@ -2,14 +2,11 @@ package dev.plex.command.sub;
 
 import com.google.common.collect.ImmutableList;
 import dev.plex.Guilds;
-import dev.plex.command.PlexCommand;
-import dev.plex.command.annotation.CommandParameters;
-import dev.plex.command.annotation.CommandPermissions;
+import dev.plex.command.SimplePlexCommand;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
 import dev.plex.guild.GuildHolder;
 import dev.plex.guild.data.Member;
-import dev.plex.util.PlexLog;
 import net.kyori.adventure.text.Component;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.command.CommandSender;
@@ -25,13 +22,17 @@ import java.util.stream.Collectors;
 // TODO: 5/9/2022 deny command maybe?
 // TODO: 5/9/2022 deny members from inviting themselves or existing members in the current guild
 
-@CommandParameters(name = "invite", aliases = "inv", usage = "/guild <command> <player name>", description = "Invites a player to the guild")
-@CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.invite")
-public class InviteSubCommand extends PlexCommand
+public class InviteSubCommand extends SimplePlexCommand
 {
     public InviteSubCommand()
     {
-        super(false);
+        super(command("invite")
+                .description("Invites a player to the guild")
+                .usage("/guild <command> <player name>")
+                .aliases("inv")
+                .permission("plex.guilds.invite")
+                .source(RequiredCommandSource.IN_GAME)
+                .build());
     }
 
     @Override
@@ -116,7 +117,7 @@ public class InviteSubCommand extends PlexCommand
     }
 
     @Override
-    public @NotNull List<String> smartTabComplete(@NotNull CommandSender sender, @NotNull String alias, @NotNull String[] args) throws IllegalArgumentException
+    protected @NotNull List<String> suggestions(@NotNull CommandSender sender, @NotNull String alias, @NotNull String[] args) throws IllegalArgumentException
     {
         if (!(sender instanceof Player player))
         {
@@ -132,7 +133,7 @@ public class InviteSubCommand extends PlexCommand
             {
                 return ImmutableList.of();
             }
-            PlexLog.debug("Tab Completing moment");
+            api().logging().debug("Completing pending guild invites");
             return GuildHolder.PENDING_INVITES.get(player.getUniqueId()).stream().map(Guild::getName).collect(Collectors.toList());
         }
         return ImmutableList.of();

@@ -1,11 +1,9 @@
 package dev.plex.command.sub;
 
 import dev.plex.Guilds;
-import dev.plex.command.PlexCommand;
-import dev.plex.command.annotation.CommandParameters;
-import dev.plex.command.annotation.CommandPermissions;
+import dev.plex.command.SimplePlexCommand;
 import dev.plex.command.source.RequiredCommandSource;
-import dev.plex.util.minimessage.SafeMiniMessage;
+import dev.plex.util.GuildUtil;
 import java.util.Collections;
 import java.util.List;
 import net.kyori.adventure.text.Component;
@@ -15,13 +13,17 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-@CommandParameters(name = "prefix", aliases = "tag,settag,setprefix", usage = "/guild <command> <prefix>", description = "Sets the guild's default prefix")
-@CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.prefix")
-public class PrefixSubCommand extends PlexCommand
+public class PrefixSubCommand extends SimplePlexCommand
 {
     public PrefixSubCommand()
     {
-        super(false);
+        super(command("prefix")
+                .description("Sets the guild's default prefix")
+                .usage("/guild <command> <prefix>")
+                .aliases("tag,settag,setprefix")
+                .permission("plex.guilds.prefix")
+                .source(RequiredCommandSource.IN_GAME)
+                .build());
     }
 
     @Override
@@ -46,13 +48,13 @@ public class PrefixSubCommand extends PlexCommand
                 return;
             }
             guild.setPrefix(StringUtils.join(args, " "));
-            send(player, messageComponent("guildPrefixSet", SafeMiniMessage.mmDeserializeWithoutEvents(guild.getPrefix())));
+            send(player, messageComponent("guildPrefixSet", GuildUtil.miniMessageWithoutEvents(guild.getPrefix())));
         }, () -> send(player, messageComponent("guildNotFound")));
         return null;
     }
 
     @Override
-    public @NotNull List<String> smartTabComplete(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
+    protected @NotNull List<String> suggestions(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
     {
         return Collections.emptyList();
     }

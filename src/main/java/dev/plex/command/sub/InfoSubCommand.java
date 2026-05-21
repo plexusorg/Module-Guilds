@@ -1,10 +1,8 @@
 package dev.plex.command.sub;
 
 import dev.plex.Guilds;
-import dev.plex.cache.DataUtils;
-import dev.plex.command.PlexCommand;
-import dev.plex.command.annotation.CommandParameters;
-import dev.plex.command.annotation.CommandPermissions;
+import dev.plex.api.player.PlexPlayerView;
+import dev.plex.command.SimplePlexCommand;
 import dev.plex.command.source.RequiredCommandSource;
 import java.time.format.DateTimeFormatter;
 import java.util.Collections;
@@ -17,13 +15,17 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-@CommandParameters(name = "info", aliases = "information", usage = "/guild <command>", description = "Shows the guild's information")
-@CommandPermissions(source = RequiredCommandSource.IN_GAME, permission = "plex.guilds.info")
-public class InfoSubCommand extends PlexCommand
+public class InfoSubCommand extends SimplePlexCommand
 {
     public InfoSubCommand()
     {
-        super(false);
+        super(command("info")
+                .description("Shows the guild's information")
+                .usage("/guild <command>")
+                .aliases("information")
+                .permission("plex.guilds.info")
+                .source(RequiredCommandSource.IN_GAME)
+                .build());
     }
 
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy hh:mm:ss a");
@@ -38,26 +40,24 @@ public class InfoSubCommand extends PlexCommand
             {
                 send(player, mmString("<gradient:yellow:gold>====<aqua>" + guild.getName() + "<gradient:yellow:gold>===="));
                 send(player, mmString(""));
-                try
-                {
-                    send(player, mmString("<gold>Owner: <yellow>" + DataUtils.getPlayer(guild.getOwner().getUuid(), false).getName()));
-                }
-                catch (NullPointerException e)
-                {
-                    send(player, mmString("<gold>Owner: <yellow>Unable to load cache..."));
-                }
-                List<String> members = guild.getMembers().stream().filter(member -> !member.getUuid().equals(guild.getOwner().getUuid())).map(member -> DataUtils.getPlayer(member.getUuid(), false).getName()).toList();
+                send(player, mmString("<gold>Owner: <yellow>" + playerName(guild.getOwner().getUuid())));
+                List<String> members = guild.getMembers().stream().filter(member -> !member.getUuid().equals(guild.getOwner().getUuid())).map(member -> playerName(member.getUuid())).toList();
                 send(player, mmString("<gold>Members (" + members.size() + "): " + StringUtils.join(members, ", ")));
-                send(player, mmString("<gold>Moderators (" + guild.getModerators().size() + "): " + StringUtils.join(guild.getModerators().stream().map(uuid -> DataUtils.getPlayer(uuid, false).getName()).toList(), ", ")));
+                send(player, mmString("<gold>Moderators (" + guild.getModerators().size() + "): " + StringUtils.join(guild.getModerators().stream().map(this::playerName).toList(), ", ")));
                 send(player, mmString("<gold>Prefix: " + (guild.getPrefix() == null ? "N/A" : guild.getPrefix())));
                 send(player, mmString("<gold>Created At: " + formatter.format(guild.getCreatedAt())));
             }, () -> send(player, messageComponent("guildNotFound")));
-        });
+        }, Guilds.get().api().scheduler().asyncExecutor());
         return null;
     }
 
+    private String playerName(java.util.UUID uuid)
+    {
+        return api().players().byUuid(uuid).map(PlexPlayerView::name).orElse("Unable to load cache...");
+    }
+
     @Override
-    public @NotNull List<String> smartTabComplete(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
+    protected @NotNull List<String> suggestions(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
     {
         return Collections.emptyList();
     }
