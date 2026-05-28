@@ -31,7 +31,7 @@ public class SetHomeSubCommand extends SimplePlexCommand
         assert player != null;
         Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresentOrElse(guild ->
         {
-            if (!guild.getOwner().getUuid().equals(player.getUniqueId()))
+            if (!guild.isOwner(player.getUniqueId()))
             {
                 send(player, messageComponent("guildNotOwner"));
                 return;
@@ -43,12 +43,29 @@ public class SetHomeSubCommand extends SimplePlexCommand
                     send(player, messageComponent("guildHomeNotFound"));
                     return;
                 }
-                guild.setHome(null);
-                send(player, messageComponent("guildHomeRemoved"));
+                Guilds.get().getGuildRepository().updateHome(guild.getGuildUuid(), null).whenComplete((unused, throwable) ->
+                {
+                    if (throwable != null)
+                    {
+                        send(player, messageComponent("guildStorageFailed"));
+                        return;
+                    }
+                    guild.setHome(null);
+                    send(player, messageComponent("guildHomeRemoved"));
+                });
                 return;
             }
-            guild.setHome(CustomLocation.fromLocation(player.getLocation()));
-            send(player, messageComponent("guildHomeSet"));
+            CustomLocation home = CustomLocation.fromLocation(player.getLocation());
+            Guilds.get().getGuildRepository().updateHome(guild.getGuildUuid(), home).whenComplete((unused, throwable) ->
+            {
+                if (throwable != null)
+                {
+                    send(player, messageComponent("guildStorageFailed"));
+                    return;
+                }
+                guild.setHome(home);
+                send(player, messageComponent("guildHomeSet"));
+            });
         }, () -> send(player, messageComponent("guildNotFound")));
         return null;
     }

@@ -21,7 +21,6 @@ dependencies {
     compileOnly("io.papermc.paper:paper-api:26.1.2.build.+")
     implementation("org.apache.commons:commons-lang3:3.20.0")
     compileOnly("dev.plex:api:2.0-SNAPSHOT")
-    compileOnly("org.json:json:20251224")
     implementation("org.jetbrains:annotations:26.1.0")
 }
 

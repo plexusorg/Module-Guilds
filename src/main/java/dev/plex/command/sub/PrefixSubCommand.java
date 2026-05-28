@@ -36,19 +36,36 @@ public class PrefixSubCommand extends SimplePlexCommand
         assert player != null;
         Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresentOrElse(guild ->
         {
-            if (!guild.getOwner().getUuid().equals(player.getUniqueId()))
+            if (!guild.isOwner(player.getUniqueId()))
             {
                 send(player, messageComponent("guildNotOwner"));
                 return;
             }
             if (args[0].equalsIgnoreCase("clear") || args[0].equalsIgnoreCase("off"))
             {
-                guild.setPrefix(null);
-                send(player, messageComponent("guildPrefixCleared"));
+                Guilds.get().getGuildRepository().updatePrefix(guild.getGuildUuid(), null).whenComplete((unused, throwable) ->
+                {
+                    if (throwable != null)
+                    {
+                        send(player, messageComponent("guildStorageFailed"));
+                        return;
+                    }
+                    guild.setPrefix(null);
+                    send(player, messageComponent("guildPrefixCleared"));
+                });
                 return;
             }
-            guild.setPrefix(StringUtils.join(args, " "));
-            send(player, messageComponent("guildPrefixSet", GuildUtil.miniMessageWithoutEvents(guild.getPrefix())));
+            String prefix = StringUtils.join(args, " ");
+            Guilds.get().getGuildRepository().updatePrefix(guild.getGuildUuid(), prefix).whenComplete((unused, throwable) ->
+            {
+                if (throwable != null)
+                {
+                    send(player, messageComponent("guildStorageFailed"));
+                    return;
+                }
+                guild.setPrefix(prefix);
+                send(player, messageComponent("guildPrefixSet", GuildUtil.miniMessageWithoutEvents(guild.getPrefix())));
+            });
         }, () -> send(player, messageComponent("guildNotFound")));
         return null;
     }

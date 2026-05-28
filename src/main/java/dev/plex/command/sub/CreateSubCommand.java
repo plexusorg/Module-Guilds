@@ -38,10 +38,15 @@ public class CreateSubCommand extends SimplePlexCommand
         {
             return messageComponent("alreadyInGuild");
         }
-        Guilds.get().getSqlGuildManager().insertGuild(Guild.create(player, StringUtils.join(args, " "))).whenComplete((guild, throwable) ->
+        Guilds.get().getGuildRepository().createGuild(player, StringUtils.join(args, " ")).whenComplete((guild, throwable) ->
         {
+            if (throwable != null)
+            {
+                send(player, messageComponent("guildStorageFailed"));
+                return;
+            }
             Guilds.get().getGuildHolder().addGuild(guild);
-            send(player, mmString("Created guild named " + guild.getName()));
+            send(player, messageComponent("guildCreated", guild.getName()));
         });
         return null;
     }

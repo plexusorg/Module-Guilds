@@ -10,8 +10,19 @@ import java.util.UUID;
 public class Member
 {
     private final UUID uuid;
-    private Rank rank;
-    private boolean chat, prefix;
+    private GuildRole role;
+    private boolean chat;
+
+    public Member(UUID uuid)
+    {
+        this(uuid, GuildRole.MEMBER);
+    }
+
+    public Member(UUID uuid, GuildRole role)
+    {
+        this.uuid = uuid;
+        this.role = role;
+    }
 
     public Player getPlayer()
     {

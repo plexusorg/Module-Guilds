@@ -3,8 +3,8 @@ package dev.plex.guild;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import dev.plex.Guilds;
+import dev.plex.guild.data.GuildRole;
 import dev.plex.guild.data.Member;
-import dev.plex.guild.data.Rank;
 import dev.plex.util.CustomLocation;
 import dev.plex.util.GuildUtil;
 import lombok.Data;
@@ -23,51 +23,43 @@ public class Guild
     private final UUID guildUuid;
     private final ZonedDateTime createdAt;
     private final List<Member> members = Lists.newArrayList();
-    private final List<UUID> moderators = Lists.newArrayList();
-    private final List<Rank> ranks = Lists.newArrayList();
     private final Map<String, CustomLocation> warps = Maps.newHashMap();
     private String name;
-    private Member owner;
+    private UUID ownerUuid;
     private String prefix;
     private String motd;
     private CustomLocation home;
-    private boolean tagEnabled;
-    private Rank defaultRank = new Rank("default", null);
-    private boolean isPublic = false;
-
+    private boolean tagEnabled = true;
+    private boolean isPublic;
 
     public static Guild create(Player player, String guildName)
     {
         String timezone = Guilds.get().api().configuration().mainConfig().getString("server.timezone", "Etc/UTC");
         Guild guild = new Guild(UUID.randomUUID(), ZonedDateTime.now(ZoneId.of(timezone)));
         guild.setName(PlainTextComponentSerializer.plainText().serialize(GuildUtil.miniMessageWithoutEvents(guildName)));
-        guild.setOwner(new Member(player.getUniqueId()));
+        guild.setOwnerUuid(player.getUniqueId());
+        guild.addMember(new Member(player.getUniqueId(), GuildRole.OWNER));
         return guild;
     }
 
     public Member getMember(UUID uuid)
     {
-        if (owner.getUuid().equals(uuid))
-        {
-            return owner;
-        }
-        return members.stream().filter(m -> m.getUuid().equals(uuid)).findFirst().orElse(null);
+        return members.stream().filter(member -> member.getUuid().equals(uuid)).findFirst().orElse(null);
     }
 
     public void addMember(UUID uuid)
     {
-        addMember(new Member(uuid));
+        addMember(new Member(uuid, GuildRole.MEMBER));
     }
 
     public void addMember(Member member)
     {
-        this.members.add(member);
+        members.removeIf(existing -> existing.getUuid().equals(member.getUuid()));
+        members.add(member);
     }
 
-    public List<Member> getMembers()
+    public boolean isOwner(UUID uuid)
     {
-        List<Member> allMembers = Lists.newArrayList(members);
-        allMembers.add(owner);
-        return allMembers;
+        return ownerUuid != null && ownerUuid.equals(uuid);
     }
 }

@@ -30,6 +30,8 @@ public class GuildCommand extends SimplePlexCommand
                 .permission("plex.guilds.guild")
                 .build());
         this.registerSubCommand(new CreateSubCommand());
+        this.registerSubCommand(new DisbandSubCommand());
+        this.registerSubCommand(new LeaveSubCommand());
         this.registerSubCommand(new InfoSubCommand());
         this.registerSubCommand(new PrefixSubCommand());
         this.registerSubCommand(new SetWarpSubCommand());
@@ -40,6 +42,8 @@ public class GuildCommand extends SimplePlexCommand
         this.registerSubCommand(new HomeSubCommand());
         this.registerSubCommand(new OwnerSubCommand());
         this.registerSubCommand(new InviteSubCommand());
+        this.registerSubCommand(new AcceptSubCommand());
+        this.registerSubCommand(new DenySubCommand());
     }
 
     @Override

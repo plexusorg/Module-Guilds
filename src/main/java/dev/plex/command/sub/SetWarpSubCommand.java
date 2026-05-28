@@ -37,7 +37,7 @@ public class SetWarpSubCommand extends SimplePlexCommand
         assert player != null;
         Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresentOrElse(guild ->
         {
-            if (!guild.getOwner().getUuid().equals(player.getUniqueId()))
+            if (!guild.isOwner(player.getUniqueId()))
             {
                 send(player, messageComponent("guildNotOwner"));
                 return;
@@ -48,18 +48,23 @@ public class SetWarpSubCommand extends SimplePlexCommand
                 send(player, mmString("<red>The max length of a warp name is 16 characters!"));
                 return;
             }
-            if (guild.getWarps().containsKey(warpName.toLowerCase()))
-            {
-                send(player, messageComponent("guildWarpExists", warpName));
-                return;
-            }
             if (!StringUtils.isAlphanumericSpace(warpName.toLowerCase(Locale.ROOT)))
             {
                 send(player, messageComponent("guildWarpAlphanumeric"));
                 return;
             }
-            guild.getWarps().put(warpName.toLowerCase(), CustomLocation.fromLocation(player.getLocation()));
-            send(player, messageComponent("guildWarpCreated", warpName));
+            CustomLocation location = CustomLocation.fromLocation(player.getLocation());
+            String localName = warpName.toLowerCase(Locale.ROOT);
+            Guilds.get().getGuildRepository().upsertWarp(guild.getGuildUuid(), localName, location).whenComplete((unused, throwable) ->
+            {
+                if (throwable != null)
+                {
+                    send(player, messageComponent("guildStorageFailed"));
+                    return;
+                }
+                guild.getWarps().put(localName, location);
+                send(player, messageComponent("guildWarpCreated", warpName));
+            });
         }, () -> send(player, messageComponent("guildNotFound")));
         return null;
     }

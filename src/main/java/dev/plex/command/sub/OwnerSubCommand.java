@@ -4,6 +4,7 @@ import dev.plex.Guilds;
 import dev.plex.api.player.PlexPlayerView;
 import dev.plex.command.SimplePlexCommand;
 import dev.plex.command.source.RequiredCommandSource;
+import dev.plex.guild.data.GuildRole;
 import dev.plex.guild.data.Member;
 import java.util.Collections;
 import java.util.List;
@@ -20,7 +21,7 @@ public class OwnerSubCommand extends SimplePlexCommand
         super(command("owner")
                 .description("Sets the guild owner")
                 .usage("/guild <command> <player name>")
-                .aliases("setowner")
+                .aliases("setowner,promote")
                 .permission("plex.guilds.owner")
                 .source(RequiredCommandSource.IN_GAME)
                 .build());
@@ -36,7 +37,7 @@ public class OwnerSubCommand extends SimplePlexCommand
         assert player != null;
         Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresentOrElse(guild ->
         {
-            if (!guild.getOwner().getUuid().equals(player.getUniqueId()))
+            if (!guild.isOwner(player.getUniqueId()))
             {
                 send(player, messageComponent("guildNotOwner"));
                 return;
@@ -54,10 +55,21 @@ public class OwnerSubCommand extends SimplePlexCommand
                 send(player, messageComponent("guildMemberNotFound"));
                 return;
             }
-            guild.setOwner(member);
-            guild.getMembers().remove(member);
-            guild.getMembers().add(memberSender);
-            send(player, messageComponent("guildOwnerSet", plexPlayer.name()));
+            Guilds.get().getGuildRepository().transferOwner(guild.getGuildUuid(), member.getUuid(), player.getUniqueId()).whenComplete((unused, throwable) ->
+            {
+                if (throwable != null)
+                {
+                    send(player, messageComponent("guildStorageFailed"));
+                    return;
+                }
+                guild.setOwnerUuid(member.getUuid());
+                member.setRole(GuildRole.OWNER);
+                if (memberSender != null)
+                {
+                    memberSender.setRole(GuildRole.MEMBER);
+                }
+                send(player, messageComponent("guildOwnerSet", plexPlayer.name()));
+            });
         }, () -> send(player, messageComponent("guildNotFound")));
         return null;
     }

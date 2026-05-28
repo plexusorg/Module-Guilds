@@ -2,11 +2,16 @@ package dev.plex;
 
 import dev.plex.command.GuildCommand;
 import dev.plex.config.ModuleConfig;
-import dev.plex.data.SQLGuildManager;
-import dev.plex.data.SQLManager;
 import dev.plex.guild.GuildHolder;
+import dev.plex.handler.ChatHandlerImpl;
 import dev.plex.module.PlexModule;
+import dev.plex.api.storage.ModuleStorage;
+import dev.plex.storage.GuildRepository;
+import dev.plex.storage.OrmGuildRepository;
 import lombok.Getter;
+
+import java.sql.SQLException;
+import java.util.List;
 
 @Getter
 public class Guilds extends PlexModule
@@ -14,7 +19,7 @@ public class Guilds extends PlexModule
     private static Guilds module;
     private final GuildHolder guildHolder = new GuildHolder();
 
-    private SQLGuildManager sqlGuildManager;
+    private GuildRepository guildRepository;
 
     private ModuleConfig config;
 
@@ -31,9 +36,17 @@ public class Guilds extends PlexModule
     @Override
     public void enable()
     {
-        SQLManager.makeTables();
-        sqlGuildManager = new SQLGuildManager();
-        sqlGuildManager.getGuilds().whenComplete((guilds, throwable) ->
+        ModuleStorage storage = api().storage().forModule(this);
+        try
+        {
+            storage.migrations().run(List.of("001_initial_schema"));
+        }
+        catch (SQLException e)
+        {
+            throw new IllegalStateException("Failed to run Guilds migrations", e);
+        }
+        guildRepository = new OrmGuildRepository(storage);
+        guildRepository.loadGuilds().whenComplete((guilds, throwable) ->
         {
             if (throwable != null)
             {
@@ -46,18 +59,15 @@ public class Guilds extends PlexModule
                 return;
             }
             api().logging().debug("Finished loading {0} guilds", guilds.size());
-            guilds.forEach(guildHolder::addGuild);
+            guildHolder.replaceAll(guilds);
         });
+        registerListener(new ChatHandlerImpl());
     }
 
     @Override
     public void disable()
     {
-        // Unregistering listeners / commands is handled by Plex
-        if (sqlGuildManager != null)
-        {
-            this.getGuildHolder().getGuilds().forEach(sqlGuildManager::updateGuild);
-        }
+        guildHolder.clear();
     }
 
     public static Guilds get()
