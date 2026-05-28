@@ -1,7 +1,6 @@
 package dev.plex.command.sub;
 
 import dev.plex.Guilds;
-import dev.plex.command.SimplePlexCommand;
 import dev.plex.command.source.RequiredCommandSource;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
@@ -9,7 +8,7 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class DisbandSubCommand extends SimplePlexCommand
+public class DisbandSubCommand extends GuildSubCommand
 {
     public DisbandSubCommand()
     {

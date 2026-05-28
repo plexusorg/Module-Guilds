@@ -1,7 +1,6 @@
 package dev.plex.command.sub;
 
 import dev.plex.Guilds;
-import dev.plex.command.SimplePlexCommand;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.data.Member;
 import java.util.Collections;
@@ -16,7 +15,7 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class ChatSubCommand extends SimplePlexCommand
+public class ChatSubCommand extends GuildSubCommand
 {
     public ChatSubCommand()
     {

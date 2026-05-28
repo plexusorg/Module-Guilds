@@ -2,7 +2,6 @@ package dev.plex.command.sub;
 
 import com.google.common.collect.ImmutableList;
 import dev.plex.Guilds;
-import dev.plex.command.SimplePlexCommand;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
 import dev.plex.guild.data.GuildRole;
@@ -19,7 +18,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
-public class AcceptSubCommand extends SimplePlexCommand
+public class AcceptSubCommand extends GuildSubCommand
 {
     public AcceptSubCommand()
     {

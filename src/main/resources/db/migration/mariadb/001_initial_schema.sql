@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS {{table:guilds}} (
     `home_pitch` FLOAT,
     `motd` VARCHAR(3000),
     `tag_enabled` BOOLEAN NOT NULL DEFAULT TRUE,
-    `public` BOOLEAN NOT NULL DEFAULT FALSE,
+    `is_public` BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY (`guild_uuid`),
     UNIQUE KEY `uq_guilds_name` (`name`)
 );

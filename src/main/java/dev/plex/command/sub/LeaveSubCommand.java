@@ -1,7 +1,6 @@
 package dev.plex.command.sub;
 
 import dev.plex.Guilds;
-import dev.plex.command.SimplePlexCommand;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.data.Member;
 import net.kyori.adventure.text.Component;
@@ -12,7 +11,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Objects;
 
-public class LeaveSubCommand extends SimplePlexCommand
+public class LeaveSubCommand extends GuildSubCommand
 {
     public LeaveSubCommand()
     {

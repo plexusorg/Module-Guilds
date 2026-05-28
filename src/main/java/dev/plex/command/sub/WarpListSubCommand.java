@@ -2,7 +2,6 @@ package dev.plex.command.sub;
 
 import com.google.common.collect.Lists;
 import dev.plex.Guilds;
-import dev.plex.command.SimplePlexCommand;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
 import java.util.Collections;
@@ -14,7 +13,7 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-public class WarpListSubCommand extends SimplePlexCommand
+public class WarpListSubCommand extends GuildSubCommand
 {
     public WarpListSubCommand()
     {

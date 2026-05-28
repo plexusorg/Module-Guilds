@@ -2,7 +2,6 @@ package dev.plex.command.sub;
 
 import com.google.common.collect.ImmutableList;
 import dev.plex.Guilds;
-import dev.plex.command.SimplePlexCommand;
 import dev.plex.command.source.RequiredCommandSource;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
@@ -14,7 +13,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
-public class InviteSubCommand extends SimplePlexCommand
+public class InviteSubCommand extends GuildSubCommand
 {
     public InviteSubCommand()
     {

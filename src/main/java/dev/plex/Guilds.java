@@ -7,7 +7,7 @@ import dev.plex.handler.ChatHandlerImpl;
 import dev.plex.module.PlexModule;
 import dev.plex.api.storage.ModuleStorage;
 import dev.plex.storage.GuildRepository;
-import dev.plex.storage.OrmGuildRepository;
+import dev.plex.storage.JdbiGuildRepository;
 import lombok.Getter;
 
 import java.sql.SQLException;
@@ -45,7 +45,7 @@ public class Guilds extends PlexModule
         {
             throw new IllegalStateException("Failed to run Guilds migrations", e);
         }
-        guildRepository = new OrmGuildRepository(storage);
+        guildRepository = new JdbiGuildRepository(storage);
         guildRepository.loadGuilds().whenComplete((guilds, throwable) ->
         {
             if (throwable != null)

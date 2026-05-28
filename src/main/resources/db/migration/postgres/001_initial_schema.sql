@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS {{table:guilds}} (
     home_pitch REAL,
     motd VARCHAR(3000),
     tag_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-    public BOOLEAN NOT NULL DEFAULT FALSE
+    is_public BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE TABLE IF NOT EXISTS {{table:members}} (

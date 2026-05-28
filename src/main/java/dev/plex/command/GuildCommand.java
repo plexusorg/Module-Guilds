@@ -20,7 +20,7 @@ import java.util.Locale;
 
 public class GuildCommand extends SimplePlexCommand
 {
-    private final List<SimplePlexCommand> subCommands = Lists.newArrayList();
+    private final List<GuildSubCommand> subCommands = Lists.newArrayList();
 
     public GuildCommand()
     {
@@ -70,7 +70,7 @@ public class GuildCommand extends SimplePlexCommand
                     .append(mmString("<gold>Permission: <yellow>" + subCommand.getPermission())).append(Component.newline())
                     .append(mmString("<gold>Required Source: <yellow>" + subCommand.getRequiredSource().name()));
         }
-        SimplePlexCommand subCommand = getSubCommand(args[0]);
+        GuildSubCommand subCommand = getSubCommand(args[0]);
         if (subCommand == null)
         {
             return messageComponent("guildCommandNotFound", args[0]);
@@ -88,10 +88,10 @@ public class GuildCommand extends SimplePlexCommand
 
         checkPermission(commandSender, subCommand.getPermission());
 
-        return subCommand.execute(commandSender, player, Arrays.copyOfRange(args, 1, args.length));
+        return subCommand.executeSubCommand(commandSender, player, Arrays.copyOfRange(args, 1, args.length));
     }
 
-    private SimplePlexCommand getSubCommand(String label)
+    private GuildSubCommand getSubCommand(String label)
     {
         return subCommands.stream()
                 .filter(cmd -> cmd.getName().equalsIgnoreCase(label) || cmd.getAliases().stream().anyMatch(alias -> alias.equalsIgnoreCase(label)))
@@ -99,7 +99,7 @@ public class GuildCommand extends SimplePlexCommand
                 .orElse(null);
     }
 
-    private void registerSubCommand(SimplePlexCommand subCommand)
+    private void registerSubCommand(GuildSubCommand subCommand)
     {
         if (Guilds.get() != null)
         {
@@ -132,10 +132,10 @@ public class GuildCommand extends SimplePlexCommand
         }
         if (args.length >= 2)
         {
-            SimplePlexCommand subCommand = getSubCommand(args[0]);
+            GuildSubCommand subCommand = getSubCommand(args[0]);
             if (subCommand != null)
             {
-                return subCommand.suggestions(sender, alias, Arrays.copyOfRange(args, 1, args.length));
+                return subCommand.suggestSubCommand(sender, alias, Arrays.copyOfRange(args, 1, args.length));
             }
         }
         return ImmutableList.of();
