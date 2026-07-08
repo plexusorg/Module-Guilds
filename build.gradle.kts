@@ -1,9 +1,12 @@
 plugins {
     java
     `maven-publish`
+    id("com.gradleup.shadow") version "9.2.2"
 }
 
 repositories {
+    mavenLocal()
+
     maven {
         url = uri("https://repo.papermc.io/repository/maven-public/")
     }
@@ -13,6 +16,10 @@ repositories {
     }
 
     mavenCentral()
+
+    maven {
+        url = uri("https://repo.infernalsuite.com/repository/maven-snapshots/")
+    }
 }
 
 dependencies {
@@ -21,6 +28,8 @@ dependencies {
     compileOnly("io.papermc.paper:paper-api:26.1.2.build.+")
     implementation("org.apache.commons:commons-lang3:3.20.0")
     compileOnly("dev.plex:api:2.0-SNAPSHOT")
+    compileOnly("com.infernalsuite.asp:api:4.0.0-SNAPSHOT")
+    implementation("com.infernalsuite.asp:file-loader:4.0.0-SNAPSHOT")
     implementation("org.jetbrains:annotations:26.1.0")
 }
 
@@ -43,6 +52,16 @@ publishing {
 tasks.getByName<Jar>("jar") {
     archiveBaseName.set("Module-Guilds")
     archiveVersion.set("")
+}
+
+tasks.shadowJar {
+    archiveBaseName.set("Module-Guilds")
+    archiveClassifier.set("")
+    archiveVersion.set("")
+}
+
+tasks.build {
+    dependsOn(tasks.shadowJar)
 }
 
 tasks {

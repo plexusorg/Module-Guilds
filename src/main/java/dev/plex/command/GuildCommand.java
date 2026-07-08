@@ -40,10 +40,13 @@ public class GuildCommand extends SimplePlexCommand
         this.registerSubCommand(new ChatSubCommand());
         this.registerSubCommand(new SetHomeSubCommand());
         this.registerSubCommand(new HomeSubCommand());
+        this.registerSubCommand(new WorldSubCommand());
+        this.registerSubCommand(new PermissionsSubCommand());
         this.registerSubCommand(new OwnerSubCommand());
         this.registerSubCommand(new InviteSubCommand());
         this.registerSubCommand(new AcceptSubCommand());
         this.registerSubCommand(new DenySubCommand());
+        this.registerSubCommand(new MenuSubCommand());
     }
 
     @Override
@@ -51,7 +54,15 @@ public class GuildCommand extends SimplePlexCommand
     {
         if (args.length == 0)
         {
-            return getSubs();
+            if (player == null)
+            {
+                return getSubs();
+            }
+            Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresentOrElse(
+                    guild -> Guilds.get().getGuildMenuListener().openHome(player, guild),
+                    () -> player.sendMessage(messageComponent("guildNotFound"))
+            );
+            return null;
         }
         if (args[0].equalsIgnoreCase("help"))
         {

@@ -3,6 +3,7 @@ package dev.plex.storage;
 import dev.plex.Guilds;
 import dev.plex.api.storage.ModuleStorage;
 import dev.plex.guild.Guild;
+import dev.plex.guild.data.GuildPermission;
 import dev.plex.guild.data.GuildRole;
 import dev.plex.guild.data.Member;
 import dev.plex.storage.entity.GuildEntity;
@@ -92,9 +93,10 @@ public class JdbiGuildRepository implements GuildRepository
                 jdbi.useTransaction(h ->
                 {
                     h.createUpdate("INSERT INTO " + guildsTable + " (guild_uuid, name, prefix, owner_uuid, created_at, " +
-                                    "home_world, home_x, home_y, home_z, home_yaw, home_pitch, motd, tag_enabled, is_public) " +
+                                    "home_world, home_x, home_y, home_z, home_yaw, home_pitch, motd, tag_enabled, is_public, " +
+                                    "member_block_breaking, member_block_placing, member_interacting) " +
                                     "VALUES (:guildUuid, :name, :prefix, :ownerUuid, :createdAt, :homeWorld, :homeX, :homeY, :homeZ, " +
-                                    ":homeYaw, :homePitch, :motd, :tagEnabled, :isPublic)")
+                                    ":homeYaw, :homePitch, :motd, :tagEnabled, :isPublic, :memberBlockBreaking, :memberBlockPlacing, :memberInteracting)")
                             .bind("guildUuid", e.getGuildUuid())
                             .bind("name", e.getName())
                             .bind("prefix", e.getPrefix())
@@ -109,6 +111,9 @@ public class JdbiGuildRepository implements GuildRepository
                             .bind("motd", e.getMotd())
                             .bind("tagEnabled", e.isTagEnabled())
                             .bind("isPublic", e.isPublicGuild())
+                            .bind("memberBlockBreaking", e.isMemberBlockBreaking())
+                            .bind("memberBlockPlacing", e.isMemberBlockPlacing())
+                            .bind("memberInteracting", e.isMemberInteracting())
                             .execute();
                     insertMember(h, guild.getGuildUuid(), owner.getUniqueId(), GuildRole.OWNER);
                 });
@@ -160,6 +165,21 @@ public class JdbiGuildRepository implements GuildRepository
             upsertMember(h, guildUuid, oldOwnerUuid, GuildRole.MEMBER);
             upsertMember(h, guildUuid, newOwnerUuid, GuildRole.OWNER);
         }));
+    }
+
+    @Override
+    public CompletableFuture<Void> updateMemberPermission(UUID guildUuid, GuildPermission permission, boolean enabled)
+    {
+        String column = switch (permission)
+        {
+            case BLOCK_BREAKING -> "member_block_breaking";
+            case BLOCK_PLACING -> "member_block_placing";
+            case INTERACTING -> "member_interacting";
+        };
+        return runAsync(() -> jdbi.useHandle(h -> h.createUpdate("UPDATE " + guildsTable + " SET " + column + " = :enabled WHERE guild_uuid = :g")
+                .bind("enabled", enabled)
+                .bind("g", guildUuid.toString())
+                .execute()));
     }
 
     @Override
@@ -303,6 +323,9 @@ public class JdbiGuildRepository implements GuildRepository
         e.setMotd(rs.getString("motd"));
         e.setTagEnabled(rs.getBoolean("tag_enabled"));
         e.setPublicGuild(rs.getBoolean("is_public"));
+        e.setMemberBlockBreaking(rs.getBoolean("member_block_breaking"));
+        e.setMemberBlockPlacing(rs.getBoolean("member_block_placing"));
+        e.setMemberInteracting(rs.getBoolean("member_interacting"));
         return e;
     }
 
@@ -353,6 +376,9 @@ public class JdbiGuildRepository implements GuildRepository
         guild.setMotd(entity.getMotd());
         guild.setTagEnabled(entity.isTagEnabled());
         guild.setPublic(entity.isPublicGuild());
+        guild.setMemberBlockBreaking(entity.isMemberBlockBreaking());
+        guild.setMemberBlockPlacing(entity.isMemberBlockPlacing());
+        guild.setMemberInteracting(entity.isMemberInteracting());
         guild.setHome(toLocation(entity));
         return guild;
     }
@@ -368,6 +394,9 @@ public class JdbiGuildRepository implements GuildRepository
         entity.setMotd(guild.getMotd());
         entity.setTagEnabled(guild.isTagEnabled());
         entity.setPublicGuild(guild.isPublic());
+        entity.setMemberBlockBreaking(guild.isMemberBlockBreaking());
+        entity.setMemberBlockPlacing(guild.isMemberBlockPlacing());
+        entity.setMemberInteracting(guild.isMemberInteracting());
         setHome(entity, guild.getHome());
         return entity;
     }

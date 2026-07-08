@@ -1,6 +1,7 @@
 package dev.plex.storage;
 
 import dev.plex.guild.Guild;
+import dev.plex.guild.data.GuildPermission;
 import dev.plex.guild.data.GuildRole;
 import dev.plex.storage.entity.GuildInviteEntity;
 import dev.plex.util.CustomLocation;
@@ -24,6 +25,8 @@ public interface GuildRepository
     CompletableFuture<Void> removeMember(UUID guildUuid, UUID playerUuid);
 
     CompletableFuture<Void> transferOwner(UUID guildUuid, UUID newOwnerUuid, UUID oldOwnerUuid);
+
+    CompletableFuture<Void> updateMemberPermission(UUID guildUuid, GuildPermission permission, boolean enabled);
 
     CompletableFuture<Void> updatePrefix(UUID guildUuid, String prefix);
 
