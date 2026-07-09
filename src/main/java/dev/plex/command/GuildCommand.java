@@ -59,7 +59,7 @@ public class GuildCommand extends SimplePlexCommand
                 return getSubs();
             }
             Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresentOrElse(
-                    guild -> Guilds.get().getGuildMenuListener().openHome(player, guild),
+                    guild -> Guilds.get().getGuildDialogService().openHome(player, guild),
                     () -> player.sendMessage(messageComponent("guildNotFound"))
             );
             return null;

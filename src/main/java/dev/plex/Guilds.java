@@ -2,11 +2,10 @@ package dev.plex;
 
 import dev.plex.command.GuildCommand;
 import dev.plex.config.ModuleConfig;
+import dev.plex.dialog.GuildDialogService;
 import dev.plex.guild.GuildHolder;
 import dev.plex.handler.ChatHandlerImpl;
-import dev.plex.handler.GuildMenuListener;
 import dev.plex.handler.GuildWorldProtectionListener;
-import dev.plex.handler.RankPermissionMenuListener;
 import dev.plex.module.PlexModule;
 import dev.plex.api.storage.ModuleStorage;
 import dev.plex.storage.GuildRepository;
@@ -22,9 +21,8 @@ public class Guilds extends PlexModule
 {
     private static Guilds module;
     private final GuildHolder guildHolder = new GuildHolder();
-    private final GuildMenuListener guildMenuListener = new GuildMenuListener();
+    private final GuildDialogService guildDialogService = new GuildDialogService();
     private final GuildWorldProtectionListener guildWorldProtectionListener = new GuildWorldProtectionListener();
-    private final RankPermissionMenuListener rankPermissionMenuListener = new RankPermissionMenuListener();
     private final GuildWorldService guildWorldService = new GuildWorldService();
 
     private GuildRepository guildRepository;
@@ -71,9 +69,7 @@ public class Guilds extends PlexModule
             guildHolder.replaceAll(guilds);
         });
         registerListener(new ChatHandlerImpl());
-        registerListener(guildMenuListener);
         registerListener(guildWorldProtectionListener);
-        registerListener(rankPermissionMenuListener);
     }
 
     @Override

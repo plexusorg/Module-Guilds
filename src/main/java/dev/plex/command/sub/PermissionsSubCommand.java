@@ -32,7 +32,7 @@ public class PermissionsSubCommand extends GuildSubCommand
                 send(player, messageComponent("guildNotOwner"));
                 return;
             }
-            Guilds.get().getRankPermissionMenuListener().openRankList(player, guild);
+            Guilds.get().getGuildDialogService().openPermissions(player, guild);
         }, () -> send(player, messageComponent("guildNotFound")));
         return null;
     }
