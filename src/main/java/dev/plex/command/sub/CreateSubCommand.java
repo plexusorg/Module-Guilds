@@ -37,7 +37,9 @@ public class CreateSubCommand extends GuildSubCommand
         {
             return messageComponent("alreadyInGuild");
         }
-        Guilds.get().getGuildRepository().createGuild(player, StringUtils.join(args, " ")).whenComplete((guild, throwable) ->
+        Guilds.get().getGuildRepository().createGuild(player, StringUtils.join(args, " "))
+                .thenCompose(guild -> Guilds.get().getGuildWorldService().ensureWorld(guild).thenApply(world -> guild))
+                .whenComplete((guild, throwable) ->
         {
             if (throwable != null)
             {

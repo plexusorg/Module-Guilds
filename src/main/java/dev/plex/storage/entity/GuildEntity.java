@@ -21,6 +21,9 @@ public class GuildEntity
     private String motd;
     private boolean tagEnabled = true;
     private boolean publicGuild;
+    private boolean memberBlockBreaking;
+    private boolean memberBlockPlacing;
+    private boolean memberInteracting;
 
     public GuildEntity()
     {
