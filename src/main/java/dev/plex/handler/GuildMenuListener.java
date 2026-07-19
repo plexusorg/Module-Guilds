@@ -131,6 +131,11 @@ public class GuildMenuListener implements Listener
         if (slot == WORLD_SLOT)
         {
             player.closeInventory();
+            if (!Guilds.get().isGuildWorldsEnabled())
+            {
+                player.sendMessage(Guilds.get().messageComponent("guildWorldsUnavailable"));
+                return;
+            }
             Guilds.get().getGuildWorldService().ensureWorld(guild).whenComplete((world, throwable) ->
             {
                 if (throwable != null)
@@ -186,7 +191,10 @@ public class GuildMenuListener implements Listener
                 }
                 guild.removeMember(memberUuid);
                 Guilds.get().getGuildHolder().unindexMember(memberUuid);
-                Guilds.get().getGuildWorldService().ejectNonMembers(guild);
+                if (Guilds.get().isGuildWorldsEnabled())
+                {
+                    Guilds.get().getGuildWorldService().ejectNonMembers(guild);
+                }
                 player.sendMessage(Guilds.get().messageComponent("guildMemberKicked", member.getName()));
                 openMembers(player, guild);
             });

@@ -1,11 +1,10 @@
 plugins {
     java
     `maven-publish`
-    id("com.gradleup.shadow") version "9.2.2"
+    id("com.gradleup.shadow") version "9.6.0"
 }
 
 repositories {
-    mavenLocal()
 
     maven {
         url = uri("https://repo.papermc.io/repository/maven-public/")

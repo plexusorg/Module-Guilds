@@ -25,7 +25,8 @@ public class Guilds extends PlexModule
     private final GuildMenuListener guildMenuListener = new GuildMenuListener();
     private final GuildWorldProtectionListener guildWorldProtectionListener = new GuildWorldProtectionListener();
     private final RankPermissionMenuListener rankPermissionMenuListener = new RankPermissionMenuListener();
-    private final GuildWorldService guildWorldService = new GuildWorldService();
+
+    private GuildWorldService guildWorldService;
 
     private GuildRepository guildRepository;
 
@@ -44,7 +45,15 @@ public class Guilds extends PlexModule
     @Override
     public void enable()
     {
-        guildWorldService.enable();
+        if (slimeWorldsAvailable())
+        {
+            guildWorldService = new GuildWorldService();
+            guildWorldService.enable();
+        }
+        else
+        {
+            getLogger().warn("Advanced Slime Paper (ASP/ASWM) was not found; guild worlds are disabled.");
+        }
         ModuleStorage storage = api().storage().forModule(this);
         try
         {
@@ -79,8 +88,29 @@ public class Guilds extends PlexModule
     @Override
     public void disable()
     {
-        guildWorldService.disable();
+        if (guildWorldService != null)
+        {
+            guildWorldService.disable();
+        }
         guildHolder.clear();
+    }
+
+    public boolean isGuildWorldsEnabled()
+    {
+        return guildWorldService != null;
+    }
+
+    private static boolean slimeWorldsAvailable()
+    {
+        try
+        {
+            Class.forName("com.infernalsuite.asp.api.AdvancedSlimePaperAPI", false, Guilds.class.getClassLoader());
+            return true;
+        }
+        catch (Throwable throwable)
+        {
+            return false;
+        }
     }
 
     public static Guilds get()

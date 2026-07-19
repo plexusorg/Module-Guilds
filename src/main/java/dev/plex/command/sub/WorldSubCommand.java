@@ -27,6 +27,10 @@ public class WorldSubCommand extends GuildSubCommand
     protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
     {
         assert player != null;
+        if (!Guilds.get().isGuildWorldsEnabled())
+        {
+            return messageComponent("guildWorldsUnavailable");
+        }
         Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresentOrElse(guild ->
         {
             send(player, messageComponent("guildWorldLoading"));

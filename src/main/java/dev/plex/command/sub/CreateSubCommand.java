@@ -5,6 +5,7 @@ import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import net.kyori.adventure.text.Component;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.command.CommandSender;
@@ -38,7 +39,9 @@ public class CreateSubCommand extends GuildSubCommand
             return messageComponent("alreadyInGuild");
         }
         Guilds.get().getGuildRepository().createGuild(player, StringUtils.join(args, " "))
-                .thenCompose(guild -> Guilds.get().getGuildWorldService().ensureWorld(guild).thenApply(world -> guild))
+                .thenCompose(guild -> Guilds.get().isGuildWorldsEnabled()
+                        ? Guilds.get().getGuildWorldService().ensureWorld(guild).thenApply(world -> guild)
+                        : CompletableFuture.completedFuture(guild))
                 .whenComplete((guild, throwable) ->
         {
             if (throwable != null)
