@@ -24,7 +24,7 @@ repositories {
 dependencies {
     compileOnly("org.projectlombok:lombok:1.18.46")
     annotationProcessor("org.projectlombok:lombok:1.18.46")
-    compileOnly("io.papermc.paper:paper-api:26.1.2.build.+")
+    compileOnly("io.papermc.paper:paper-api:26.2.build.+")
     implementation("org.apache.commons:commons-lang3:3.20.0")
     compileOnly("dev.plex:api:2.0-SNAPSHOT")
     compileOnly("com.infernalsuite.asp:api:4.0.0-SNAPSHOT")
