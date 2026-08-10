@@ -46,7 +46,7 @@ public class Guilds extends PlexModule
         ModuleStorage storage = api().storage().forModule(this);
         try
         {
-            storage.migrations().run(List.of("001_initial_schema", "002_guild_world_permissions"));
+            storage.migrations().run(List.of("001_initial_schema", "002_guild_world_permissions", "003_role_permissions"));
         }
         catch (SQLException e)
         {

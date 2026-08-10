@@ -5,10 +5,12 @@ import dev.plex.api.storage.ModuleStorage;
 import dev.plex.guild.Guild;
 import dev.plex.guild.data.GuildPermission;
 import dev.plex.guild.data.GuildRole;
+import dev.plex.guild.data.GuildRolePermissions;
 import dev.plex.guild.data.Member;
 import dev.plex.storage.entity.GuildEntity;
 import dev.plex.storage.entity.GuildInviteEntity;
 import dev.plex.storage.entity.GuildMemberEntity;
+import dev.plex.storage.entity.GuildRolePermissionEntity;
 import dev.plex.storage.entity.GuildWarpEntity;
 import dev.plex.util.CustomLocation;
 import org.bukkit.entity.Player;
@@ -19,20 +21,30 @@ import org.jdbi.v3.core.JdbiException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class JdbiGuildRepository implements GuildRepository
 {
+    private static final Pattern UUID_FIELD_PATTERN = Pattern.compile("\"uuid\"\\s*:\\s*\"([0-9a-fA-F-]{36})\"");
+
     private final Jdbi jdbi;
     private final Executor executor;
     private final String guildsTable;
     private final String membersTable;
+    private final String rolePermissionsTable;
     private final String warpsTable;
     private final String invitesTable;
 
@@ -42,8 +54,10 @@ public class JdbiGuildRepository implements GuildRepository
         this.executor = Guilds.get().api().scheduler().asyncExecutor();
         this.guildsTable = storage.table("guilds");
         this.membersTable = storage.table("members");
+        this.rolePermissionsTable = storage.table("role_permissions");
         this.warpsTable = storage.table("warps");
         this.invitesTable = storage.table("invites");
+        upgradeLegacyGuildTable();
     }
 
     @Override
@@ -60,6 +74,9 @@ public class JdbiGuildRepository implements GuildRepository
                     Map<String, List<GuildMemberEntity>> membersByGuild = h.createQuery("SELECT * FROM " + membersTable)
                             .map((rs, ctx) -> memberMapRow(rs)).list().stream()
                             .collect(Collectors.groupingBy(GuildMemberEntity::getGuildUuid));
+                    Map<String, List<GuildRolePermissionEntity>> permissionsByGuild = h.createQuery("SELECT * FROM " + rolePermissionsTable)
+                            .map((rs, ctx) -> rolePermissionMapRow(rs)).list().stream()
+                            .collect(Collectors.groupingBy(GuildRolePermissionEntity::getGuildUuid));
                     Map<String, List<GuildWarpEntity>> warpsByGuild = h.createQuery("SELECT * FROM " + warpsTable)
                             .map((rs, ctx) -> warpMapRow(rs)).list().stream()
                             .collect(Collectors.groupingBy(GuildWarpEntity::getGuildUuid));
@@ -68,6 +85,8 @@ public class JdbiGuildRepository implements GuildRepository
                         Guild guild = toGuildBase(entity);
                         membersByGuild.getOrDefault(entity.getGuildUuid(), List.of())
                                 .forEach(member -> guild.addMember(toMember(member)));
+                        permissionsByGuild.getOrDefault(entity.getGuildUuid(), List.of())
+                                .forEach(permission -> guild.setRolePermissions(GuildRole.valueOf(permission.getRole()), toRolePermissions(permission)));
                         warpsByGuild.getOrDefault(entity.getGuildUuid(), List.of())
                                 .forEach(warp -> guild.getWarps().put(warp.getName(), toLocation(warp)));
                         return guild;
@@ -116,6 +135,7 @@ public class JdbiGuildRepository implements GuildRepository
                             .bind("memberInteracting", e.isMemberInteracting())
                             .execute();
                     insertMember(h, guild.getGuildUuid(), owner.getUniqueId(), GuildRole.OWNER);
+                    insertDefaultRolePermissions(h, guild.getGuildUuid());
                 });
                 return guild;
             }
@@ -132,6 +152,7 @@ public class JdbiGuildRepository implements GuildRepository
         return runAsync(() -> jdbi.useTransaction(h ->
         {
             h.createUpdate("DELETE FROM " + membersTable + " WHERE guild_uuid = :g").bind("g", guildUuid.toString()).execute();
+            h.createUpdate("DELETE FROM " + rolePermissionsTable + " WHERE guild_uuid = :g").bind("g", guildUuid.toString()).execute();
             h.createUpdate("DELETE FROM " + warpsTable + " WHERE guild_uuid = :g").bind("g", guildUuid.toString()).execute();
             h.createUpdate("DELETE FROM " + invitesTable + " WHERE guild_uuid = :g").bind("g", guildUuid.toString()).execute();
             h.createUpdate("DELETE FROM " + guildsTable + " WHERE guild_uuid = :g").bind("g", guildUuid.toString()).execute();
@@ -168,18 +189,36 @@ public class JdbiGuildRepository implements GuildRepository
     }
 
     @Override
-    public CompletableFuture<Void> updateMemberPermission(UUID guildUuid, GuildPermission permission, boolean enabled)
+    public CompletableFuture<Void> updateRolePermission(UUID guildUuid, GuildRole role, GuildPermission permission, boolean enabled)
     {
         String column = switch (permission)
         {
-            case BLOCK_BREAKING -> "member_block_breaking";
-            case BLOCK_PLACING -> "member_block_placing";
-            case INTERACTING -> "member_interacting";
+            case BLOCK_BREAKING -> "block_breaking";
+            case BLOCK_PLACING -> "block_placing";
+            case INTERACTING -> "interacting";
         };
-        return runAsync(() -> jdbi.useHandle(h -> h.createUpdate("UPDATE " + guildsTable + " SET " + column + " = :enabled WHERE guild_uuid = :g")
-                .bind("enabled", enabled)
-                .bind("g", guildUuid.toString())
-                .execute()));
+        return runAsync(() -> jdbi.useTransaction(h ->
+        {
+            upsertRolePermissions(h, guildUuid, role, GuildRolePermissions.defaults(role));
+            h.createUpdate("UPDATE " + rolePermissionsTable + " SET " + column + " = :enabled WHERE guild_uuid = :g AND role = :role")
+                    .bind("enabled", enabled)
+                    .bind("g", guildUuid.toString())
+                    .bind("role", role.name())
+                    .execute();
+            if (role == GuildRole.MEMBER)
+            {
+                String legacyColumn = switch (permission)
+                {
+                    case BLOCK_BREAKING -> "member_block_breaking";
+                    case BLOCK_PLACING -> "member_block_placing";
+                    case INTERACTING -> "member_interacting";
+                };
+                h.createUpdate("UPDATE " + guildsTable + " SET " + legacyColumn + " = :enabled WHERE guild_uuid = :g")
+                        .bind("enabled", enabled)
+                        .bind("g", guildUuid.toString())
+                        .execute();
+            }
+        }));
     }
 
     @Override
@@ -315,11 +354,11 @@ public class JdbiGuildRepository implements GuildRepository
         e.setOwnerUuid(rs.getString("owner_uuid"));
         e.setCreatedAt(rs.getLong("created_at"));
         e.setHomeWorld(rs.getString("home_world"));
-        e.setHomeX(rs.getObject("home_x", Double.class));
-        e.setHomeY(rs.getObject("home_y", Double.class));
-        e.setHomeZ(rs.getObject("home_z", Double.class));
-        e.setHomeYaw(rs.getObject("home_yaw", Float.class));
-        e.setHomePitch(rs.getObject("home_pitch", Float.class));
+        e.setHomeX(nullableDouble(rs, "home_x"));
+        e.setHomeY(nullableDouble(rs, "home_y"));
+        e.setHomeZ(nullableDouble(rs, "home_z"));
+        e.setHomeYaw(nullableFloat(rs, "home_yaw"));
+        e.setHomePitch(nullableFloat(rs, "home_pitch"));
         e.setMotd(rs.getString("motd"));
         e.setTagEnabled(rs.getBoolean("tag_enabled"));
         e.setPublicGuild(rs.getBoolean("is_public"));
@@ -327,6 +366,396 @@ public class JdbiGuildRepository implements GuildRepository
         e.setMemberBlockPlacing(rs.getBoolean("member_block_placing"));
         e.setMemberInteracting(rs.getBoolean("member_interacting"));
         return e;
+    }
+
+    private static Double nullableDouble(ResultSet rs, String column) throws SQLException
+    {
+        double value = rs.getDouble(column);
+        return rs.wasNull() ? null : value;
+    }
+
+    private static Float nullableFloat(ResultSet rs, String column) throws SQLException
+    {
+        float value = rs.getFloat(column);
+        return rs.wasNull() ? null : value;
+    }
+
+    private void upgradeLegacyGuildTable()
+    {
+        jdbi.useTransaction(h ->
+        {
+            ensureAuxiliaryTables(h);
+            Set<String> columns = columns(h, guildsTable);
+            if (columns.contains("guild_uuid"))
+            {
+                ensureCurrentPermissionColumns(h, columns);
+                backfillRolePermissions(h);
+                return;
+            }
+            if (!columns.contains("guildUuid"))
+            {
+                return;
+            }
+
+            safeAddColumn(h, columns, "guild_uuid", "VARCHAR(46)");
+            safeAddColumn(h, columns, "owner_uuid", "VARCHAR(46)");
+            safeAddColumn(h, columns, "created_at", "BIGINT");
+            safeAddColumn(h, columns, "home_world", "VARCHAR(128)");
+            safeAddColumn(h, columns, "home_x", "DOUBLE");
+            safeAddColumn(h, columns, "home_y", "DOUBLE");
+            safeAddColumn(h, columns, "home_z", "DOUBLE");
+            safeAddColumn(h, columns, "home_yaw", "FLOAT");
+            safeAddColumn(h, columns, "home_pitch", "FLOAT");
+            safeAddColumn(h, columns, "tag_enabled", "BOOLEAN NOT NULL DEFAULT TRUE");
+            safeAddColumn(h, columns, "is_public", "BOOLEAN NOT NULL DEFAULT FALSE");
+            safeAddColumn(h, columns, "member_block_breaking", "BOOLEAN NOT NULL DEFAULT FALSE");
+            safeAddColumn(h, columns, "member_block_placing", "BOOLEAN NOT NULL DEFAULT FALSE");
+            safeAddColumn(h, columns, "member_interacting", "BOOLEAN NOT NULL DEFAULT FALSE");
+
+            h.createUpdate("UPDATE " + guildsTable + " SET " +
+                            "guild_uuid = guildUuid, " +
+                            "created_at = createdAt, " +
+                            "tag_enabled = COALESCE(tagEnabled, tag_enabled), " +
+                            "is_public = COALESCE(isPublic, is_public) " +
+                            "WHERE guild_uuid IS NULL")
+                    .execute();
+
+            h.createQuery("SELECT guildUuid, owner, members FROM " + guildsTable)
+                    .map((rs, ctx) -> new LegacyGuildRow(rs.getString("guildUuid"), rs.getString("owner"), rs.getString("members")))
+                    .forEach(row -> migrateLegacyMembers(h, row));
+        });
+    }
+
+    private void backfillRolePermissions(Handle h)
+    {
+        h.createQuery("SELECT guild_uuid, member_block_breaking, member_block_placing, member_interacting FROM " + guildsTable)
+                .map((rs, ctx) -> new GuildRolePermissionBackfill(
+                        UUID.fromString(rs.getString("guild_uuid")),
+                        rs.getBoolean("member_block_breaking"),
+                        rs.getBoolean("member_block_placing"),
+                        rs.getBoolean("member_interacting")))
+                .forEach(backfill ->
+                {
+                    upsertRolePermissions(h, backfill.guildUuid(), GuildRole.OWNER, GuildRolePermissions.defaults(GuildRole.OWNER));
+                    upsertRolePermissions(h, backfill.guildUuid(), GuildRole.MEMBER, new GuildRolePermissions(backfill.blockBreaking(), backfill.blockPlacing(), backfill.interacting()));
+                });
+    }
+
+    private void ensureAuxiliaryTables(Handle h)
+    {
+        String database = databaseProduct(h);
+        if (!tableExists(h, membersTable))
+        {
+            h.createUpdate(membersTableSql(database)).execute();
+        }
+        if (!tableExists(h, rolePermissionsTable))
+        {
+            h.createUpdate(rolePermissionsTableSql(database)).execute();
+        }
+        if (!tableExists(h, warpsTable))
+        {
+            h.createUpdate(warpsTableSql(database)).execute();
+        }
+        if (!tableExists(h, invitesTable))
+        {
+            h.createUpdate(invitesTableSql(database)).execute();
+        }
+    }
+
+    private boolean tableExists(Handle h, String table)
+    {
+        try (ResultSet rs = h.getConnection().getMetaData().getTables(null, null, table, null))
+        {
+            if (rs.next())
+            {
+                return true;
+            }
+        }
+        catch (SQLException e)
+        {
+            throw new IllegalStateException("Failed to inspect guild storage tables", e);
+        }
+
+        try (ResultSet rs = h.getConnection().getMetaData().getTables(null, null, table.toUpperCase(Locale.ROOT), null))
+        {
+            return rs.next();
+        }
+        catch (SQLException e)
+        {
+            throw new IllegalStateException("Failed to inspect guild storage tables", e);
+        }
+    }
+
+    private String databaseProduct(Handle h)
+    {
+        try
+        {
+            return h.getConnection().getMetaData().getDatabaseProductName().toLowerCase(Locale.ROOT);
+        }
+        catch (SQLException e)
+        {
+            throw new IllegalStateException("Failed to inspect database product", e);
+        }
+    }
+
+    private String membersTableSql(String database)
+    {
+        if (database.contains("sqlite"))
+        {
+            return "CREATE TABLE IF NOT EXISTS " + membersTable + " (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "guild_uuid VARCHAR(46) NOT NULL, " +
+                    "player_uuid VARCHAR(46) NOT NULL, " +
+                    "role VARCHAR(20) NOT NULL, " +
+                    "joined_at BIGINT NOT NULL, " +
+                    "UNIQUE (guild_uuid, player_uuid))";
+        }
+        if (database.contains("postgres"))
+        {
+            return "CREATE TABLE IF NOT EXISTS " + membersTable + " (" +
+                    "id BIGSERIAL PRIMARY KEY, " +
+                    "guild_uuid VARCHAR(46) NOT NULL, " +
+                    "player_uuid VARCHAR(46) NOT NULL, " +
+                    "role VARCHAR(20) NOT NULL, " +
+                    "joined_at BIGINT NOT NULL, " +
+                    "CONSTRAINT uq_" + membersTable + "_guild_player UNIQUE (guild_uuid, player_uuid))";
+        }
+        return "CREATE TABLE IF NOT EXISTS " + membersTable + " (" +
+                "id BIGINT NOT NULL AUTO_INCREMENT, " +
+                "guild_uuid VARCHAR(46) NOT NULL, " +
+                "player_uuid VARCHAR(46) NOT NULL, " +
+                "role VARCHAR(20) NOT NULL, " +
+                "joined_at BIGINT NOT NULL, " +
+                "PRIMARY KEY (id), " +
+                "UNIQUE KEY uq_" + membersTable + "_guild_player (guild_uuid, player_uuid))";
+    }
+
+    private String warpsTableSql(String database)
+    {
+        if (database.contains("sqlite"))
+        {
+            return "CREATE TABLE IF NOT EXISTS " + warpsTable + " (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "guild_uuid VARCHAR(46) NOT NULL, " +
+                    "name VARCHAR(16) NOT NULL, " +
+                    "world VARCHAR(128) NOT NULL, " +
+                    "x DOUBLE NOT NULL, " +
+                    "y DOUBLE NOT NULL, " +
+                    "z DOUBLE NOT NULL, " +
+                    "yaw FLOAT NOT NULL, " +
+                    "pitch FLOAT NOT NULL, " +
+                    "UNIQUE (guild_uuid, name))";
+        }
+        if (database.contains("postgres"))
+        {
+            return "CREATE TABLE IF NOT EXISTS " + warpsTable + " (" +
+                    "id BIGSERIAL PRIMARY KEY, " +
+                    "guild_uuid VARCHAR(46) NOT NULL, " +
+                    "name VARCHAR(16) NOT NULL, " +
+                    "world VARCHAR(128) NOT NULL, " +
+                    "x DOUBLE PRECISION NOT NULL, " +
+                    "y DOUBLE PRECISION NOT NULL, " +
+                    "z DOUBLE PRECISION NOT NULL, " +
+                    "yaw REAL NOT NULL, " +
+                    "pitch REAL NOT NULL, " +
+                    "CONSTRAINT uq_" + warpsTable + "_guild_name UNIQUE (guild_uuid, name))";
+        }
+        return "CREATE TABLE IF NOT EXISTS " + warpsTable + " (" +
+                "id BIGINT NOT NULL AUTO_INCREMENT, " +
+                "guild_uuid VARCHAR(46) NOT NULL, " +
+                "name VARCHAR(16) NOT NULL, " +
+                "world VARCHAR(128) NOT NULL, " +
+                "x DOUBLE NOT NULL, " +
+                "y DOUBLE NOT NULL, " +
+                "z DOUBLE NOT NULL, " +
+                "yaw FLOAT NOT NULL, " +
+                "pitch FLOAT NOT NULL, " +
+                "PRIMARY KEY (id), " +
+                "UNIQUE KEY uq_" + warpsTable + "_guild_name (guild_uuid, name))";
+    }
+
+    private String rolePermissionsTableSql(String database)
+    {
+        if (database.contains("sqlite"))
+        {
+            return "CREATE TABLE IF NOT EXISTS " + rolePermissionsTable + " (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "guild_uuid VARCHAR(46) NOT NULL, " +
+                    "role VARCHAR(20) NOT NULL, " +
+                    "block_breaking BOOLEAN NOT NULL DEFAULT 0, " +
+                    "block_placing BOOLEAN NOT NULL DEFAULT 0, " +
+                    "interacting BOOLEAN NOT NULL DEFAULT 0, " +
+                    "UNIQUE (guild_uuid, role))";
+        }
+        if (database.contains("postgres"))
+        {
+            return "CREATE TABLE IF NOT EXISTS " + rolePermissionsTable + " (" +
+                    "id BIGSERIAL PRIMARY KEY, " +
+                    "guild_uuid VARCHAR(46) NOT NULL, " +
+                    "role VARCHAR(20) NOT NULL, " +
+                    "block_breaking BOOLEAN NOT NULL DEFAULT FALSE, " +
+                    "block_placing BOOLEAN NOT NULL DEFAULT FALSE, " +
+                    "interacting BOOLEAN NOT NULL DEFAULT FALSE, " +
+                    "CONSTRAINT uq_" + rolePermissionsTable + "_guild_role UNIQUE (guild_uuid, role))";
+        }
+        return "CREATE TABLE IF NOT EXISTS " + rolePermissionsTable + " (" +
+                "id BIGINT NOT NULL AUTO_INCREMENT, " +
+                "guild_uuid VARCHAR(46) NOT NULL, " +
+                "role VARCHAR(20) NOT NULL, " +
+                "block_breaking BOOLEAN NOT NULL DEFAULT FALSE, " +
+                "block_placing BOOLEAN NOT NULL DEFAULT FALSE, " +
+                "interacting BOOLEAN NOT NULL DEFAULT FALSE, " +
+                "PRIMARY KEY (id), " +
+                "UNIQUE KEY uq_" + rolePermissionsTable + "_guild_role (guild_uuid, role))";
+    }
+
+    private String invitesTableSql(String database)
+    {
+        if (database.contains("sqlite"))
+        {
+            return "CREATE TABLE IF NOT EXISTS " + invitesTable + " (" +
+                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
+                    "guild_uuid VARCHAR(46) NOT NULL, " +
+                    "inviter_uuid VARCHAR(46) NOT NULL, " +
+                    "invitee_uuid VARCHAR(46) NOT NULL, " +
+                    "expires_at BIGINT NOT NULL, " +
+                    "UNIQUE (guild_uuid, invitee_uuid))";
+        }
+        if (database.contains("postgres"))
+        {
+            return "CREATE TABLE IF NOT EXISTS " + invitesTable + " (" +
+                    "id BIGSERIAL PRIMARY KEY, " +
+                    "guild_uuid VARCHAR(46) NOT NULL, " +
+                    "inviter_uuid VARCHAR(46) NOT NULL, " +
+                    "invitee_uuid VARCHAR(46) NOT NULL, " +
+                    "expires_at BIGINT NOT NULL, " +
+                    "CONSTRAINT uq_" + invitesTable + "_guild_invitee UNIQUE (guild_uuid, invitee_uuid))";
+        }
+        return "CREATE TABLE IF NOT EXISTS " + invitesTable + " (" +
+                "id BIGINT NOT NULL AUTO_INCREMENT, " +
+                "guild_uuid VARCHAR(46) NOT NULL, " +
+                "inviter_uuid VARCHAR(46) NOT NULL, " +
+                "invitee_uuid VARCHAR(46) NOT NULL, " +
+                "expires_at BIGINT NOT NULL, " +
+                "PRIMARY KEY (id), " +
+                "UNIQUE KEY uq_" + invitesTable + "_guild_invitee (guild_uuid, invitee_uuid))";
+    }
+
+    private void ensureCurrentPermissionColumns(Handle h, Set<String> columns)
+    {
+        safeAddColumn(h, columns, "member_block_breaking", "BOOLEAN NOT NULL DEFAULT FALSE");
+        safeAddColumn(h, columns, "member_block_placing", "BOOLEAN NOT NULL DEFAULT FALSE");
+        safeAddColumn(h, columns, "member_interacting", "BOOLEAN NOT NULL DEFAULT FALSE");
+    }
+
+    private Set<String> columns(Handle h, String table)
+    {
+        return h.createQuery("SELECT * FROM " + table + " WHERE 1 = 0")
+                .map((rs, ctx) ->
+                {
+                    Set<String> columns = new HashSet<>();
+                    ResultSetMetaData metaData = rs.getMetaData();
+                    for (int i = 1; i <= metaData.getColumnCount(); i++)
+                    {
+                        columns.add(metaData.getColumnName(i));
+                    }
+                    return columns;
+                })
+                .findFirst()
+                .orElseGet(() ->
+                {
+                    try
+                    {
+                        Set<String> columns = new HashSet<>();
+                        try (ResultSet rs = h.getConnection().getMetaData().getColumns(null, null, table, null))
+                        {
+                            while (rs.next())
+                            {
+                                columns.add(rs.getString("COLUMN_NAME"));
+                            }
+                        }
+                        return columns;
+                    }
+                    catch (SQLException e)
+                    {
+                        throw new IllegalStateException("Failed to inspect guild table columns", e);
+                    }
+                });
+    }
+
+    private void safeAddColumn(Handle h, Set<String> columns, String column, String definition)
+    {
+        if (columns.contains(column))
+        {
+            return;
+        }
+        try
+        {
+            h.createUpdate("ALTER TABLE " + guildsTable + " ADD COLUMN " + column + " " + definition).execute();
+            columns.add(column);
+        }
+        catch (JdbiException ignored)
+        {
+            columns.add(column);
+        }
+    }
+
+    private void migrateLegacyMembers(Handle h, LegacyGuildRow row)
+    {
+        UUID guildUuid = UUID.fromString(row.guildUuid());
+        UUID ownerUuid = firstUuid(row.ownerJson());
+        if (ownerUuid == null)
+        {
+            return;
+        }
+        h.createUpdate("UPDATE " + guildsTable + " SET owner_uuid = :owner WHERE guild_uuid = :guild")
+                .bind("owner", ownerUuid.toString())
+                .bind("guild", guildUuid.toString())
+                .execute();
+        upsertMember(h, guildUuid, ownerUuid, GuildRole.OWNER);
+        uuids(row.membersJson()).stream()
+                .filter(uuid -> !uuid.equals(ownerUuid))
+                .forEach(uuid -> upsertMember(h, guildUuid, uuid, GuildRole.MEMBER));
+        upsertRolePermissions(h, guildUuid, GuildRole.OWNER, GuildRolePermissions.defaults(GuildRole.OWNER));
+        upsertRolePermissions(h, guildUuid, GuildRole.MEMBER, new GuildRolePermissions(
+                legacyBoolean(h, guildUuid, "member_block_breaking"),
+                legacyBoolean(h, guildUuid, "member_block_placing"),
+                legacyBoolean(h, guildUuid, "member_interacting")));
+    }
+
+    private boolean legacyBoolean(Handle h, UUID guildUuid, String column)
+    {
+        return h.createQuery("SELECT " + column + " FROM " + guildsTable + " WHERE guild_uuid = :guild")
+                .bind("guild", guildUuid.toString())
+                .mapTo(Boolean.class)
+                .findFirst()
+                .orElse(false);
+    }
+
+    private UUID firstUuid(String json)
+    {
+        return uuids(json).stream().findFirst().orElse(null);
+    }
+
+    private List<UUID> uuids(String json)
+    {
+        if (json == null || json.isBlank())
+        {
+            return List.of();
+        }
+        Matcher matcher = UUID_FIELD_PATTERN.matcher(json);
+        return matcher.results()
+                .map(result -> UUID.fromString(result.group(1)))
+                .distinct()
+                .toList();
+    }
+
+    private record LegacyGuildRow(String guildUuid, String ownerJson, String membersJson)
+    {
+    }
+
+    private record GuildRolePermissionBackfill(UUID guildUuid, boolean blockBreaking, boolean blockPlacing, boolean interacting)
+    {
     }
 
     private static GuildMemberEntity memberMapRow(java.sql.ResultSet rs) throws java.sql.SQLException
@@ -337,6 +766,18 @@ public class JdbiGuildRepository implements GuildRepository
         e.setPlayerUuid(rs.getString("player_uuid"));
         e.setRole(rs.getString("role"));
         e.setJoinedAt(rs.getLong("joined_at"));
+        return e;
+    }
+
+    private static GuildRolePermissionEntity rolePermissionMapRow(java.sql.ResultSet rs) throws java.sql.SQLException
+    {
+        GuildRolePermissionEntity e = new GuildRolePermissionEntity();
+        e.setId(rs.getLong("id"));
+        e.setGuildUuid(rs.getString("guild_uuid"));
+        e.setRole(rs.getString("role"));
+        e.setBlockBreaking(rs.getBoolean("block_breaking"));
+        e.setBlockPlacing(rs.getBoolean("block_placing"));
+        e.setInteracting(rs.getBoolean("interacting"));
         return e;
     }
 
@@ -406,6 +847,11 @@ public class JdbiGuildRepository implements GuildRepository
         return new Member(UUID.fromString(entity.getPlayerUuid()), GuildRole.valueOf(entity.getRole()));
     }
 
+    private GuildRolePermissions toRolePermissions(GuildRolePermissionEntity entity)
+    {
+        return new GuildRolePermissions(entity.isBlockBreaking(), entity.isBlockPlacing(), entity.isInteracting());
+    }
+
     private GuildMemberEntity memberEntity(UUID guildUuid, UUID playerUuid, GuildRole role)
     {
         GuildMemberEntity entity = new GuildMemberEntity();
@@ -445,6 +891,36 @@ public class JdbiGuildRepository implements GuildRepository
                 .bind("r", role.name())
                 .bind("g", guildUuid.toString())
                 .bind("p", playerUuid.toString())
+                .execute();
+    }
+
+    private void insertDefaultRolePermissions(Handle h, UUID guildUuid)
+    {
+        for (GuildRole role : GuildRole.values())
+        {
+            upsertRolePermissions(h, guildUuid, role, GuildRolePermissions.defaults(role));
+        }
+    }
+
+    private void upsertRolePermissions(Handle h, UUID guildUuid, GuildRole role, GuildRolePermissions permissions)
+    {
+        GuildRolePermissionEntity existing = h.createQuery("SELECT * FROM " + rolePermissionsTable + " WHERE guild_uuid = :g AND role = :role")
+                .bind("g", guildUuid.toString())
+                .bind("role", role.name())
+                .map((rs, ctx) -> rolePermissionMapRow(rs))
+                .findFirst()
+                .orElse(null);
+        if (existing != null)
+        {
+            return;
+        }
+        h.createUpdate("INSERT INTO " + rolePermissionsTable + " (guild_uuid, role, block_breaking, block_placing, interacting) " +
+                        "VALUES (:g, :role, :blockBreak, :blockPlace, :interact)")
+                .bind("g", guildUuid.toString())
+                .bind("role", role.name())
+                .bind("blockBreak", permissions.blockBreaking())
+                .bind("blockPlace", permissions.blockPlacing())
+                .bind("interact", permissions.interacting())
                 .execute();
     }
 

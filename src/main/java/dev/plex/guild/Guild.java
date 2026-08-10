@@ -5,6 +5,7 @@ import com.google.common.collect.Maps;
 import dev.plex.Guilds;
 import dev.plex.guild.data.GuildPermission;
 import dev.plex.guild.data.GuildRole;
+import dev.plex.guild.data.GuildRolePermissions;
 import dev.plex.guild.data.Member;
 import dev.plex.api.player.PlexPlayerView;
 import dev.plex.util.CustomLocation;
@@ -19,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.EnumMap;
 
 @Data
 public class Guild
@@ -27,6 +29,7 @@ public class Guild
     private final ZonedDateTime createdAt;
     private final List<Member> members = Lists.newArrayList();
     private final Map<String, CustomLocation> warps = Maps.newHashMap();
+    private final Map<GuildRole, GuildRolePermissions> rolePermissions = new EnumMap<>(GuildRole.class);
     private String name;
     private UUID ownerUuid;
     private String prefix;
@@ -102,29 +105,39 @@ public class Guild
 
     public boolean hasPermission(UUID uuid, GuildPermission permission)
     {
-        if (isOwner(uuid))
-        {
-            return true;
-        }
-        if (!isMember(uuid))
+        Member member = getMember(uuid);
+        if (member == null)
         {
             return false;
         }
-        return switch (permission)
-        {
-            case BLOCK_BREAKING -> memberBlockBreaking;
-            case BLOCK_PLACING -> memberBlockPlacing;
-            case INTERACTING -> memberInteracting;
-        };
+        return permissions(member.getRole()).hasPermission(permission);
     }
 
-    public void setPermission(GuildPermission permission, boolean enabled)
+    public GuildRolePermissions permissions(GuildRole role)
     {
-        switch (permission)
+        return rolePermissions.computeIfAbsent(role, GuildRolePermissions::defaults);
+    }
+
+    public void setPermission(GuildRole role, GuildPermission permission, boolean enabled)
+    {
+        GuildRolePermissions updated = permissions(role).withPermission(permission, enabled);
+        rolePermissions.put(role, updated);
+        if (role == GuildRole.MEMBER)
         {
-            case BLOCK_BREAKING -> memberBlockBreaking = enabled;
-            case BLOCK_PLACING -> memberBlockPlacing = enabled;
-            case INTERACTING -> memberInteracting = enabled;
+            memberBlockBreaking = updated.blockBreaking();
+            memberBlockPlacing = updated.blockPlacing();
+            memberInteracting = updated.interacting();
+        }
+    }
+
+    public void setRolePermissions(GuildRole role, GuildRolePermissions permissions)
+    {
+        rolePermissions.put(role, permissions);
+        if (role == GuildRole.MEMBER)
+        {
+            memberBlockBreaking = permissions.blockBreaking();
+            memberBlockPlacing = permissions.blockPlacing();
+            memberInteracting = permissions.interacting();
         }
     }
 }

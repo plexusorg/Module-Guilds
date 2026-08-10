@@ -26,7 +26,7 @@ public interface GuildRepository
 
     CompletableFuture<Void> transferOwner(UUID guildUuid, UUID newOwnerUuid, UUID oldOwnerUuid);
 
-    CompletableFuture<Void> updateMemberPermission(UUID guildUuid, GuildPermission permission, boolean enabled);
+    CompletableFuture<Void> updateRolePermission(UUID guildUuid, GuildRole role, GuildPermission permission, boolean enabled);
 
     CompletableFuture<Void> updatePrefix(UUID guildUuid, String prefix);
 

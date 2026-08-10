@@ -27,8 +27,6 @@ import java.util.UUID;
 
 public class GuildDialogService
 {
-    private static final UUID MEMBER_PERMISSION_PROBE = new UUID(0L, 0L);
-
     public void openHome(Player player, Guild guild)
     {
         player.showDialog(dialog(
@@ -40,7 +38,7 @@ public class GuildDialogService
                 List.of(
                         button("Members", "View online status and manage members", audience -> player(audience, viewer -> openMembers(viewer, guild))),
                         button("Guild World", "Load and enter your ASP guild world", audience -> player(audience, viewer -> enterWorld(viewer, guild))),
-                        button("Permissions", "Configure member block permissions", audience -> player(audience, viewer -> openPermissions(viewer, guild)))
+                        button("Permissions", "Configure role block permissions", audience -> player(audience, viewer -> openPermissions(viewer, guild)))
                 ),
                 1
         ));
@@ -102,22 +100,47 @@ public class GuildDialogService
             return;
         }
         List<ActionButton> buttons = new ArrayList<>();
-        for (GuildPermission permission : GuildPermission.values())
+        for (GuildRole role : GuildRole.values())
         {
-            boolean enabled = guild.hasPermission(MEMBER_PERMISSION_PROBE, permission);
             buttons.add(button(
-                    permission.displayName() + ": " + (enabled ? "Enabled" : "Disabled"),
-                    "Click to toggle " + permission.displayName().toLowerCase(),
-                    audience -> player(audience, viewer -> togglePermission(viewer, guild, permission))
+                    role.name(),
+                    "Edit " + role.name().toLowerCase() + " permissions",
+                    audience -> player(audience, viewer -> openRolePermissions(viewer, guild, role))
             ));
         }
         buttons.add(button("Back", "Return to the guild menu", audience -> player(audience, viewer -> openHome(viewer, guild))));
         player.showDialog(dialog(
-                title("Member Permissions"),
+                title("Role Permissions"),
                 List.of(
-                        body("These permissions apply to regular guild members in the guild world.", NamedTextColor.GRAY),
-                        body("Owners always bypass these restrictions.", NamedTextColor.GOLD)
+                        body("Choose a guild role to configure.", NamedTextColor.GRAY),
+                        body("Permissions apply inside the guild world.", NamedTextColor.DARK_AQUA)
                 ),
+                buttons,
+                1
+        ));
+    }
+
+    private void openRolePermissions(Player player, Guild guild, GuildRole role)
+    {
+        if (!guild.isOwner(player.getUniqueId()))
+        {
+            player.sendMessage(Guilds.get().messageComponent("guildNotOwner"));
+            return;
+        }
+        List<ActionButton> buttons = new ArrayList<>();
+        for (GuildPermission permission : GuildPermission.values())
+        {
+            boolean enabled = guild.permissions(role).hasPermission(permission);
+            buttons.add(button(
+                    permission.displayName() + ": " + (enabled ? "Enabled" : "Disabled"),
+                    "Click to toggle " + permission.displayName().toLowerCase(),
+                    audience -> player(audience, viewer -> togglePermission(viewer, guild, role, permission))
+            ));
+        }
+        buttons.add(button("Back", "Return to role list", audience -> player(audience, viewer -> openPermissions(viewer, guild))));
+        player.showDialog(dialog(
+                title(role.name() + " Permissions"),
+                List.of(body("Configure " + role.name().toLowerCase() + " permissions for this guild world.", NamedTextColor.GRAY)),
                 buttons,
                 1
         ));
@@ -151,6 +174,7 @@ public class GuildDialogService
         {
             if (throwable != null)
             {
+                Guilds.get().getLogger().error("Failed to update guild role permission", throwable);
                 player.sendMessage(Guilds.get().messageComponent("guildStorageFailed"));
                 return;
             }
@@ -187,18 +211,18 @@ public class GuildDialogService
         });
     }
 
-    private void togglePermission(Player player, Guild guild, GuildPermission permission)
+    private void togglePermission(Player player, Guild guild, GuildRole role, GuildPermission permission)
     {
-        boolean enabled = !guild.hasPermission(MEMBER_PERMISSION_PROBE, permission);
-        guild.setPermission(permission, enabled);
-        Guilds.get().getGuildRepository().updateMemberPermission(guild.getGuildUuid(), permission, enabled).whenComplete((unused, throwable) ->
+        boolean enabled = !guild.permissions(role).hasPermission(permission);
+        guild.setPermission(role, permission, enabled);
+        Guilds.get().getGuildRepository().updateRolePermission(guild.getGuildUuid(), role, permission, enabled).whenComplete((unused, throwable) ->
         {
             if (throwable != null)
             {
                 player.sendMessage(Guilds.get().messageComponent("guildStorageFailed"));
                 return;
             }
-            openPermissions(player, guild);
+            openRolePermissions(player, guild, role);
         });
     }
 
