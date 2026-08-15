@@ -20,6 +20,10 @@ import java.util.List;
 @Getter
 public class Guilds extends PlexModule
 {
+    private static final String ASP_API_CLASS = "com.infernalsuite.asp.api.AdvancedSlimePaperAPI";
+    private static final String ASP_LOADER_CLASS = "com.infernalsuite.asp.api.loaders.SlimeLoader";
+    private static final String ASP_WORLD_SERVICE_CLASS = "dev.plex.world.AspGuildWorldService";
+
     private static Guilds module;
     private final GuildHolder guildHolder = new GuildHolder();
     private final GuildMenuListener guildMenuListener = new GuildMenuListener();
@@ -45,15 +49,7 @@ public class Guilds extends PlexModule
     @Override
     public void enable()
     {
-        if (slimeWorldsAvailable())
-        {
-            guildWorldService = new GuildWorldService();
-            guildWorldService.enable();
-        }
-        else
-        {
-            getLogger().warn("Advanced Slime Paper (ASP/ASWM) was not found; guild worlds are disabled.");
-        }
+        enableGuildWorlds();
         ModuleStorage storage = api().storage().forModule(this);
         try
         {
@@ -100,16 +96,23 @@ public class Guilds extends PlexModule
         return guildWorldService != null;
     }
 
-    private static boolean slimeWorldsAvailable()
+    private void enableGuildWorlds()
     {
         try
         {
-            Class.forName("com.infernalsuite.asp.api.AdvancedSlimePaperAPI", false, Guilds.class.getClassLoader());
-            return true;
+            ClassLoader classLoader = Guilds.class.getClassLoader();
+            Class.forName(ASP_API_CLASS, false, classLoader);
+            Class.forName(ASP_LOADER_CLASS, false, classLoader);
+
+            Class<? extends GuildWorldService> serviceClass = Class.forName(ASP_WORLD_SERVICE_CLASS, true, classLoader)
+                    .asSubclass(GuildWorldService.class);
+            GuildWorldService service = serviceClass.getConstructor().newInstance();
+            service.enable();
+            guildWorldService = service;
         }
-        catch (Throwable throwable)
+        catch (ReflectiveOperationException | LinkageError | RuntimeException throwable)
         {
-            return false;
+            getLogger().warn("Advanced Slime Paper (ASP/ASWM) is unavailable or incompatible; guild worlds are disabled, but all other guild features will remain enabled.");
         }
     }
 
