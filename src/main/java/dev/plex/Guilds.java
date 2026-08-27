@@ -1,7 +1,7 @@
 package dev.plex;
 
 import dev.plex.command.GuildCommand;
-import dev.plex.config.ModuleConfig;
+import dev.plex.api.config.ModuleConfiguration;
 import dev.plex.guild.GuildHolder;
 import dev.plex.handler.ChatHandlerImpl;
 import dev.plex.handler.GuildMenuListener;
@@ -34,13 +34,13 @@ public class Guilds extends PlexModule
 
     private GuildRepository guildRepository;
 
-    private ModuleConfig config;
+    private ModuleConfiguration config;
 
     @Override
     public void load()
     {
         module = this;
-        config = new ModuleConfig(this, "config.yml", "config.yml");
+        config = api().moduleConfigs().create(this, "config.yml");
         config.load();
         loadMessages("messages.yml");
         this.registerCommand(new GuildCommand());

@@ -1,7 +1,7 @@
 plugins {
     java
     `maven-publish`
-    id("com.gradleup.shadow") version "9.6.0"
+    id("com.gradleup.shadow") version "9.6.1"
 }
 
 repositories {
@@ -57,6 +57,7 @@ tasks.shadowJar {
     archiveBaseName.set("Module-Guilds")
     archiveClassifier.set("")
     archiveVersion.set("")
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
 }
 
 tasks.build {

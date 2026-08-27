@@ -140,10 +140,10 @@ public class GuildMenuListener implements Listener
             {
                 if (throwable != null)
                 {
-                    Guilds.get().api().scheduler().executeGlobal(() -> player.sendMessage(Guilds.get().messageComponent("guildWorldLoadFailed")));
+                    Guilds.get().scheduler().executeGlobal(() -> player.sendMessage(Guilds.get().messageComponent("guildWorldLoadFailed")));
                     return;
                 }
-                Guilds.get().api().scheduler().executeEntity(player, () -> player.teleportAsync(world.getSpawnLocation().toCenterLocation()), 1L);
+                Guilds.get().scheduler().executeEntity(player, () -> player.teleportAsync(world.getSpawnLocation().toCenterLocation()), 1L);
             });
             return;
         }

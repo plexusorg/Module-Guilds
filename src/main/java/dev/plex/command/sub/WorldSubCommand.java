@@ -38,14 +38,14 @@ public class WorldSubCommand extends GuildSubCommand
             {
                 if (throwable != null)
                 {
-                    Guilds.get().api().scheduler().executeGlobal(() ->
+                    Guilds.get().scheduler().executeGlobal(() ->
                     {
                         throwable.printStackTrace();
                         send(player, messageComponent("guildWorldLoadFailed"));
                     });
                     return;
                 }
-                Guilds.get().api().scheduler().executeEntity(player, () -> teleport(player, world), 1L);
+                Guilds.get().scheduler().executeEntity(player, () -> teleport(player, world), 1L);
             });
         }, () -> send(player, messageComponent("guildNotFound")));
         return null;

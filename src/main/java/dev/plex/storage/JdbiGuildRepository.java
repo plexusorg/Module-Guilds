@@ -39,7 +39,7 @@ public class JdbiGuildRepository implements GuildRepository
     public JdbiGuildRepository(ModuleStorage storage)
     {
         this.jdbi = storage.jdbi();
-        this.executor = Guilds.get().api().scheduler().asyncExecutor();
+        this.executor = Guilds.get().scheduler().asyncExecutor();
         this.guildsTable = storage.table("guilds");
         this.membersTable = storage.table("members");
         this.warpsTable = storage.table("warps");

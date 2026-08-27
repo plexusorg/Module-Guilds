@@ -53,7 +53,7 @@ public class AspGuildWorldService implements GuildWorldService
             return CompletableFuture.completedFuture(aspLoadedWorld.getBukkitWorld());
         }
 
-        return CompletableFuture.supplyAsync(() -> readOrCreateWorld(guild), Guilds.get().api().scheduler().asyncExecutor())
+        return CompletableFuture.supplyAsync(() -> readOrCreateWorld(guild), Guilds.get().scheduler().asyncExecutor())
                 .thenCompose(slimeWorld -> loadWorld(guild, slimeWorld))
                 .thenApply(world ->
                 {
@@ -71,7 +71,7 @@ public class AspGuildWorldService implements GuildWorldService
         {
             return;
         }
-        CompletableFuture.runAsync(() -> saveLoadedWorld(loadedWorld), Guilds.get().api().scheduler().asyncExecutor());
+        CompletableFuture.runAsync(() -> saveLoadedWorld(loadedWorld), Guilds.get().scheduler().asyncExecutor());
     }
 
     @Override
@@ -82,7 +82,7 @@ public class AspGuildWorldService implements GuildWorldService
         {
             return;
         }
-        Guilds.get().api().scheduler().executeGlobal(() ->
+        Guilds.get().scheduler().executeGlobal(() ->
         {
             World fallback = Bukkit.getWorlds().getFirst();
             loadedWorld.getBukkitWorld().getPlayers().stream()
@@ -126,7 +126,7 @@ public class AspGuildWorldService implements GuildWorldService
     private CompletableFuture<World> loadWorld(Guild guild, SlimeWorld slimeWorld)
     {
         CompletableFuture<World> future = new CompletableFuture<>();
-        Guilds.get().api().scheduler().executeGlobal(() ->
+        Guilds.get().scheduler().executeGlobal(() ->
         {
             try
             {

@@ -51,7 +51,7 @@ public class InfoSubCommand extends GuildSubCommand
                 send(player, mmString("<gold>Prefix: " + (guild.getPrefix() == null ? "N/A" : guild.getPrefix())));
                 send(player, mmString("<gold>Created At: " + formatter.format(guild.getCreatedAt())));
             }
-        }, Guilds.get().api().scheduler().asyncExecutor());
+        }, Guilds.get().scheduler().asyncExecutor());
         return null;
     }
 
