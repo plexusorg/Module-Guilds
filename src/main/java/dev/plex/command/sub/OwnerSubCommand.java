@@ -34,7 +34,7 @@ public class OwnerSubCommand extends GuildSubCommand
             return usage();
         }
         assert player != null;
-        Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresentOrElse(guild ->
+        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
         {
             if (!guild.isOwner(player.getUniqueId()))
             {
@@ -42,32 +42,41 @@ public class OwnerSubCommand extends GuildSubCommand
                 return;
             }
             Member memberSender = guild.getMember(player.getUniqueId());
-            PlexPlayerView plexPlayer = api().players().byName(args[0]).orElse(null);
-            if (plexPlayer == null)
+            api().players().byName(args[0]).whenComplete((result, failure) ->
             {
-                send(player, messageComponent("playerNotFound"));
-                return;
-            }
-            Member member = guild.getMember(plexPlayer.uuid());
-            if (member == null)
-            {
-                send(player, messageComponent("guildMemberNotFound"));
-                return;
-            }
-            Guilds.get().getGuildRepository().transferOwner(guild.getGuildUuid(), member.getUuid(), player.getUniqueId()).whenComplete((unused, throwable) ->
-            {
-                if (throwable != null)
+                if (failure != null)
                 {
+                    Guilds.get().getLogger().error("Failed to look up player {}", args[0], failure);
                     send(player, messageComponent("guildStorageFailed"));
                     return;
                 }
-                guild.setOwnerUuid(member.getUuid());
-                member.setRole(GuildRole.OWNER);
-                if (memberSender != null)
+                if (result.isEmpty())
                 {
-                    memberSender.setRole(GuildRole.MEMBER);
+                    send(player, messageComponent("playerNotFound"));
+                    return;
                 }
-                send(player, messageComponent("guildOwnerSet", plexPlayer.name()));
+                PlexPlayerView plexPlayer = result.get();
+                Member member = guild.getMember(plexPlayer.uuid());
+                if (member == null)
+                {
+                    send(player, messageComponent("guildMemberNotFound"));
+                    return;
+                }
+                Guilds.get().getGuildRepository().transferOwner(guild.getGuildUuid(), member.getUuid(), player.getUniqueId()).whenComplete((unused, throwable) ->
+                {
+                    if (throwable != null)
+                    {
+                        send(player, messageComponent("guildStorageFailed"));
+                        return;
+                    }
+                    guild.setOwnerUuid(member.getUuid());
+                    member.setRole(GuildRole.OWNER);
+                    if (memberSender != null)
+                    {
+                        memberSender.setRole(GuildRole.MEMBER);
+                    }
+                    send(player, messageComponent("guildOwnerSet", plexPlayer.name()));
+                });
             });
         }, () -> send(player, messageComponent("guildNotFound")));
         return null;

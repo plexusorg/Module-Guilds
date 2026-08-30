@@ -16,7 +16,7 @@ public class ChatHandlerImpl implements Listener
     public void doChat(AsyncChatEvent event)
     {
         Player player = event.getPlayer();
-        Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresent(guild ->
+        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresent(guild ->
         {
             Member member = guild.getMember(player.getUniqueId());
             if (member == null || !member.isChat())

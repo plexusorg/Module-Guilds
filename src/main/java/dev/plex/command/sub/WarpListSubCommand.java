@@ -30,7 +30,7 @@ public class WarpListSubCommand extends GuildSubCommand
     protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
     {
         assert player != null;
-        Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresentOrElse(guild ->
+        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
         {
             send(player, getWarps(guild));
         }, () -> send(player, messageComponent("guildNotFound")));

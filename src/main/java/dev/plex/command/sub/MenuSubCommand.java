@@ -25,7 +25,7 @@ public class MenuSubCommand extends GuildSubCommand
     protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
     {
         assert player != null;
-        Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresentOrElse(
+        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(
                 guild -> Guilds.get().getGuildMenuListener().openHome(player, guild),
                 () -> send(player, messageComponent("guildNotFound"))
         );

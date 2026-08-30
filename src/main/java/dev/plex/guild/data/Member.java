@@ -8,6 +8,7 @@ import org.bukkit.entity.Player;
 
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 @Data
 public class Member
@@ -32,15 +33,14 @@ public class Member
         return Bukkit.getPlayer(this.uuid);
     }
 
-    public Optional<? extends PlexPlayerView> getPlexPlayer()
+    public CompletableFuture<Optional<PlexPlayerView>> getPlexPlayer()
     {
         return Guilds.get().api().players().player(this.uuid);
     }
 
-    public String getName()
+    public CompletableFuture<String> name()
     {
         return getPlexPlayer()
-                .map(PlexPlayerView::name)
-                .orElse(this.uuid.toString());
+                .thenApply(player -> player.map(PlexPlayerView::name).orElse(this.uuid.toString()));
     }
 }

@@ -31,7 +31,7 @@ public class WorldSubCommand extends GuildSubCommand
         {
             return messageComponent("guildWorldsUnavailable");
         }
-        Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresentOrElse(guild ->
+        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
         {
             send(player, messageComponent("guildWorldLoading"));
             Guilds.get().getGuildWorldService().ensureWorld(guild).whenComplete((world, throwable) ->

@@ -34,48 +34,67 @@ public class InfoSubCommand extends GuildSubCommand
     protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
     {
         assert player != null;
-        CompletableFuture.runAsync(() ->
+        resolveGuild(player, args).whenComplete((guild, failure) ->
         {
-            Guild guild = resolveGuild(player, args);
+            if (failure != null)
+            {
+                Guilds.get().getLogger().error("Failed to look up guild information", failure);
+                send(player, messageComponent("guildStorageFailed"));
+                return;
+            }
             if (guild == null)
             {
                 send(player, messageComponent("guildNotFound"));
                 return;
             }
+            List<CompletableFuture<String>> memberNames = guild.getMembers().stream()
+                    .filter(member -> !member.getUuid().equals(guild.getOwnerUuid()))
+                    .map(member -> playerName(member.getUuid()))
+                    .toList();
+            CompletableFuture<String> ownerName = playerName(guild.getOwnerUuid());
+            CompletableFuture.allOf(ownerName, CompletableFuture.allOf(memberNames.toArray(CompletableFuture[]::new))).whenComplete((unused, nameFailure) ->
             {
+                if (nameFailure != null)
+                {
+                    Guilds.get().getLogger().error("Failed to look up guild member names", nameFailure);
+                    send(player, messageComponent("guildStorageFailed"));
+                    return;
+                }
+                List<String> names = memberNames.stream().map(CompletableFuture::join).toList();
                 send(player, mmString("<gradient:yellow:gold>====<aqua>" + guild.getName() + "<gradient:yellow:gold>===="));
                 send(player, mmString(""));
-                send(player, mmString("<gold>Owner: <yellow>" + playerName(guild.getOwnerUuid())));
-                List<String> members = guild.getMembers().stream().filter(member -> !member.getUuid().equals(guild.getOwnerUuid())).map(member -> playerName(member.getUuid())).toList();
-                send(player, mmString("<gold>Members (" + members.size() + "): " + StringUtils.join(members, ", ")));
+                send(player, mmString("<gold>Owner: <yellow>" + ownerName.join()));
+                send(player, mmString("<gold>Members (" + names.size() + "): " + StringUtils.join(names, ", ")));
                 send(player, mmString("<gold>Prefix: " + (guild.getPrefix() == null ? "N/A" : guild.getPrefix())));
                 send(player, mmString("<gold>Created At: " + formatter.format(guild.getCreatedAt())));
-            }
-        }, Guilds.get().scheduler().asyncExecutor());
+            });
+        });
         return null;
     }
 
-    private Guild resolveGuild(Player sender, String[] args)
+    private CompletableFuture<Guild> resolveGuild(Player sender, String[] args)
     {
         if (args.length == 0)
         {
-            return Guilds.get().getGuildHolder().guild(sender.getUniqueId()).orElse(null);
+            return CompletableFuture.completedFuture(Guilds.get().getGuildHolder().guild(sender.getUniqueId()).orElse(null));
         }
-        PlexPlayerView player = api().players().byName(args[0]).orElse(null);
-        if (player != null)
+        return api().players().byName(args[0]).thenApply(result ->
         {
-            Guild guild = Guilds.get().getGuildHolder().guild(player.uuid()).orElse(null);
-            if (guild != null)
+            if (result.isPresent())
             {
-                return guild;
+                Guild guild = Guilds.get().getGuildHolder().guild(result.get().uuid()).orElse(null);
+                if (guild != null)
+                {
+                    return guild;
+                }
             }
-        }
-        return Guilds.get().getGuildHolder().guildByName(StringUtils.join(args, " ")).orElse(null);
+            return Guilds.get().getGuildHolder().guildByName(StringUtils.join(args, " ")).orElse(null);
+        });
     }
 
-    private String playerName(java.util.UUID uuid)
+    private CompletableFuture<String> playerName(java.util.UUID uuid)
     {
-        return api().players().player(uuid).map(PlexPlayerView::name).orElse(uuid.toString());
+        return api().players().player(uuid).thenApply(player -> player.map(PlexPlayerView::name).orElse(uuid.toString()));
     }
 
     @Override

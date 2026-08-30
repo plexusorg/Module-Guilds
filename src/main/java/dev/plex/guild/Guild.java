@@ -6,7 +6,6 @@ import dev.plex.Guilds;
 import dev.plex.guild.data.GuildPermission;
 import dev.plex.guild.data.GuildRole;
 import dev.plex.guild.data.Member;
-import dev.plex.api.player.PlexPlayerView;
 import dev.plex.util.CustomLocation;
 import dev.plex.util.GuildUtil;
 import lombok.Data;
@@ -17,7 +16,6 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.UUID;
 
 @Data
@@ -77,22 +75,6 @@ public class Guild
     public void removeMember(UUID uuid)
     {
         members.removeIf(member -> member.getUuid().equals(uuid));
-    }
-
-    public List<? extends PlexPlayerView> getPlexPlayers()
-    {
-        return members.stream()
-                .map(Member::getPlexPlayer)
-                .flatMap(java.util.Optional::stream)
-                .toList();
-    }
-
-    public List<Player> getOnlinePlayers()
-    {
-        return getPlexPlayers().stream()
-                .map(PlexPlayerView::bukkitPlayer)
-                .filter(Objects::nonNull)
-                .toList();
     }
 
     public String getWorldName()

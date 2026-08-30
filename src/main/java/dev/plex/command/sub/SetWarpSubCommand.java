@@ -34,7 +34,7 @@ public class SetWarpSubCommand extends GuildSubCommand
             return usage();
         }
         assert player != null;
-        Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresentOrElse(guild ->
+        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
         {
             if (!guild.isOwner(player.getUniqueId()))
             {

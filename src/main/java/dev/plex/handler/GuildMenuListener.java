@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 public class GuildMenuListener implements Listener
 {
@@ -59,11 +60,26 @@ public class GuildMenuListener implements Listener
 
     private void openMembers(Player player, Guild guild)
     {
-        Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, GuildMenuView.MEMBERS, null), 54, title("* " + guild.getName() + " Members"));
         List<Member> members = guild.getMembers();
+        List<CompletableFuture<String>> names = members.stream().limit(45).map(Member::name).toList();
+        CompletableFuture.allOf(names.toArray(CompletableFuture[]::new)).whenComplete((unused, failure) ->
+        {
+            if (failure != null)
+            {
+                Guilds.get().getLogger().error("Failed to load guild member names", failure);
+                Guilds.get().scheduler().executeEntity(player, () -> player.sendMessage(Guilds.get().messageComponent("guildStorageFailed")), 1L);
+                return;
+            }
+            Guilds.get().scheduler().executeEntity(player, () -> openMembers(player, guild, members, names), 1L);
+        });
+    }
+
+    private void openMembers(Player player, Guild guild, List<Member> members, List<CompletableFuture<String>> names)
+    {
+        Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, GuildMenuView.MEMBERS, null), 54, title("* " + guild.getName() + " Members"));
         for (int i = 0; i < members.size() && i < 45; i++)
         {
-            inventory.setItem(i, memberItem(guild, members.get(i)));
+            inventory.setItem(i, memberItem(guild, members.get(i), names.get(i).join()));
         }
         inventory.setItem(BACK_SLOT, item(Material.ARROW, "Back", NamedTextColor.YELLOW, List.of(line("Return to the guild menu", NamedTextColor.GRAY))));
         player.openInventory(inventory);
@@ -71,8 +87,22 @@ public class GuildMenuListener implements Listener
 
     private void openMember(Player player, Guild guild, Member member)
     {
-        Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, GuildMenuView.MEMBER, member.getUuid()), 27, title("* " + member.getName()));
-        inventory.setItem(4, memberItem(guild, member));
+        member.name().whenComplete((name, failure) ->
+        {
+            if (failure != null)
+            {
+                Guilds.get().getLogger().error("Failed to load guild member name", failure);
+                Guilds.get().scheduler().executeEntity(player, () -> player.sendMessage(Guilds.get().messageComponent("guildStorageFailed")), 1L);
+                return;
+            }
+            Guilds.get().scheduler().executeEntity(player, () -> openMember(player, guild, member, name), 1L);
+        });
+    }
+
+    private void openMember(Player player, Guild guild, Member member, String name)
+    {
+        Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, GuildMenuView.MEMBER, member.getUuid()), 27, title("* " + name));
+        inventory.setItem(4, memberItem(guild, member, name));
         if (guild.isOwner(player.getUniqueId()) && !guild.isOwner(member.getUuid()))
         {
             inventory.setItem(KICK_SLOT, item(Material.BARRIER, "Kick Member", NamedTextColor.RED, List.of(
@@ -195,7 +225,7 @@ public class GuildMenuListener implements Listener
                 {
                     Guilds.get().getGuildWorldService().ejectNonMembers(guild);
                 }
-                player.sendMessage(Guilds.get().messageComponent("guildMemberKicked", member.getName()));
+                member.name().thenAccept(name -> player.sendMessage(Guilds.get().messageComponent("guildMemberKicked", name)));
                 openMembers(player, guild);
             });
             return;
@@ -216,7 +246,7 @@ public class GuildMenuListener implements Listener
                 {
                     previousOwner.setRole(GuildRole.MEMBER);
                 }
-                player.sendMessage(Guilds.get().messageComponent("guildOwnerSet", member.getName()));
+                member.name().thenAccept(name -> player.sendMessage(Guilds.get().messageComponent("guildOwnerSet", name)));
                 openMember(player, guild, previousOwner == null ? member : previousOwner);
             });
             return;
@@ -227,12 +257,12 @@ public class GuildMenuListener implements Listener
         }
     }
 
-    private ItemStack memberItem(Guild guild, Member member)
+    private ItemStack memberItem(Guild guild, Member member, String name)
     {
         boolean online = Bukkit.getPlayer(member.getUuid()) != null;
         ItemStack itemStack = new ItemStack(online ? Material.LIME_WOOL : Material.GRAY_WOOL);
         ItemMeta itemMeta = itemStack.getItemMeta();
-        itemMeta.displayName(text(member.getName(), online ? NamedTextColor.GREEN : NamedTextColor.GRAY));
+        itemMeta.displayName(text(name, online ? NamedTextColor.GREEN : NamedTextColor.GRAY));
         List<Component> lore = new ArrayList<>();
         lore.add(label("Status", online ? "Online" : "Offline", online ? NamedTextColor.GREEN : NamedTextColor.GRAY));
         lore.add(label("Role", guild.isOwner(member.getUuid()) ? "Owner" : "Member", guild.isOwner(member.getUuid()) ? NamedTextColor.GOLD : NamedTextColor.AQUA));

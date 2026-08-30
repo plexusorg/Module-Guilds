@@ -32,7 +32,7 @@ public class WarpSubCommand extends GuildSubCommand
             return usage();
         }
         assert player != null;
-        Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).ifPresentOrElse(guild ->
+        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
         {
             String warpName = StringUtils.join(args, " ");
             if (!guild.getWarps().containsKey(warpName.toLowerCase()))

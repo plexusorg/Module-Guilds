@@ -92,7 +92,7 @@ public class GuildWorldProtectionListener implements Listener
         {
             return Optional.empty();
         }
-        return Guilds.get().getGuildHolder().getGuilds().stream()
+        return Guilds.get().getGuildHolder().guilds().stream()
                 .filter(guild -> guild.getWorldName().equals(world.getName()))
                 .findFirst();
     }

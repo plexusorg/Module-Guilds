@@ -34,7 +34,7 @@ public class CreateSubCommand extends GuildSubCommand
             return usage();
         }
         assert player != null;
-        if (Guilds.get().getGuildHolder().getGuild(player.getUniqueId()).isPresent())
+        if (Guilds.get().getGuildHolder().guild(player.getUniqueId()).isPresent())
         {
             return messageComponent("alreadyInGuild");
         }

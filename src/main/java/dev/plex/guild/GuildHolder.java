@@ -72,13 +72,4 @@ public class GuildHolder
         guildByPlayer.clear();
     }
 
-    public Optional<Guild> getGuild(UUID uuid)
-    {
-        return guild(uuid);
-    }
-
-    public Collection<Guild> getGuilds()
-    {
-        return guilds();
-    }
 }
