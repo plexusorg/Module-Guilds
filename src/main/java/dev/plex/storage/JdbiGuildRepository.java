@@ -11,7 +11,6 @@ import dev.plex.storage.entity.GuildInviteEntity;
 import dev.plex.storage.entity.GuildMemberEntity;
 import dev.plex.storage.entity.GuildWarpEntity;
 import dev.plex.util.CustomLocation;
-import org.bukkit.entity.Player;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.JdbiException;
@@ -82,13 +81,12 @@ public class JdbiGuildRepository implements GuildRepository
     }
 
     @Override
-    public CompletableFuture<Guild> createGuild(Player owner, String name)
+    public CompletableFuture<Guild> createGuild(Guild guild)
     {
         return CompletableFuture.supplyAsync(() ->
         {
             try
             {
-                Guild guild = Guild.create(owner, name);
                 GuildEntity e = toEntity(guild);
                 jdbi.useTransaction(h ->
                 {
@@ -115,7 +113,7 @@ public class JdbiGuildRepository implements GuildRepository
                             .bind("memberBlockPlacing", e.isMemberBlockPlacing())
                             .bind("memberInteracting", e.isMemberInteracting())
                             .execute();
-                    insertMember(h, guild.getGuildUuid(), owner.getUniqueId(), GuildRole.OWNER);
+                    insertMember(h, guild.getGuildUuid(), guild.getOwnerUuid(), GuildRole.OWNER);
                 });
                 return guild;
             }

@@ -5,8 +5,6 @@ import dev.plex.guild.data.GuildPermission;
 import dev.plex.guild.data.GuildRole;
 import dev.plex.storage.entity.GuildInviteEntity;
 import dev.plex.util.CustomLocation;
-import org.bukkit.entity.Player;
-
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -16,7 +14,7 @@ public interface GuildRepository
 {
     CompletableFuture<List<Guild>> loadGuilds();
 
-    CompletableFuture<Guild> createGuild(Player owner, String name);
+    CompletableFuture<Guild> createGuild(Guild guild);
 
     CompletableFuture<Void> deleteGuild(UUID guildUuid);
 

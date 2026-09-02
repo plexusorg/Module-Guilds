@@ -52,6 +52,8 @@ public class InviteSubCommand extends GuildSubCommand
                 send(player, messageComponent("guildTargetAlreadyInGuild"));
                 return;
             }
+            String inviterName = player.getName();
+            String targetName = target.getName();
             Guilds.get().getGuildRepository().createInvite(guild.getGuildUuid(), player.getUniqueId(), target.getUniqueId(), Instant.now().plus(5, ChronoUnit.MINUTES)).whenComplete((unused, throwable) ->
             {
                 if (throwable != null)
@@ -59,8 +61,8 @@ public class InviteSubCommand extends GuildSubCommand
                     send(player, messageComponent("guildStorageFailed"));
                     return;
                 }
-                send(player, messageComponent("guildInviteSent", target.getName()));
-                send(target, messageComponent("guildInviteReceived", player.getName(), guild.getName()));
+                send(player, messageComponent("guildInviteSent", targetName));
+                send(target, messageComponent("guildInviteReceived", inviterName, guild.getName()));
             });
         }, () -> send(player, messageComponent("guildNotFound")));
         return null;

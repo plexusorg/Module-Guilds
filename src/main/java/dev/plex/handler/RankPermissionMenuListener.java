@@ -62,9 +62,17 @@ public class RankPermissionMenuListener implements Listener
             return;
         }
         boolean enabled = !holder.guild().hasPermission(MEMBER_PERMISSION_PROBE, permission);
-        holder.guild().setPermission(permission, enabled);
-        Guilds.get().getGuildRepository().updateMemberPermission(holder.guild().getGuildUuid(), permission, enabled);
-        openPermissionEditor(player, holder.guild());
+        Guilds.get().getGuildRepository().updateMemberPermission(holder.guild().getGuildUuid(), permission, enabled)
+                .whenComplete((unused, failure) ->
+                {
+                    if (failure != null)
+                    {
+                        player.sendMessage(Guilds.get().messageComponent("guildStorageFailed"));
+                        return;
+                    }
+                    holder.guild().setPermission(permission, enabled);
+                    Guilds.get().scheduler().runEntity(player, () -> openPermissionEditor(player, holder.guild()));
+                });
     }
 
     private void openPermissionEditor(Player player, Guild guild)

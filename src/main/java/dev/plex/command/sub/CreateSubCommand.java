@@ -38,7 +38,8 @@ public class CreateSubCommand extends GuildSubCommand
         {
             return messageComponent("alreadyInGuild");
         }
-        Guilds.get().getGuildRepository().createGuild(player, StringUtils.join(args, " "))
+        Guild guildToCreate = Guild.create(player.getUniqueId(), StringUtils.join(args, " "));
+        Guilds.get().getGuildRepository().createGuild(guildToCreate)
                 .thenCompose(guild -> Guilds.get().isGuildWorldsEnabled()
                         ? Guilds.get().getGuildWorldService().ensureWorld(guild).thenApply(world -> guild)
                         : CompletableFuture.completedFuture(guild))

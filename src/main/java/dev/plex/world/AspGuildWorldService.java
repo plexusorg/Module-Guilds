@@ -55,12 +55,11 @@ public class AspGuildWorldService implements GuildWorldService
 
         return CompletableFuture.supplyAsync(() -> readOrCreateWorld(guild), Guilds.get().scheduler().asyncExecutor())
                 .thenCompose(slimeWorld -> loadWorld(guild, slimeWorld))
-                .thenApply(world ->
+                .thenCompose(world -> initializeWorld(world).thenApply(unused ->
                 {
-                    initializeWorld(world);
                     saveWorld(guild);
                     return world;
-                });
+                }));
     }
 
     @Override
@@ -85,13 +84,15 @@ public class AspGuildWorldService implements GuildWorldService
         Guilds.get().scheduler().executeGlobal(() ->
         {
             World fallback = Bukkit.getWorlds().getFirst();
-            loadedWorld.getBukkitWorld().getPlayers().stream()
-                    .filter(player -> !guild.isMember(player.getUniqueId()))
-                    .forEach(player ->
+            Location fallbackSpawn = fallback.getSpawnLocation();
+            loadedWorld.getBukkitWorld().getPlayers().forEach(player -> Guilds.get().scheduler().runEntity(player, () ->
                     {
-                        player.teleportAsync(fallback.getSpawnLocation());
-                        player.sendMessage(Guilds.get().messageComponent("guildWorldNoAccess"));
-                    });
+                        if (!guild.isMember(player.getUniqueId()))
+                        {
+                            player.teleportAsync(fallbackSpawn);
+                            player.sendMessage(Guilds.get().messageComponent("guildWorldNoAccess"));
+                        }
+                    }));
         });
     }
 
@@ -142,12 +143,35 @@ public class AspGuildWorldService implements GuildWorldService
         return future;
     }
 
-    private void initializeWorld(World world)
+    private CompletableFuture<Void> initializeWorld(World world)
     {
+        CompletableFuture<Void> initialized = new CompletableFuture<>();
         int y = world.getMaxHeight() / 2;
         Location spawn = new Location(world, 0.5, y + 1, 0.5);
-        world.getBlockAt(0, y, 0).setType(Material.GRASS_BLOCK, false);
-        world.setSpawnLocation(spawn);
+        Guilds.get().scheduler().executeRegion(spawn, () ->
+        {
+            try
+            {
+                world.getBlockAt(0, y, 0).setType(Material.GRASS_BLOCK, false);
+                Guilds.get().scheduler().executeGlobal(() ->
+                {
+                    try
+                    {
+                        world.setSpawnLocation(spawn);
+                        initialized.complete(null);
+                    }
+                    catch (Throwable throwable)
+                    {
+                        initialized.completeExceptionally(throwable);
+                    }
+                });
+            }
+            catch (Throwable throwable)
+            {
+                initialized.completeExceptionally(throwable);
+            }
+        });
+        return initialized;
     }
 
     private void saveLoadedWorld(SlimeWorldInstance loadedWorld)

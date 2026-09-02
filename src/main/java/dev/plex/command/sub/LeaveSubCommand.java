@@ -2,14 +2,12 @@ package dev.plex.command.sub;
 
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
-import dev.plex.guild.data.Member;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Objects;
 
 public class LeaveSubCommand extends GuildSubCommand
 {
@@ -27,9 +25,11 @@ public class LeaveSubCommand extends GuildSubCommand
     protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
     {
         assert player != null;
-        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
+        java.util.UUID playerUuid = player.getUniqueId();
+        String playerName = player.getName();
+        Guilds.get().getGuildHolder().guild(playerUuid).ifPresentOrElse(guild ->
         {
-            if (guild.isOwner(player.getUniqueId()))
+            if (guild.isOwner(playerUuid))
             {
                 if (guild.getMembers().size() > 1)
                 {
@@ -48,17 +48,16 @@ public class LeaveSubCommand extends GuildSubCommand
                 });
                 return;
             }
-            Guilds.get().getGuildRepository().removeMember(guild.getGuildUuid(), player.getUniqueId()).whenComplete((unused, throwable) ->
+            Guilds.get().getGuildRepository().removeMember(guild.getGuildUuid(), playerUuid).whenComplete((unused, throwable) ->
             {
                 if (throwable != null)
                 {
                     send(player, messageComponent("guildStorageFailed"));
                     return;
                 }
-                guild.getMembers().removeIf(member -> member.getUuid().equals(player.getUniqueId()));
-                Guilds.get().getGuildHolder().unindexMember(player.getUniqueId());
-                guild.getMembers().stream().map(Member::getPlayer).filter(Objects::nonNull).forEach(memberPlayer ->
-                        send(memberPlayer, messageComponent("guildMemberLeft", player.getName())));
+                guild.getMembers().removeIf(member -> member.getUuid().equals(playerUuid));
+                Guilds.get().getGuildHolder().unindexMember(playerUuid);
+                Guilds.get().broadcastToGuild(guild, messageComponent("guildMemberLeft", playerName));
                 send(player, messageComponent("guildLeft"));
             });
         }, () -> send(player, messageComponent("guildNotFound")));

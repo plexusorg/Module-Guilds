@@ -5,7 +5,6 @@ import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.data.Member;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import net.kyori.adventure.text.Component;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -40,13 +39,11 @@ public class ChatSubCommand extends GuildSubCommand
                 send(player, messageComponent("guildChatToggled", BooleanUtils.toStringOnOff(member.isChat())));
                 return;
             }
-            guild.getMembers().stream().map(Member::getPlayer).filter(Objects::nonNull).forEach(player1 ->
-            {
-                send(player1, messageComponent("guildChatMessage", player.getName(), StringUtils.join(args, " ")));
-            });
+            Guilds.get().broadcastToGuild(guild, messageComponent("guildChatMessage", player.getName(), StringUtils.join(args, " ")));
             if (Guilds.get().getConfig().getBoolean("guilds.log-chat-message"))
             {
-                send(Bukkit.getConsoleSender(), messageComponent("guildChatConsoleLog", guild.getName(), guild.getGuildUuid(), player.getName(), StringUtils.join(args, " ")));
+                send(Bukkit.getConsoleSender(),
+                        messageComponent("guildChatConsoleLog", guild.getName(), guild.getGuildUuid(), player.getName(), StringUtils.join(args, " ")));
             }
         }, () -> send(player, messageComponent("guildNotFound")));
         return null;

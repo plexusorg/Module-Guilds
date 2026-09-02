@@ -31,7 +31,8 @@ public class DenySubCommand extends GuildSubCommand
             return usage();
         }
         assert player != null;
-        Guilds.get().getGuildRepository().invitesFor(player.getUniqueId()).whenComplete((invites, throwable) ->
+        UUID playerUuid = player.getUniqueId();
+        Guilds.get().getGuildRepository().invitesFor(playerUuid).whenComplete((invites, throwable) ->
         {
             if (throwable != null)
             {
@@ -49,7 +50,7 @@ public class DenySubCommand extends GuildSubCommand
                 send(player, messageComponent("guildNotValidInvite"));
                 return;
             }
-            Guilds.get().getGuildRepository().deleteInvite(UUID.fromString(invite.getGuildUuid()), player.getUniqueId()).whenComplete((unused, deleteThrowable) ->
+            Guilds.get().getGuildRepository().deleteInvite(UUID.fromString(invite.getGuildUuid()), playerUuid).whenComplete((unused, deleteThrowable) ->
             {
                 if (deleteThrowable != null)
                 {

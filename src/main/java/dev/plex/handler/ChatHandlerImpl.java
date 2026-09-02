@@ -3,7 +3,6 @@ package dev.plex.handler;
 import dev.plex.Guilds;
 import dev.plex.guild.data.Member;
 import io.papermc.paper.event.player.AsyncChatEvent;
-import java.util.Objects;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -25,11 +24,11 @@ public class ChatHandlerImpl implements Listener
             }
 
             String message = PlainTextComponentSerializer.plainText().serialize(event.message());
-            guild.getMembers().stream().map(Member::getPlayer).filter(Objects::nonNull).forEach(memberPlayer ->
-                    memberPlayer.sendMessage(Guilds.get().messageComponent("guildChatMessage", player.getName(), message)));
+            Guilds.get().broadcastToGuild(guild, Guilds.get().messageComponent("guildChatMessage", player.getName(), message));
             if (Guilds.get().getConfig().getBoolean("guilds.log-chat-message"))
             {
-                Bukkit.getConsoleSender().sendMessage(Guilds.get().messageComponent("guildChatConsoleLog", guild.getName(), guild.getGuildUuid(), player.getName(), message));
+                Bukkit.getConsoleSender().sendMessage(
+                        Guilds.get().messageComponent("guildChatConsoleLog", guild.getName(), guild.getGuildUuid(), player.getName(), message));
             }
             event.setCancelled(true);
         });

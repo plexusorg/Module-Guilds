@@ -1,7 +1,5 @@
 package dev.plex.guild;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import dev.plex.Guilds;
 import dev.plex.guild.data.GuildPermission;
 import dev.plex.guild.data.GuildRole;
@@ -10,10 +8,11 @@ import dev.plex.util.CustomLocation;
 import dev.plex.util.GuildUtil;
 import lombok.Data;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
-import org.bukkit.entity.Player;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -23,8 +22,8 @@ public class Guild
 {
     private final UUID guildUuid;
     private final ZonedDateTime createdAt;
-    private final List<Member> members = Lists.newArrayList();
-    private final Map<String, CustomLocation> warps = Maps.newHashMap();
+    private final List<Member> members = new ArrayList<>();
+    private final Map<String, CustomLocation> warps = new HashMap<>();
     private String name;
     private UUID ownerUuid;
     private String prefix;
@@ -36,13 +35,13 @@ public class Guild
     private boolean memberBlockPlacing;
     private boolean memberInteracting;
 
-    public static Guild create(Player player, String guildName)
+    public static Guild create(UUID ownerUuid, String guildName)
     {
         String timezone = Guilds.get().api().configuration().mainConfig().getString("server.timezone", "Etc/UTC");
         Guild guild = new Guild(UUID.randomUUID(), ZonedDateTime.now(ZoneId.of(timezone)));
         guild.setName(PlainTextComponentSerializer.plainText().serialize(GuildUtil.miniMessageWithoutEvents(guildName)));
-        guild.setOwnerUuid(player.getUniqueId());
-        guild.addMember(new Member(player.getUniqueId(), GuildRole.OWNER));
+        guild.setOwnerUuid(ownerUuid);
+        guild.addMember(new Member(ownerUuid, GuildRole.OWNER));
         return guild;
     }
 

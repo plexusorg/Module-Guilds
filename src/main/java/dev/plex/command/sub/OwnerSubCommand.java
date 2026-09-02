@@ -34,14 +34,15 @@ public class OwnerSubCommand extends GuildSubCommand
             return usage();
         }
         assert player != null;
-        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
+        java.util.UUID playerUuid = player.getUniqueId();
+        Guilds.get().getGuildHolder().guild(playerUuid).ifPresentOrElse(guild ->
         {
-            if (!guild.isOwner(player.getUniqueId()))
+            if (!guild.isOwner(playerUuid))
             {
                 send(player, messageComponent("guildNotOwner"));
                 return;
             }
-            Member memberSender = guild.getMember(player.getUniqueId());
+            Member memberSender = guild.getMember(playerUuid);
             api().players().byName(args[0]).whenComplete((result, failure) ->
             {
                 if (failure != null)
@@ -62,7 +63,7 @@ public class OwnerSubCommand extends GuildSubCommand
                     send(player, messageComponent("guildMemberNotFound"));
                     return;
                 }
-                Guilds.get().getGuildRepository().transferOwner(guild.getGuildUuid(), member.getUuid(), player.getUniqueId()).whenComplete((unused, throwable) ->
+                Guilds.get().getGuildRepository().transferOwner(guild.getGuildUuid(), member.getUuid(), playerUuid).whenComplete((unused, throwable) ->
                 {
                     if (throwable != null)
                     {

@@ -2,6 +2,7 @@ package dev.plex;
 
 import dev.plex.command.GuildCommand;
 import dev.plex.api.config.ModuleConfiguration;
+import dev.plex.guild.Guild;
 import dev.plex.guild.GuildHolder;
 import dev.plex.handler.ChatHandlerImpl;
 import dev.plex.handler.GuildMenuListener;
@@ -13,9 +14,11 @@ import dev.plex.storage.GuildRepository;
 import dev.plex.storage.JdbiGuildRepository;
 import dev.plex.world.GuildWorldService;
 import lombok.Getter;
+import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
+import org.bukkit.entity.Player;
 
 import java.sql.SQLException;
-import java.util.List;
 
 @Getter
 public class Guilds extends PlexModule
@@ -35,6 +38,8 @@ public class Guilds extends PlexModule
     private GuildRepository guildRepository;
 
     private ModuleConfiguration config;
+    private volatile boolean ready;
+    private volatile boolean loadFailed;
 
     @Override
     public void load()
@@ -49,11 +54,13 @@ public class Guilds extends PlexModule
     @Override
     public void enable()
     {
+        ready = false;
+        loadFailed = false;
         enableGuildWorlds();
         ModuleStorage storage = api().storage().forModule(this);
         try
         {
-            storage.migrations().run(List.of("001_initial_schema", "002_guild_world_permissions"));
+            storage.migrations().run();
         }
         catch (SQLException e)
         {
@@ -64,16 +71,13 @@ public class Guilds extends PlexModule
         {
             if (throwable != null)
             {
+                loadFailed = true;
                 getLogger().error("Failed to load guilds", throwable);
-                return;
-            }
-            if (guilds == null)
-            {
-                getLogger().error("Failed to load guilds");
                 return;
             }
             api().logging().debug("Finished loading {0} guilds", guilds.size());
             guildHolder.replaceAll(guilds);
+            ready = true;
         });
         registerListener(new ChatHandlerImpl());
         registerListener(guildMenuListener);
@@ -84,6 +88,7 @@ public class Guilds extends PlexModule
     @Override
     public void disable()
     {
+        ready = false;
         if (guildWorldService != null)
         {
             guildWorldService.disable();
@@ -114,6 +119,18 @@ public class Guilds extends PlexModule
         {
             getLogger().warn("Advanced Slime Paper (ASP/ASWM) is unavailable or incompatible; guild worlds are disabled, but all other guild features will remain enabled.");
         }
+    }
+
+    public void broadcastToGuild(Guild guild, Component message)
+    {
+        guild.getMembers().forEach(member ->
+        {
+            Player player = Bukkit.getPlayer(member.getUuid());
+            if (player != null)
+            {
+                player.sendMessage(message);
+            }
+        });
     }
 
     public static Guilds get()

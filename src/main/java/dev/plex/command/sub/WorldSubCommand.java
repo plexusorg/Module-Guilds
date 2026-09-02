@@ -3,8 +3,6 @@ package dev.plex.command.sub;
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import net.kyori.adventure.text.Component;
-import org.bukkit.Location;
-import org.bukkit.World;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -38,22 +36,15 @@ public class WorldSubCommand extends GuildSubCommand
             {
                 if (throwable != null)
                 {
-                    Guilds.get().scheduler().executeGlobal(() ->
-                    {
-                        throwable.printStackTrace();
-                        send(player, messageComponent("guildWorldLoadFailed"));
-                    });
+                    Guilds.get().getLogger().error("Failed to load guild world", throwable);
+                    send(player, messageComponent("guildWorldLoadFailed"));
                     return;
                 }
-                Guilds.get().scheduler().executeEntity(player, () -> teleport(player, world), 1L);
+                Guilds.get().scheduler().runEntity(player,
+                        () -> player.teleportAsync(world.getSpawnLocation().toCenterLocation()));
             });
         }, () -> send(player, messageComponent("guildNotFound")));
         return null;
     }
 
-    private void teleport(Player player, World world)
-    {
-        Location spawnLocation = world.getSpawnLocation().toCenterLocation();
-        player.teleportAsync(spawnLocation);
-    }
 }

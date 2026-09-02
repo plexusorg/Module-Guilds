@@ -3,8 +3,6 @@ package dev.plex.guild.data;
 import dev.plex.Guilds;
 import dev.plex.api.player.PlexPlayerView;
 import lombok.Data;
-import org.bukkit.Bukkit;
-import org.bukkit.entity.Player;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -26,11 +24,6 @@ public class Member
     {
         this.uuid = uuid;
         this.role = role;
-    }
-
-    public Player getPlayer()
-    {
-        return Bukkit.getPlayer(this.uuid);
     }
 
     public CompletableFuture<Optional<PlexPlayerView>> getPlexPlayer()

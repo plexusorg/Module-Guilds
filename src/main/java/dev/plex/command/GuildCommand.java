@@ -52,6 +52,10 @@ public class GuildCommand extends SimplePlexCommand
     @Override
     protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
     {
+        if (!Guilds.get().isReady())
+        {
+            return messageComponent(Guilds.get().isLoadFailed() ? "guildStorageFailed" : "guildLoading");
+        }
         if (args.length == 0)
         {
             if (player == null)
@@ -112,14 +116,8 @@ public class GuildCommand extends SimplePlexCommand
 
     private void registerSubCommand(GuildSubCommand subCommand)
     {
-        if (Guilds.get() != null)
-        {
-            subCommand.bindModule(Guilds.get());
-            if (Guilds.get().api() != null)
-            {
-                subCommand.bindApi(Guilds.get().api());
-            }
-        }
+        subCommand.bindModule(Guilds.get());
+        subCommand.bindApi(Guilds.get().api());
         this.subCommands.add(subCommand);
     }
 
