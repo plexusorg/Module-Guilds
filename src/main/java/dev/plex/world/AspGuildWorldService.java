@@ -1,5 +1,7 @@
 package dev.plex.world;
 
+import org.bukkit.Bukkit;
+
 import com.infernalsuite.asp.api.AdvancedSlimePaperAPI;
 import com.infernalsuite.asp.api.exceptions.CorruptedWorldException;
 import com.infernalsuite.asp.api.exceptions.NewerFormatException;
@@ -12,7 +14,6 @@ import com.infernalsuite.asp.api.world.properties.SlimePropertyMap;
 import com.infernalsuite.asp.loaders.file.FileLoader;
 import dev.plex.Guilds;
 import dev.plex.guild.Guild;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -59,7 +60,7 @@ public class AspGuildWorldService implements GuildWorldService
             return CompletableFuture.completedFuture(aspLoadedWorld.getBukkitWorld());
         }
 
-        return CompletableFuture.supplyAsync(() -> readOrCreateWorld(guild), module.scheduler().asyncExecutor())
+        return CompletableFuture.supplyAsync(() -> readOrCreateWorld(guild), module.executor())
                 .thenCompose(slimeWorld -> loadWorld(guild, slimeWorld))
                 .thenCompose(world -> initializeWorld(world).thenApply(unused ->
                 {
@@ -76,7 +77,7 @@ public class AspGuildWorldService implements GuildWorldService
         {
             return;
         }
-        CompletableFuture.runAsync(() -> saveLoadedWorld(loadedWorld), module.scheduler().asyncExecutor());
+        CompletableFuture.runAsync(() -> saveLoadedWorld(loadedWorld), module.executor());
     }
 
     @Override
@@ -87,18 +88,18 @@ public class AspGuildWorldService implements GuildWorldService
         {
             return;
         }
-        module.scheduler().executeGlobal(() ->
+        Bukkit.getGlobalRegionScheduler().execute(module.plugin(), () ->
         {
             World fallback = Bukkit.getWorlds().getFirst();
             Location fallbackSpawn = fallback.getSpawnLocation();
-            loadedWorld.getBukkitWorld().getPlayers().forEach(player -> module.scheduler().runEntity(player, () ->
+            loadedWorld.getBukkitWorld().getPlayers().forEach(player -> module.ownTask(player.getScheduler().run(module.plugin(), task ->
                     {
                         if (!guild.isMember(player.getUniqueId()))
                         {
                             player.teleportAsync(fallbackSpawn);
                             player.sendMessage(module.messageComponent("guildWorldNoAccess"));
                         }
-                    }));
+                    }, null)));
         });
     }
 
@@ -133,7 +134,7 @@ public class AspGuildWorldService implements GuildWorldService
     private CompletableFuture<World> loadWorld(Guild guild, SlimeWorld slimeWorld)
     {
         CompletableFuture<World> future = new CompletableFuture<>();
-        module.scheduler().executeGlobal(() ->
+        Bukkit.getGlobalRegionScheduler().execute(module.plugin(), () ->
         {
             try
             {
@@ -154,12 +155,12 @@ public class AspGuildWorldService implements GuildWorldService
         CompletableFuture<Void> initialized = new CompletableFuture<>();
         int y = world.getMaxHeight() / 2;
         Location spawn = new Location(world, 0.5, y + 1, 0.5);
-        module.scheduler().executeRegion(spawn, () ->
+        Bukkit.getRegionScheduler().execute(module.plugin(), spawn, () ->
         {
             try
             {
                 world.getBlockAt(0, y, 0).setType(Material.GRASS_BLOCK, false);
-                module.scheduler().executeGlobal(() ->
+                Bukkit.getGlobalRegionScheduler().execute(module.plugin(), () ->
                 {
                     try
                     {

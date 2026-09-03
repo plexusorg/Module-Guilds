@@ -1,5 +1,7 @@
 package dev.plex.handler;
 
+import org.bukkit.Bukkit;
+
 import dev.plex.Guilds;
 import dev.plex.guild.Guild;
 import dev.plex.guild.data.GuildPermission;
@@ -7,7 +9,6 @@ import dev.plex.gui.RankPermissionInventoryHolder;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -69,7 +70,7 @@ public class RankPermissionMenuListener implements Listener
         }
         module.getGuildMutationService().toggleMemberPermission(holder.guild(), permission)
                 .whenComplete((enabled, failure) ->
-                        module.scheduler().runEntity(player, () ->
+                        module.ownTask(player.getScheduler().run(module.plugin(), task ->
                 {
                     if (failure != null)
                     {
@@ -77,7 +78,7 @@ public class RankPermissionMenuListener implements Listener
                         return;
                     }
                     openPermissionEditor(player, holder.guild());
-                }));
+                }, null)));
     }
 
     private void openPermissionEditor(Player player, Guild guild)

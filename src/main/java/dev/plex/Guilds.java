@@ -1,5 +1,7 @@
 package dev.plex;
 
+import org.bukkit.Bukkit;
+
 import dev.plex.command.GuildCommand;
 import dev.plex.api.config.ModuleConfiguration;
 import dev.plex.guild.Guild;
@@ -16,13 +18,14 @@ import dev.plex.storage.JdbiGuildRepository;
 import dev.plex.world.GuildWorldService;
 import lombok.Getter;
 import net.kyori.adventure.text.Component;
-import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.sql.SQLException;
 import java.time.ZoneId;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Getter
 public class Guilds extends PlexModule
@@ -40,6 +43,7 @@ public class Guilds extends PlexModule
     private GuildWorldService guildWorldService;
 
     private GuildRepository guildRepository;
+    private ExecutorService executor;
 
     private ModuleConfiguration config;
     private ZoneId zoneId;
@@ -59,6 +63,7 @@ public class Guilds extends PlexModule
     @Override
     public void enable()
     {
+        executor = Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("Plex-Guilds-", 0).factory());
         ready = false;
         loadFailed = false;
         enableGuildWorlds();
@@ -71,7 +76,7 @@ public class Guilds extends PlexModule
         {
             throw new IllegalStateException("Failed to run Guilds migrations", e);
         }
-        guildRepository = new JdbiGuildRepository(storage, scheduler().asyncExecutor(), zoneId);
+        guildRepository = new JdbiGuildRepository(storage, executor, zoneId);
         guildRepository.loadGuilds().whenComplete((guilds, throwable) ->
         {
             if (throwable != null)
@@ -99,6 +104,17 @@ public class Guilds extends PlexModule
             guildWorldService.disable();
         }
         guildHolder.clear();
+        if (executor != null)
+        {
+            executor.shutdownNow();
+            executor = null;
+        }
+    }
+
+    public ExecutorService executor()
+    {
+        if (executor == null) throw new IllegalStateException("Guilds is not enabled");
+        return executor;
     }
 
     public boolean isGuildWorldsEnabled()
@@ -130,14 +146,14 @@ public class Guilds extends PlexModule
     {
         java.util.concurrent.CompletableFuture<Void> completion = new java.util.concurrent.CompletableFuture<>();
         Set<java.util.UUID> recipients = guild.getMembers().stream().map(member -> member.getUuid()).collect(Collectors.toSet());
-        scheduler().runGlobal(() ->
+        ownTask(Bukkit.getGlobalRegionScheduler().run(plugin(), task ->
         {
             for (Player player : java.util.List.copyOf(Bukkit.getOnlinePlayers()))
             {
                 if (recipients.contains(player.getUniqueId())) player.sendMessage(message);
             }
             completion.complete(null);
-        });
+        }));
         return completion;
     }
 

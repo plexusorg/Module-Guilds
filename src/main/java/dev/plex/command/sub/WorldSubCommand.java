@@ -40,8 +40,8 @@ public class WorldSubCommand extends GuildSubCommand
                     player.sendMessage(messageComponent("guildWorldLoadFailed"));
                     return;
                 }
-                module.scheduler().runEntity(player,
-                        () -> player.teleportAsync(world.getSpawnLocation().toCenterLocation()));
+                module.ownTask(player.getScheduler().run(module.plugin(), task ->
+                        player.teleportAsync(world.getSpawnLocation().toCenterLocation()), null));
             });
         }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;

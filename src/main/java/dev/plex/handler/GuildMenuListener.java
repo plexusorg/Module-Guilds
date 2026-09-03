@@ -1,5 +1,7 @@
 package dev.plex.handler;
 
+import org.bukkit.Bukkit;
+
 import dev.plex.Guilds;
 import dev.plex.guild.Guild;
 import dev.plex.guild.GuildMutationService;
@@ -9,8 +11,8 @@ import dev.plex.gui.GuildMenuView;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
-import org.bukkit.Bukkit;
 import org.bukkit.Material;
+import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -77,11 +79,10 @@ public class GuildMenuListener implements Listener
             if (failure != null)
             {
                 module.getLogger().error("Failed to load guild member names", failure);
-                module.scheduler().runEntity(player,
-                        () -> player.sendMessage(module.messageComponent("guildStorageFailed")));
+                player.sendMessage(module.messageComponent("guildStorageFailed"));
                 return;
             }
-            module.scheduler().executeEntity(player, () -> openMembers(player, guild, members, names), 1L);
+            player.getScheduler().execute(module.plugin(), () -> openMembers(player, guild, members, names), null, 1L);
         });
     }
 
@@ -105,11 +106,10 @@ public class GuildMenuListener implements Listener
             if (failure != null)
             {
                 module.getLogger().error("Failed to load guild member name", failure);
-                module.scheduler().runEntity(player,
-                        () -> player.sendMessage(module.messageComponent("guildStorageFailed")));
+                player.sendMessage(module.messageComponent("guildStorageFailed"));
                 return;
             }
-            module.scheduler().executeEntity(player, () -> openMember(player, guild, member, name), 1L);
+            player.getScheduler().execute(module.plugin(), () -> openMember(player, guild, member, name), null, 1L);
         });
     }
 
@@ -182,7 +182,7 @@ public class GuildMenuListener implements Listener
                 return;
             }
             module.getGuildWorldService().ensureWorld(guild).whenComplete((world, throwable) ->
-                    module.scheduler().runEntity(player, () ->
+                    module.ownTask(player.getScheduler().run(module.plugin(), task ->
                 {
                     if (throwable != null)
                     {
@@ -190,7 +190,7 @@ public class GuildMenuListener implements Listener
                         return;
                     }
                     player.teleportAsync(world.getSpawnLocation().toCenterLocation());
-                }));
+                }, null)));
             return;
         }
         if (slot == PERMISSIONS_SLOT && guild.isOwner(player.getUniqueId()))
@@ -229,7 +229,7 @@ public class GuildMenuListener implements Listener
         if (slot == KICK_SLOT && !guild.isOwner(memberUuid))
         {
             memberName(member).thenCompose(name -> mutationService.removeMember(guild, memberUuid).thenApply(unused -> name))
-                    .whenComplete((name, throwable) -> module.scheduler().runEntity(player, () ->
+                    .whenComplete((name, throwable) -> module.ownTask(player.getScheduler().run(module.plugin(), task ->
             {
                 if (throwable != null)
                 {
@@ -239,7 +239,7 @@ public class GuildMenuListener implements Listener
                 }
                 player.sendMessage(module.messageComponent("guildMemberKicked", name));
                 openMembers(player, guild);
-            }));
+            }, null)));
             return;
         }
         if (slot == OWNER_SLOT && !guild.isOwner(memberUuid))
@@ -247,7 +247,7 @@ public class GuildMenuListener implements Listener
             Member previousOwner = guild.getMember(player.getUniqueId());
             memberName(member).thenCompose(name -> mutationService.transferOwnership(
                             guild, member, player.getUniqueId(), previousOwner).thenApply(unused -> name))
-                    .whenComplete((name, throwable) -> module.scheduler().runEntity(player, () ->
+                    .whenComplete((name, throwable) -> module.ownTask(player.getScheduler().run(module.plugin(), task ->
             {
                 if (throwable != null)
                 {
@@ -257,7 +257,7 @@ public class GuildMenuListener implements Listener
                 }
                 player.sendMessage(module.messageComponent("guildOwnerSet", name));
                 openMember(player, guild, previousOwner == null ? member : previousOwner);
-            }));
+            }, null)));
             return;
         }
         if (slot == RANK_PERMISSIONS_SLOT)
@@ -338,6 +338,6 @@ public class GuildMenuListener implements Listener
 
     private static class Keys
     {
-        private static final org.bukkit.NamespacedKey MEMBER_UUID = new org.bukkit.NamespacedKey("plex_guilds", "member_uuid");
+        private static final NamespacedKey MEMBER_UUID = new NamespacedKey("plex_guilds", "member_uuid");
     }
 }
