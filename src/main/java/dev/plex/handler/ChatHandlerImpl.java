@@ -11,11 +11,18 @@ import org.bukkit.event.Listener;
 
 public class ChatHandlerImpl implements Listener
 {
+    private final Guilds module;
+
+    public ChatHandlerImpl(Guilds module)
+    {
+        this.module = module;
+    }
+
     @EventHandler
     public void doChat(AsyncChatEvent event)
     {
         Player player = event.getPlayer();
-        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresent(guild ->
+        module.getGuildHolder().guild(player.getUniqueId()).ifPresent(guild ->
         {
             Member member = guild.getMember(player.getUniqueId());
             if (member == null || !member.isChat())
@@ -24,11 +31,11 @@ public class ChatHandlerImpl implements Listener
             }
 
             String message = PlainTextComponentSerializer.plainText().serialize(event.message());
-            Guilds.get().broadcastToGuild(guild, Guilds.get().messageComponent("guildChatMessage", player.getName(), message));
-            if (Guilds.get().getConfig().getBoolean("guilds.log-chat-message"))
+            module.broadcastToGuild(guild, module.messageComponent("guildChatMessage", player.getName(), message));
+            if (module.getConfig().getBoolean("guilds.log-chat-message"))
             {
                 Bukkit.getConsoleSender().sendMessage(
-                        Guilds.get().messageComponent("guildChatConsoleLog", guild.getName(), guild.getGuildUuid(), player.getName(), message));
+                        module.messageComponent("guildChatConsoleLog", guild.getName(), guild.getGuildUuid(), player.getName(), message));
             }
             event.setCancelled(true);
         });

@@ -1,6 +1,5 @@
 package dev.plex.command;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
@@ -9,145 +8,164 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.command.CommandSender;
-import org.bukkit.command.ConsoleCommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
 public class GuildCommand extends SimplePlexCommand
 {
+    private final Guilds module;
     private final List<GuildSubCommand> subCommands = Lists.newArrayList();
 
-    public GuildCommand()
+    public GuildCommand(Guilds module)
     {
         super(command("guild")
                 .description("Guild menu")
                 .aliases("guilds,g")
                 .permission("plex.guilds.guild")
                 .build());
-        this.registerSubCommand(new CreateSubCommand());
-        this.registerSubCommand(new DisbandSubCommand());
-        this.registerSubCommand(new LeaveSubCommand());
-        this.registerSubCommand(new InfoSubCommand());
-        this.registerSubCommand(new PrefixSubCommand());
-        this.registerSubCommand(new SetWarpSubCommand());
-        this.registerSubCommand(new WarpSubCommand());
-        this.registerSubCommand(new WarpListSubCommand());
-        this.registerSubCommand(new ChatSubCommand());
-        this.registerSubCommand(new SetHomeSubCommand());
-        this.registerSubCommand(new HomeSubCommand());
-        this.registerSubCommand(new WorldSubCommand());
-        this.registerSubCommand(new PermissionsSubCommand());
-        this.registerSubCommand(new OwnerSubCommand());
-        this.registerSubCommand(new InviteSubCommand());
-        this.registerSubCommand(new AcceptSubCommand());
-        this.registerSubCommand(new DenySubCommand());
-        this.registerSubCommand(new MenuSubCommand());
+        this.module = module;
+        this.registerSubCommand(new CreateSubCommand(module));
+        this.registerSubCommand(new DisbandSubCommand(module));
+        this.registerSubCommand(new LeaveSubCommand(module));
+        this.registerSubCommand(new InfoSubCommand(module));
+        this.registerSubCommand(new PrefixSubCommand(module));
+        this.registerSubCommand(new SetWarpSubCommand(module));
+        this.registerSubCommand(new WarpSubCommand(module));
+        this.registerSubCommand(new WarpListSubCommand(module));
+        this.registerSubCommand(new ChatSubCommand(module));
+        this.registerSubCommand(new SetHomeSubCommand(module));
+        this.registerSubCommand(new HomeSubCommand(module));
+        this.registerSubCommand(new WorldSubCommand(module));
+        this.registerSubCommand(new PermissionsSubCommand(module));
+        this.registerSubCommand(new OwnerSubCommand(module));
+        this.registerSubCommand(new InviteSubCommand(module));
+        this.registerSubCommand(new AcceptSubCommand(module));
+        this.registerSubCommand(new DenySubCommand(module));
+        this.registerSubCommand(new MenuSubCommand(module));
     }
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
+    protected void configureCommand(com.mojang.brigadier.builder.LiteralArgumentBuilder<io.papermc.paper.command.brigadier.CommandSourceStack> command)
     {
-        if (!Guilds.get().isReady())
+        command.executes(context -> executeCommand(context, this::executeRoot));
+        var subcommand = word("subcommand")
+                .suggests((context, builder) -> suggestMatching(builder, subcommandNames()))
+                .executes(context -> executeCommand(context, (sender, player) ->
+                        dispatch(sender, player, string(context, "subcommand"), null, null)));
+        var first = word("first")
+                .suggests((context, builder) -> suggestArguments(context, builder, null))
+                .executes(context -> executeCommand(context, (sender, player) ->
+                        dispatch(sender, player, string(context, "subcommand"), string(context, "first"), null)));
+        first.then(greedyString("remaining")
+                .suggests((context, builder) -> suggestArguments(context, builder, string(context, "first")))
+                .executes(context -> executeCommand(context, (sender, player) ->
+                        dispatch(sender, player, string(context, "subcommand"), string(context, "first"), normalize(string(context, "remaining"))))));
+        subcommand.then(first);
+        command.then(subcommand);
+    }
+
+    private Component executeRoot(CommandSender sender, Player player)
+    {
+        if (!module.isReady())
         {
-            return messageComponent(Guilds.get().isLoadFailed() ? "guildStorageFailed" : "guildLoading");
+            return messageComponent(module.isLoadFailed() ? "guildStorageFailed" : "guildLoading");
         }
-        if (args.length == 0)
+        if (player == null)
         {
-            if (player == null)
-            {
-                return getSubs();
-            }
-            Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(
-                    guild -> Guilds.get().getGuildMenuListener().openHome(player, guild),
-                    () -> player.sendMessage(messageComponent("guildNotFound"))
-            );
-            return null;
+            return getSubs();
         }
-        if (args[0].equalsIgnoreCase("help"))
+        module.getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(
+                guild -> module.getGuildMenuListener().openHome(player, guild),
+                () -> player.sendMessage(messageComponent("guildNotFound"))
+        );
+        return null;
+    }
+
+    private Component dispatch(CommandSender sender, Player player, String label, String first, String remaining)
+    {
+        if (!module.isReady())
         {
-            if (args.length < 2)
-            {
-                return usage("/guild help <subcommand>");
-            }
-            PlexCommand subCommand = getSubCommand(args[1]);
-            if (subCommand == null)
-            {
-                return messageComponent("guildCommandNotFound", args[1]);
-            }
-            return mmString("<gradient:gold:yellow>========<newline>").append(mmString("<gold>Command Name: <yellow>" + subCommand.getName())).append(Component.newline())
-                    .append(mmString("<gold>Command Aliases: <yellow>" + StringUtils.join(subCommand.getAliases(), ", "))).append(Component.newline())
-                    .append(mmString("<gold>Description: <yellow>" + subCommand.getDescription())).append(Component.newline())
-                    .append(mmString("<gold>Permission: <yellow>" + subCommand.getPermission())).append(Component.newline())
-                    .append(mmString("<gold>Required Source: <yellow>" + subCommand.getRequiredSource().name()));
+            return messageComponent(module.isLoadFailed() ? "guildStorageFailed" : "guildLoading");
         }
-        GuildSubCommand subCommand = getSubCommand(args[0]);
+        if (label.equalsIgnoreCase("help"))
+        {
+            return help(first, remaining);
+        }
+        GuildSubCommand subCommand = getSubCommand(label);
         if (subCommand == null)
         {
-            return messageComponent("guildCommandNotFound", args[0]);
+            return messageComponent("guildCommandNotFound", label);
         }
-
-        if (subCommand.getRequiredSource() == RequiredCommandSource.CONSOLE && commandSender instanceof Player)
+        if (subCommand.getRequiredSource() == RequiredCommandSource.CONSOLE && sender instanceof Player)
         {
             return messageComponent("noPermissionInGame");
         }
-
-        if (subCommand.getRequiredSource() == RequiredCommandSource.IN_GAME && commandSender instanceof ConsoleCommandSender)
+        if (subCommand.getRequiredSource() == RequiredCommandSource.IN_GAME && player == null)
         {
             return messageComponent("noPermissionConsole");
         }
+        checkPermission(sender, subCommand.getPermission());
+        return subCommand.executeSubCommand(sender, player, first, remaining);
+    }
 
-        checkPermission(commandSender, subCommand.getPermission());
+    private Component help(String first, String remaining)
+    {
+        if (first == null)
+        {
+            return usage("/guild help <subcommand>");
+        }
+        GuildSubCommand subCommand = getSubCommand(first);
+        if (subCommand == null)
+        {
+            return messageComponent("guildCommandNotFound", first);
+        }
+        return mmString("<gradient:gold:yellow>========<newline>").append(mmString("<gold>Command Name: <yellow>" + subCommand.getName())).append(Component.newline())
+                .append(mmString("<gold>Command Aliases: <yellow>" + StringUtils.join(subCommand.getAliases(), ", "))).append(Component.newline())
+                .append(mmString("<gold>Description: <yellow>" + subCommand.getDescription())).append(Component.newline())
+                .append(mmString("<gold>Permission: <yellow>" + subCommand.getPermission())).append(Component.newline())
+                .append(mmString("<gold>Required Source: <yellow>" + subCommand.getRequiredSource().name()));
+    }
 
-        return subCommand.executeSubCommand(commandSender, player, Arrays.copyOfRange(args, 1, args.length));
+    private java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions> suggestArguments(
+            com.mojang.brigadier.context.CommandContext<io.papermc.paper.command.brigadier.CommandSourceStack> context,
+            com.mojang.brigadier.suggestion.SuggestionsBuilder builder, String first)
+    {
+        GuildSubCommand subCommand = getSubCommand(string(context, "subcommand"));
+        return subCommand == null ? builder.buildFuture()
+                : suggestMatching(builder, subCommand.suggestSubCommand(context.getSource().getSender(), first));
+    }
+
+    private List<String> subcommandNames()
+    {
+        List<String> names = Lists.newArrayList("help");
+        subCommands.forEach(command ->
+        {
+            names.add(command.getName());
+            names.addAll(command.getAliases());
+        });
+        return names;
+    }
+
+    private String normalize(String value)
+    {
+        return value.isBlank() ? "" : String.join(" ", value.trim().split("\\s+"));
     }
 
     private GuildSubCommand getSubCommand(String label)
     {
         return subCommands.stream()
-                .filter(cmd -> cmd.getName().equalsIgnoreCase(label) || cmd.getAliases().stream().anyMatch(alias -> alias.equalsIgnoreCase(label)))
-                .findFirst()
-                .orElse(null);
+                .filter(command -> command.getName().equalsIgnoreCase(label)
+                        || command.getAliases().stream().anyMatch(alias -> alias.equalsIgnoreCase(label)))
+                .findFirst().orElse(null);
     }
 
     private void registerSubCommand(GuildSubCommand subCommand)
     {
-        subCommand.bindModule(Guilds.get());
-        subCommand.bindApi(Guilds.get().api());
-        this.subCommands.add(subCommand);
-    }
-
-    @Override
-    protected @NotNull List<String> suggestions(@NotNull CommandSender sender, @NotNull String alias, @NotNull String[] args) throws IllegalArgumentException
-    {
-        if (args.length == 1)
-        {
-            List<String> possibleCommands = Lists.newArrayList();
-            subCommands.forEach(plexCommand ->
-            {
-                plexCommand.getAliases().stream()
-                        .filter(s -> s.toLowerCase(Locale.ROOT).startsWith(args[0].toLowerCase(Locale.ROOT)))
-                        .forEach(possibleCommands::add);
-                if (plexCommand.getName().toLowerCase(Locale.ROOT).startsWith(args[0].toLowerCase(Locale.ROOT)))
-                {
-                    possibleCommands.add(plexCommand.getName());
-                }
-            });
-            return possibleCommands;
-        }
-        if (args.length >= 2)
-        {
-            GuildSubCommand subCommand = getSubCommand(args[0]);
-            if (subCommand != null)
-            {
-                return subCommand.suggestSubCommand(sender, alias, Arrays.copyOfRange(args, 1, args.length));
-            }
-        }
-        return ImmutableList.of();
+        subCommands.add(subCommand);
     }
 
     public Component getSubs()

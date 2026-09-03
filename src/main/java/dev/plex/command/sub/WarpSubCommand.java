@@ -13,9 +13,9 @@ import org.jetbrains.annotations.Nullable;
 
 public class WarpSubCommand extends GuildSubCommand
 {
-    public WarpSubCommand()
+    public WarpSubCommand(Guilds module)
     {
-        super(command("warp")
+        super(module, command("warp")
                 .description("Warps to a specified guild warp")
                 .usage("/guild <command> <name>")
                 .aliases("goto")
@@ -25,29 +25,25 @@ public class WarpSubCommand extends GuildSubCommand
     }
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
     {
-        if (args.length == 0)
+        if (first == null)
         {
             return usage();
         }
         assert player != null;
-        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
+        module.getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
         {
-            String warpName = StringUtils.join(args, " ");
+            String warpName = arguments(first, remaining);
             if (!guild.getWarps().containsKey(warpName.toLowerCase()))
             {
-                send(player, messageComponent("guildWarpNotFound", warpName));
+                player.sendMessage(messageComponent("guildWarpNotFound", warpName));
                 return;
             }
             player.teleportAsync(guild.getWarps().get(warpName.toLowerCase()).toLocation());
-        }, () -> send(player, messageComponent("guildNotFound")));
+        }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;
     }
 
-    @Override
-    protected @NotNull List<String> suggestions(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
-    {
-        return Collections.emptyList();
-    }
+
 }

@@ -23,7 +23,13 @@ import java.util.UUID;
 
 public class RankPermissionMenuListener implements Listener
 {
+    private final Guilds module;
     private static final UUID MEMBER_PERMISSION_PROBE = new UUID(0L, 0L);
+
+    public RankPermissionMenuListener(Guilds module)
+    {
+        this.module = module;
+    }
 
     public void openRankList(Player player, Guild guild)
     {
@@ -43,7 +49,7 @@ public class RankPermissionMenuListener implements Listener
         if (!holder.guild().isOwner(player.getUniqueId()))
         {
             player.closeInventory();
-            player.sendMessage(Guilds.get().messageComponent("guildNotOwner"));
+            player.sendMessage(module.messageComponent("guildNotOwner"));
             return;
         }
         ItemStack clickedItem = event.getCurrentItem();
@@ -61,18 +67,17 @@ public class RankPermissionMenuListener implements Listener
         {
             return;
         }
-        boolean enabled = !holder.guild().hasPermission(MEMBER_PERMISSION_PROBE, permission);
-        Guilds.get().getGuildRepository().updateMemberPermission(holder.guild().getGuildUuid(), permission, enabled)
-                .whenComplete((unused, failure) ->
+        module.getGuildMutationService().toggleMemberPermission(holder.guild(), permission)
+                .whenComplete((enabled, failure) ->
+                        module.scheduler().runEntity(player, () ->
                 {
                     if (failure != null)
                     {
-                        player.sendMessage(Guilds.get().messageComponent("guildStorageFailed"));
+                        player.sendMessage(module.messageComponent("guildStorageFailed"));
                         return;
                     }
-                    holder.guild().setPermission(permission, enabled);
-                    Guilds.get().scheduler().runEntity(player, () -> openPermissionEditor(player, holder.guild()));
-                });
+                    openPermissionEditor(player, holder.guild());
+                }));
     }
 
     private void openPermissionEditor(Player player, Guild guild)

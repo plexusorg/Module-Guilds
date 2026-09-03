@@ -10,9 +10,9 @@ import org.jetbrains.annotations.Nullable;
 
 public class MenuSubCommand extends GuildSubCommand
 {
-    public MenuSubCommand()
+    public MenuSubCommand(Guilds module)
     {
-        super(command("menu")
+        super(module, command("menu")
                 .description("Opens the guild management menu")
                 .usage("/guild <command>")
                 .aliases("gui,panel")
@@ -22,12 +22,12 @@ public class MenuSubCommand extends GuildSubCommand
     }
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
     {
         assert player != null;
-        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(
-                guild -> Guilds.get().getGuildMenuListener().openHome(player, guild),
-                () -> send(player, messageComponent("guildNotFound"))
+        module.getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(
+                guild -> module.getGuildMenuListener().openHome(player, guild),
+                () -> player.sendMessage(messageComponent("guildNotFound"))
         );
         return null;
     }

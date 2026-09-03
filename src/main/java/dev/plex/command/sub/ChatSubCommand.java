@@ -16,9 +16,9 @@ import org.jetbrains.annotations.Nullable;
 
 public class ChatSubCommand extends GuildSubCommand
 {
-    public ChatSubCommand()
+    public ChatSubCommand(Guilds module)
     {
-        super(command("chat")
+        super(module, command("chat")
                 .description("Toggles guild chat or sends a guild chat message")
                 .usage("/guild <command> [message]")
                 .permission("plex.guilds.chat")
@@ -27,31 +27,26 @@ public class ChatSubCommand extends GuildSubCommand
     }
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
     {
         assert player != null;
-        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
+        module.getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
         {
-            if (args.length == 0)
+            if (first == null)
             {
                 Member member = guild.getMember(player.getUniqueId());
                 member.setChat(!member.isChat());
-                send(player, messageComponent("guildChatToggled", BooleanUtils.toStringOnOff(member.isChat())));
+                player.sendMessage(messageComponent("guildChatToggled", BooleanUtils.toStringOnOff(member.isChat())));
                 return;
             }
-            Guilds.get().broadcastToGuild(guild, messageComponent("guildChatMessage", player.getName(), StringUtils.join(args, " ")));
-            if (Guilds.get().getConfig().getBoolean("guilds.log-chat-message"))
+            module.broadcastToGuild(guild, messageComponent("guildChatMessage", player.getName(), arguments(first, remaining)));
+            if (module.getConfig().getBoolean("guilds.log-chat-message"))
             {
-                send(Bukkit.getConsoleSender(),
-                        messageComponent("guildChatConsoleLog", guild.getName(), guild.getGuildUuid(), player.getName(), StringUtils.join(args, " ")));
+                Bukkit.getConsoleSender().sendMessage(messageComponent("guildChatConsoleLog", guild.getName(), guild.getGuildUuid(), player.getName(), arguments(first, remaining)));
             }
-        }, () -> send(player, messageComponent("guildNotFound")));
+        }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;
     }
 
-    @Override
-    protected @NotNull List<String> suggestions(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
-    {
-        return Collections.emptyList();
-    }
+
 }

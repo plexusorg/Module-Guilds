@@ -12,9 +12,9 @@ import org.jetbrains.annotations.Nullable;
 
 public class HomeSubCommand extends GuildSubCommand
 {
-    public HomeSubCommand()
+    public HomeSubCommand(Guilds module)
     {
-        super(command("home")
+        super(module, command("home")
                 .description("Teleports to the guild home")
                 .usage("/guild <command>")
                 .aliases("spawn")
@@ -24,24 +24,20 @@ public class HomeSubCommand extends GuildSubCommand
     }
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
     {
         assert player != null;
-        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
+        module.getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
         {
             if (guild.getHome() == null)
             {
-                send(player, messageComponent("guildHomeNotFound"));
+                player.sendMessage(messageComponent("guildHomeNotFound"));
                 return;
             }
             player.teleportAsync(guild.getHome().toLocation());
-        }, () -> send(player, messageComponent("guildNotFound")));
+        }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;
     }
 
-    @Override
-    protected @NotNull List<String> suggestions(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
-    {
-        return Collections.emptyList();
-    }
+
 }

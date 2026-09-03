@@ -17,9 +17,9 @@ import org.jetbrains.annotations.Nullable;
 
 public class InfoSubCommand extends GuildSubCommand
 {
-    public InfoSubCommand()
+    public InfoSubCommand(Guilds module)
     {
-        super(command("info")
+        super(module, command("info")
                 .description("Shows the guild's information")
                 .usage("/guild <command>")
                 .aliases("information")
@@ -31,20 +31,20 @@ public class InfoSubCommand extends GuildSubCommand
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MM/dd/yyyy hh:mm:ss a");
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
     {
         assert player != null;
-        resolveGuild(player, args).whenComplete((guild, failure) ->
+        resolveGuild(player, first, remaining).whenComplete((guild, failure) ->
         {
             if (failure != null)
             {
-                Guilds.get().getLogger().error("Failed to look up guild information", failure);
-                send(player, messageComponent("guildStorageFailed"));
+                module.getLogger().error("Failed to look up guild information", failure);
+                player.sendMessage(messageComponent("guildStorageFailed"));
                 return;
             }
             if (guild == null)
             {
-                send(player, messageComponent("guildNotFound"));
+                player.sendMessage(messageComponent("guildNotFound"));
                 return;
             }
             List<CompletableFuture<String>> memberNames = guild.getMembers().stream()
@@ -56,50 +56,46 @@ public class InfoSubCommand extends GuildSubCommand
             {
                 if (nameFailure != null)
                 {
-                    Guilds.get().getLogger().error("Failed to look up guild member names", nameFailure);
-                    send(player, messageComponent("guildStorageFailed"));
+                    module.getLogger().error("Failed to look up guild member names", nameFailure);
+                    player.sendMessage(messageComponent("guildStorageFailed"));
                     return;
                 }
                 List<String> names = memberNames.stream().map(CompletableFuture::join).toList();
-                send(player, mmString("<gradient:yellow:gold>====<aqua>" + guild.getName() + "<gradient:yellow:gold>===="));
-                send(player, mmString(""));
-                send(player, mmString("<gold>Owner: <yellow>" + ownerName.join()));
-                send(player, mmString("<gold>Members (" + names.size() + "): " + StringUtils.join(names, ", ")));
-                send(player, mmString("<gold>Prefix: " + (guild.getPrefix() == null ? "N/A" : guild.getPrefix())));
-                send(player, mmString("<gold>Created At: " + formatter.format(guild.getCreatedAt())));
+                player.sendMessage(mmString("<gradient:yellow:gold>====<aqua>" + guild.getName() + "<gradient:yellow:gold>===="));
+                player.sendMessage(mmString(""));
+                player.sendMessage(mmString("<gold>Owner: <yellow>" + ownerName.join()));
+                player.sendMessage(mmString("<gold>Members (" + names.size() + "): " + StringUtils.join(names, ", ")));
+                player.sendMessage(mmString("<gold>Prefix: " + (guild.getPrefix() == null ? "N/A" : guild.getPrefix())));
+                player.sendMessage(mmString("<gold>Created At: " + formatter.format(guild.getCreatedAt())));
             });
         });
         return null;
     }
 
-    private CompletableFuture<Guild> resolveGuild(Player sender, String[] args)
+    private CompletableFuture<Guild> resolveGuild(Player sender, @Nullable String first, @Nullable String remaining)
     {
-        if (args.length == 0)
+        if (first == null)
         {
-            return CompletableFuture.completedFuture(Guilds.get().getGuildHolder().guild(sender.getUniqueId()).orElse(null));
+            return CompletableFuture.completedFuture(module.getGuildHolder().guild(sender.getUniqueId()).orElse(null));
         }
-        return api().players().byName(args[0]).thenApply(result ->
+        return module.api().players().byName(first).thenApply(result ->
         {
             if (result.isPresent())
             {
-                Guild guild = Guilds.get().getGuildHolder().guild(result.get().uuid()).orElse(null);
+                Guild guild = module.getGuildHolder().guild(result.get().uuid()).orElse(null);
                 if (guild != null)
                 {
                     return guild;
                 }
             }
-            return Guilds.get().getGuildHolder().guildByName(StringUtils.join(args, " ")).orElse(null);
+            return module.getGuildHolder().guildByName(arguments(first, remaining)).orElse(null);
         });
     }
 
     private CompletableFuture<String> playerName(java.util.UUID uuid)
     {
-        return api().players().player(uuid).thenApply(player -> player.map(PlexPlayerView::name).orElse(uuid.toString()));
+        return module.api().players().player(uuid).thenApply(player -> player.map(PlexPlayerView::name).orElse(uuid.toString()));
     }
 
-    @Override
-    protected @NotNull List<String> suggestions(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
-    {
-        return Collections.emptyList();
-    }
+
 }

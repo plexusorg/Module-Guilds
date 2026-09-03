@@ -10,9 +10,9 @@ import org.jetbrains.annotations.Nullable;
 
 public class PermissionsSubCommand extends GuildSubCommand
 {
-    public PermissionsSubCommand()
+    public PermissionsSubCommand(Guilds module)
     {
-        super(command("permissions")
+        super(module, command("permissions")
                 .description("Opens the rank permissions GUI")
                 .usage("/guild <command>")
                 .aliases("perms")
@@ -22,18 +22,18 @@ public class PermissionsSubCommand extends GuildSubCommand
     }
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
     {
         assert player != null;
-        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
+        module.getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
         {
             if (!guild.isOwner(player.getUniqueId()))
             {
-                send(player, messageComponent("guildNotOwner"));
+                player.sendMessage(messageComponent("guildNotOwner"));
                 return;
             }
-            Guilds.get().getRankPermissionMenuListener().openRankList(player, guild);
-        }, () -> send(player, messageComponent("guildNotFound")));
+            module.getRankPermissionMenuListener().openRankList(player, guild);
+        }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;
     }
 }

@@ -1,6 +1,5 @@
 package dev.plex.storage;
 
-import dev.plex.Guilds;
 import dev.plex.api.storage.ModuleStorage;
 import dev.plex.guild.Guild;
 import dev.plex.guild.data.GuildPermission;
@@ -30,15 +29,17 @@ public class JdbiGuildRepository implements GuildRepository
 {
     private final Jdbi jdbi;
     private final Executor executor;
+    private final ZoneId zoneId;
     private final String guildsTable;
     private final String membersTable;
     private final String warpsTable;
     private final String invitesTable;
 
-    public JdbiGuildRepository(ModuleStorage storage)
+    public JdbiGuildRepository(ModuleStorage storage, Executor executor, ZoneId zoneId)
     {
         this.jdbi = storage.jdbi();
-        this.executor = Guilds.get().scheduler().asyncExecutor();
+        this.executor = executor;
+        this.zoneId = zoneId;
         this.guildsTable = storage.table("guilds");
         this.membersTable = storage.table("members");
         this.warpsTable = storage.table("warps");
@@ -366,8 +367,7 @@ public class JdbiGuildRepository implements GuildRepository
 
     private Guild toGuildBase(GuildEntity entity)
     {
-        String timezone = Guilds.get().api().configuration().mainConfig().getString("server.timezone", "Etc/UTC");
-        Guild guild = new Guild(UUID.fromString(entity.getGuildUuid()), ZonedDateTime.ofInstant(Instant.ofEpochMilli(entity.getCreatedAt()), ZoneId.of(timezone)));
+        Guild guild = new Guild(UUID.fromString(entity.getGuildUuid()), ZonedDateTime.ofInstant(Instant.ofEpochMilli(entity.getCreatedAt()), zoneId));
         guild.setName(entity.getName());
         guild.setOwnerUuid(UUID.fromString(entity.getOwnerUuid()));
         guild.setPrefix(entity.getPrefix());

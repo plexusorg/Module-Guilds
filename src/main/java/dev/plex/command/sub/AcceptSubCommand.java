@@ -18,9 +18,9 @@ import java.util.UUID;
 
 public class AcceptSubCommand extends GuildSubCommand
 {
-    public AcceptSubCommand()
+    public AcceptSubCommand(Guilds module)
     {
-        super(command("accept")
+        super(module, command("accept")
                 .description("Accepts a guild invite")
                 .usage("/guild <command> <guild>")
                 .permission("plex.guilds.accept")
@@ -29,38 +29,38 @@ public class AcceptSubCommand extends GuildSubCommand
     }
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
     {
-        if (args.length == 0)
+        if (first == null)
         {
             return usage();
         }
         assert player != null;
         UUID playerUuid = player.getUniqueId();
         String playerName = player.getName();
-        Guilds.get().getGuildRepository().invitesFor(playerUuid).whenComplete((invites, throwable) ->
+        module.getGuildRepository().invitesFor(playerUuid).whenComplete((invites, throwable) ->
         {
             if (throwable != null)
             {
-                send(player, messageComponent("guildStorageFailed"));
+                player.sendMessage(messageComponent("guildStorageFailed"));
                 return;
             }
-            GuildInviteEntity invite = findInvite(invites, String.join(" ", args));
+            GuildInviteEntity invite = findInvite(invites, arguments(first, remaining));
             if (invite == null)
             {
-                send(player, messageComponent("guildNotValidInvite"));
+                player.sendMessage(messageComponent("guildNotValidInvite"));
                 return;
             }
             if (invite.getExpiresAt() < Instant.now().toEpochMilli())
             {
-                Guilds.get().getGuildRepository().deleteInvite(UUID.fromString(invite.getGuildUuid()), playerUuid);
-                send(player, messageComponent("guildInviteExpired"));
+                module.getGuildRepository().deleteInvite(UUID.fromString(invite.getGuildUuid()), playerUuid);
+                player.sendMessage(messageComponent("guildInviteExpired"));
                 return;
             }
-            Guild target = Guilds.get().getGuildHolder().guildById(UUID.fromString(invite.getGuildUuid())).orElse(null);
+            Guild target = module.getGuildHolder().guildById(UUID.fromString(invite.getGuildUuid())).orElse(null);
             if (target == null)
             {
-                send(player, messageComponent("guildNotValidInvite"));
+                player.sendMessage(messageComponent("guildNotValidInvite"));
                 return;
             }
             leaveCurrentIfNeeded(player, playerUuid, playerName, target);
@@ -71,7 +71,7 @@ public class AcceptSubCommand extends GuildSubCommand
     private GuildInviteEntity findInvite(List<GuildInviteEntity> invites, String guildName)
     {
         return invites.stream()
-                .filter(invite -> Guilds.get().getGuildHolder().guildById(UUID.fromString(invite.getGuildUuid()))
+                .filter(invite -> module.getGuildHolder().guildById(UUID.fromString(invite.getGuildUuid()))
                         .map(guild -> guild.getName().equalsIgnoreCase(guildName))
                         .orElse(false))
                 .findFirst()
@@ -80,43 +80,40 @@ public class AcceptSubCommand extends GuildSubCommand
 
     private void leaveCurrentIfNeeded(Player player, UUID playerUuid, String playerName, Guild target)
     {
-        Guilds.get().getGuildHolder().guild(playerUuid).ifPresentOrElse(current ->
+        module.getGuildHolder().guild(playerUuid).ifPresentOrElse(current ->
         {
             if (current.getGuildUuid().equals(target.getGuildUuid()))
             {
-                send(player, messageComponent("guildInThis"));
+                player.sendMessage(messageComponent("guildInThis"));
                 return;
             }
             if (current.isOwner(playerUuid) && current.getMembers().size() > 1)
             {
-                send(player, messageComponent("guildOwnerLeaveBlocked"));
+                player.sendMessage(messageComponent("guildOwnerLeaveBlocked"));
                 return;
             }
             if (current.isOwner(playerUuid))
             {
-                Guilds.get().getGuildRepository().deleteGuild(current.getGuildUuid()).whenComplete((unused, throwable) ->
+                module.getGuildMutationService().deleteGuild(current).whenComplete((unused, throwable) ->
                 {
                     if (throwable != null)
                     {
-                        send(player, messageComponent("guildStorageFailed"));
+                        player.sendMessage(messageComponent("guildStorageFailed"));
                         return;
                     }
-                    Guilds.get().getGuildHolder().removeGuild(current.getGuildUuid());
                     joinTarget(player, playerUuid, playerName, target);
                 });
                 return;
             }
-            Guilds.get().getGuildRepository().removeMember(current.getGuildUuid(), playerUuid).whenComplete((unused, throwable) ->
+            module.getGuildMutationService().removeMember(current, playerUuid, false).whenComplete((unused, throwable) ->
             {
                 if (throwable != null)
                 {
-                    send(player, messageComponent("guildStorageFailed"));
+                    player.sendMessage(messageComponent("guildStorageFailed"));
                     return;
                 }
-                current.getMembers().removeIf(member -> member.getUuid().equals(playerUuid));
-                Guilds.get().getGuildHolder().unindexMember(playerUuid);
-                Guilds.get().broadcastToGuild(current, messageComponent("guildMemberLeft", playerName));
-                joinTarget(player, playerUuid, playerName, target);
+                module.broadcastToGuild(current, messageComponent("guildMemberLeft", playerName))
+                        .thenRun(() -> joinTarget(player, playerUuid, playerName, target));
             });
         }, () -> joinTarget(player, playerUuid, playerName, target));
     }
@@ -124,28 +121,17 @@ public class AcceptSubCommand extends GuildSubCommand
     private void joinTarget(Player player, UUID playerUuid, String playerName, Guild guild)
     {
         UUID guildUuid = guild.getGuildUuid();
-        Guilds.get().getGuildRepository().addMember(guildUuid, playerUuid, GuildRole.MEMBER)
-                .thenCompose(unused -> Guilds.get().getGuildRepository().deleteInvite(guildUuid, playerUuid))
+        module.getGuildMutationService().addMember(guild, playerUuid, true)
                 .whenComplete((unused, throwable) ->
                 {
                     if (throwable != null)
                     {
-                        send(player, messageComponent("guildStorageFailed"));
+                        player.sendMessage(messageComponent("guildStorageFailed"));
                         return;
                     }
-                    guild.addMember(playerUuid);
-                    Guilds.get().getGuildHolder().indexMember(guildUuid, playerUuid);
-                    Guilds.get().broadcastToGuild(guild, messageComponent("guildMemberJoined", playerName));
+                    module.broadcastToGuild(guild, messageComponent("guildMemberJoined", playerName));
                 });
     }
 
-    @Override
-    protected @NotNull List<String> suggestions(@NotNull CommandSender sender, @NotNull String alias, @NotNull String[] args) throws IllegalArgumentException
-    {
-        if (!(sender instanceof Player player) || args.length != 1)
-        {
-            return ImmutableList.of();
-        }
-        return ImmutableList.of();
-    }
+
 }

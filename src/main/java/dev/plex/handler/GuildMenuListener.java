@@ -2,7 +2,7 @@ package dev.plex.handler;
 
 import dev.plex.Guilds;
 import dev.plex.guild.Guild;
-import dev.plex.guild.data.GuildRole;
+import dev.plex.guild.GuildMutationService;
 import dev.plex.guild.data.Member;
 import dev.plex.gui.GuildMenuInventoryHolder;
 import dev.plex.gui.GuildMenuView;
@@ -31,6 +31,8 @@ import java.util.concurrent.CompletableFuture;
 
 public class GuildMenuListener implements Listener
 {
+    private final Guilds module;
+    private final GuildMutationService mutationService;
     private static final int MEMBERS_SLOT = 11;
     private static final int WORLD_SLOT = 13;
     private static final int PERMISSIONS_SLOT = 15;
@@ -38,6 +40,12 @@ public class GuildMenuListener implements Listener
     private static final int KICK_SLOT = 11;
     private static final int OWNER_SLOT = 13;
     private static final int RANK_PERMISSIONS_SLOT = 15;
+
+    public GuildMenuListener(Guilds module, GuildMutationService mutationService)
+    {
+        this.module = module;
+        this.mutationService = mutationService;
+    }
 
     public void openHome(Player player, Guild guild)
     {
@@ -63,22 +71,23 @@ public class GuildMenuListener implements Listener
     private void openMembers(Player player, Guild guild)
     {
         List<Member> members = guild.getMembers();
-        List<CompletableFuture<String>> names = members.stream().limit(45).map(Member::name).toList();
+        List<CompletableFuture<String>> names = members.stream().limit(45).map(this::memberName).toList();
         CompletableFuture.allOf(names.toArray(CompletableFuture[]::new)).whenComplete((unused, failure) ->
         {
             if (failure != null)
             {
-                Guilds.get().getLogger().error("Failed to load guild member names", failure);
-                player.sendMessage(Guilds.get().messageComponent("guildStorageFailed"));
+                module.getLogger().error("Failed to load guild member names", failure);
+                module.scheduler().runEntity(player,
+                        () -> player.sendMessage(module.messageComponent("guildStorageFailed")));
                 return;
             }
-            Guilds.get().scheduler().executeEntity(player, () -> openMembers(player, guild, members, names), 1L);
+            module.scheduler().executeEntity(player, () -> openMembers(player, guild, members, names), 1L);
         });
     }
 
     private void openMembers(Player player, Guild guild, List<Member> members, List<CompletableFuture<String>> names)
     {
-        Set<String> onlineNames = new HashSet<>(Guilds.get().api().players().onlineNames());
+        Set<String> onlineNames = new HashSet<>(module.api().players().onlineNames());
         Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, GuildMenuView.MEMBERS, null), 54, title("* " + guild.getName() + " Members"));
         for (int i = 0; i < members.size() && i < 45; i++)
         {
@@ -91,22 +100,23 @@ public class GuildMenuListener implements Listener
 
     private void openMember(Player player, Guild guild, Member member)
     {
-        member.name().whenComplete((name, failure) ->
+        memberName(member).whenComplete((name, failure) ->
         {
             if (failure != null)
             {
-                Guilds.get().getLogger().error("Failed to load guild member name", failure);
-                player.sendMessage(Guilds.get().messageComponent("guildStorageFailed"));
+                module.getLogger().error("Failed to load guild member name", failure);
+                module.scheduler().runEntity(player,
+                        () -> player.sendMessage(module.messageComponent("guildStorageFailed")));
                 return;
             }
-            Guilds.get().scheduler().executeEntity(player, () -> openMember(player, guild, member, name), 1L);
+            module.scheduler().executeEntity(player, () -> openMember(player, guild, member, name), 1L);
         });
     }
 
     private void openMember(Player player, Guild guild, Member member, String name)
     {
         Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, GuildMenuView.MEMBER, member.getUuid()), 27, title("* " + name));
-        boolean online = Guilds.get().api().players().onlineNames().stream().anyMatch(name::equalsIgnoreCase);
+        boolean online = module.api().players().onlineNames().stream().anyMatch(name::equalsIgnoreCase);
         inventory.setItem(4, memberItem(guild, member, name, online));
         if (guild.isOwner(player.getUniqueId()) && !guild.isOwner(member.getUuid()))
         {
@@ -140,7 +150,7 @@ public class GuildMenuListener implements Listener
         if (!holder.guild().isMember(player.getUniqueId()))
         {
             player.closeInventory();
-            player.sendMessage(Guilds.get().messageComponent("guildNotFound"));
+            player.sendMessage(module.messageComponent("guildNotFound"));
             return;
         }
         ItemStack clickedItem = event.getCurrentItem();
@@ -166,26 +176,26 @@ public class GuildMenuListener implements Listener
         if (slot == WORLD_SLOT)
         {
             player.closeInventory();
-            if (!Guilds.get().isGuildWorldsEnabled())
+            if (!module.isGuildWorldsEnabled())
             {
-                player.sendMessage(Guilds.get().messageComponent("guildWorldsUnavailable"));
+                player.sendMessage(module.messageComponent("guildWorldsUnavailable"));
                 return;
             }
-            Guilds.get().getGuildWorldService().ensureWorld(guild).whenComplete((world, throwable) ->
-            {
-                if (throwable != null)
+            module.getGuildWorldService().ensureWorld(guild).whenComplete((world, throwable) ->
+                    module.scheduler().runEntity(player, () ->
                 {
-                    player.sendMessage(Guilds.get().messageComponent("guildWorldLoadFailed"));
-                    return;
-                }
-                Guilds.get().scheduler().runEntity(player,
-                        () -> player.teleportAsync(world.getSpawnLocation().toCenterLocation()));
-            });
+                    if (throwable != null)
+                    {
+                        player.sendMessage(module.messageComponent("guildWorldLoadFailed"));
+                        return;
+                    }
+                    player.teleportAsync(world.getSpawnLocation().toCenterLocation());
+                }));
             return;
         }
         if (slot == PERMISSIONS_SLOT && guild.isOwner(player.getUniqueId()))
         {
-            Guilds.get().getRankPermissionMenuListener().openRankList(player, guild);
+            module.getRankPermissionMenuListener().openRankList(player, guild);
         }
     }
 
@@ -218,49 +228,49 @@ public class GuildMenuListener implements Listener
         }
         if (slot == KICK_SLOT && !guild.isOwner(memberUuid))
         {
-            Guilds.get().getGuildRepository().removeMember(guild.getGuildUuid(), memberUuid).whenComplete((unused, throwable) ->
+            memberName(member).thenCompose(name -> mutationService.removeMember(guild, memberUuid).thenApply(unused -> name))
+                    .whenComplete((name, throwable) -> module.scheduler().runEntity(player, () ->
             {
                 if (throwable != null)
                 {
-                    player.sendMessage(Guilds.get().messageComponent("guildStorageFailed"));
+                    module.getLogger().error("Failed to remove guild member {}", memberUuid, throwable);
+                    player.sendMessage(module.messageComponent("guildStorageFailed"));
                     return;
                 }
-                guild.removeMember(memberUuid);
-                Guilds.get().getGuildHolder().unindexMember(memberUuid);
-                if (Guilds.get().isGuildWorldsEnabled())
-                {
-                    Guilds.get().getGuildWorldService().ejectNonMembers(guild);
-                }
-                member.name().thenAccept(name -> player.sendMessage(Guilds.get().messageComponent("guildMemberKicked", name)));
-                Guilds.get().scheduler().runEntity(player, () -> openMembers(player, guild));
-            });
+                player.sendMessage(module.messageComponent("guildMemberKicked", name));
+                openMembers(player, guild);
+            }));
             return;
         }
         if (slot == OWNER_SLOT && !guild.isOwner(memberUuid))
         {
             Member previousOwner = guild.getMember(player.getUniqueId());
-            Guilds.get().getGuildRepository().transferOwner(guild.getGuildUuid(), memberUuid, player.getUniqueId()).whenComplete((unused, throwable) ->
+            memberName(member).thenCompose(name -> mutationService.transferOwnership(
+                            guild, member, player.getUniqueId(), previousOwner).thenApply(unused -> name))
+                    .whenComplete((name, throwable) -> module.scheduler().runEntity(player, () ->
             {
                 if (throwable != null)
                 {
-                    player.sendMessage(Guilds.get().messageComponent("guildStorageFailed"));
+                    module.getLogger().error("Failed to transfer guild ownership to {}", memberUuid, throwable);
+                    player.sendMessage(module.messageComponent("guildStorageFailed"));
                     return;
                 }
-                guild.setOwnerUuid(memberUuid);
-                member.setRole(GuildRole.OWNER);
-                if (previousOwner != null)
-                {
-                    previousOwner.setRole(GuildRole.MEMBER);
-                }
-                member.name().thenAccept(name -> player.sendMessage(Guilds.get().messageComponent("guildOwnerSet", name)));
-                Guilds.get().scheduler().runEntity(player, () -> openMember(player, guild, previousOwner == null ? member : previousOwner));
-            });
+                player.sendMessage(module.messageComponent("guildOwnerSet", name));
+                openMember(player, guild, previousOwner == null ? member : previousOwner);
+            }));
             return;
         }
         if (slot == RANK_PERMISSIONS_SLOT)
         {
-            Guilds.get().getRankPermissionMenuListener().openRankList(player, guild);
+            module.getRankPermissionMenuListener().openRankList(player, guild);
         }
+    }
+
+    private CompletableFuture<String> memberName(Member member)
+    {
+        return module.api().players().player(member.getUuid())
+                .thenApply(player -> player.map(dev.plex.api.player.PlexPlayerView::name)
+                        .orElse(member.getUuid().toString()));
     }
 
     private ItemStack memberItem(Guild guild, Member member, String name, boolean online)

@@ -19,6 +19,13 @@ import java.util.Optional;
 
 public class GuildWorldProtectionListener implements Listener
 {
+    private final Guilds module;
+
+    public GuildWorldProtectionListener(Guilds module)
+    {
+        this.module = module;
+    }
+
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onTeleport(PlayerTeleportEvent event)
     {
@@ -30,7 +37,7 @@ public class GuildWorldProtectionListener implements Listener
         if (guild.isPresent() && !guild.get().isMember(event.getPlayer().getUniqueId()))
         {
             event.setCancelled(true);
-            event.getPlayer().sendMessage(Guilds.get().messageComponent("guildWorldNoAccess"));
+            event.getPlayer().sendMessage(module.messageComponent("guildWorldNoAccess"));
         }
     }
 
@@ -42,7 +49,7 @@ public class GuildWorldProtectionListener implements Listener
         {
             World fallback = Bukkit.getWorlds().getFirst();
             event.getPlayer().teleportAsync(fallback.getSpawnLocation());
-            event.getPlayer().sendMessage(Guilds.get().messageComponent("guildWorldNoAccess"));
+            event.getPlayer().sendMessage(module.messageComponent("guildWorldNoAccess"));
         }
     }
 
@@ -52,7 +59,7 @@ public class GuildWorldProtectionListener implements Listener
         if (!canUse(event.getPlayer(), event.getBlock().getWorld(), GuildPermission.BLOCK_BREAKING))
         {
             event.setCancelled(true);
-            event.getPlayer().sendMessage(Guilds.get().messageComponent("guildWorldPermissionDenied"));
+            event.getPlayer().sendMessage(module.messageComponent("guildWorldPermissionDenied"));
         }
     }
 
@@ -62,7 +69,7 @@ public class GuildWorldProtectionListener implements Listener
         if (!canUse(event.getPlayer(), event.getBlock().getWorld(), GuildPermission.BLOCK_PLACING))
         {
             event.setCancelled(true);
-            event.getPlayer().sendMessage(Guilds.get().messageComponent("guildWorldPermissionDenied"));
+            event.getPlayer().sendMessage(module.messageComponent("guildWorldPermissionDenied"));
         }
     }
 
@@ -76,7 +83,7 @@ public class GuildWorldProtectionListener implements Listener
         if (!canUse(event.getPlayer(), event.getClickedBlock().getWorld(), GuildPermission.INTERACTING))
         {
             event.setCancelled(true);
-            event.getPlayer().sendMessage(Guilds.get().messageComponent("guildWorldPermissionDenied"));
+            event.getPlayer().sendMessage(module.messageComponent("guildWorldPermissionDenied"));
         }
     }
 
@@ -92,7 +99,7 @@ public class GuildWorldProtectionListener implements Listener
         {
             return Optional.empty();
         }
-        return Guilds.get().getGuildHolder().guilds().stream()
+        return module.getGuildHolder().guilds().stream()
                 .filter(guild -> guild.getWorldName().equals(world.getName()))
                 .findFirst();
     }

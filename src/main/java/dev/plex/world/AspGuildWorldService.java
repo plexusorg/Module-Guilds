@@ -26,14 +26,20 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class AspGuildWorldService implements GuildWorldService
 {
+    private final Guilds module;
     private final AdvancedSlimePaperAPI asp = AdvancedSlimePaperAPI.instance();
     private final Map<UUID, SlimeWorldInstance> loadedWorlds = new ConcurrentHashMap<>();
     private SlimeLoader loader;
 
+    public AspGuildWorldService(Guilds module)
+    {
+        this.module = module;
+    }
+
     @Override
     public void enable()
     {
-        File worldDirectory = new File(Guilds.get().getDataFolder(), "slime-worlds");
+        File worldDirectory = new File(module.getDataFolder(), "slime-worlds");
         loader = new FileLoader(worldDirectory);
     }
 
@@ -53,7 +59,7 @@ public class AspGuildWorldService implements GuildWorldService
             return CompletableFuture.completedFuture(aspLoadedWorld.getBukkitWorld());
         }
 
-        return CompletableFuture.supplyAsync(() -> readOrCreateWorld(guild), Guilds.get().scheduler().asyncExecutor())
+        return CompletableFuture.supplyAsync(() -> readOrCreateWorld(guild), module.scheduler().asyncExecutor())
                 .thenCompose(slimeWorld -> loadWorld(guild, slimeWorld))
                 .thenCompose(world -> initializeWorld(world).thenApply(unused ->
                 {
@@ -70,7 +76,7 @@ public class AspGuildWorldService implements GuildWorldService
         {
             return;
         }
-        CompletableFuture.runAsync(() -> saveLoadedWorld(loadedWorld), Guilds.get().scheduler().asyncExecutor());
+        CompletableFuture.runAsync(() -> saveLoadedWorld(loadedWorld), module.scheduler().asyncExecutor());
     }
 
     @Override
@@ -81,16 +87,16 @@ public class AspGuildWorldService implements GuildWorldService
         {
             return;
         }
-        Guilds.get().scheduler().executeGlobal(() ->
+        module.scheduler().executeGlobal(() ->
         {
             World fallback = Bukkit.getWorlds().getFirst();
             Location fallbackSpawn = fallback.getSpawnLocation();
-            loadedWorld.getBukkitWorld().getPlayers().forEach(player -> Guilds.get().scheduler().runEntity(player, () ->
+            loadedWorld.getBukkitWorld().getPlayers().forEach(player -> module.scheduler().runEntity(player, () ->
                     {
                         if (!guild.isMember(player.getUniqueId()))
                         {
                             player.teleportAsync(fallbackSpawn);
-                            player.sendMessage(Guilds.get().messageComponent("guildWorldNoAccess"));
+                            player.sendMessage(module.messageComponent("guildWorldNoAccess"));
                         }
                     }));
         });
@@ -127,7 +133,7 @@ public class AspGuildWorldService implements GuildWorldService
     private CompletableFuture<World> loadWorld(Guild guild, SlimeWorld slimeWorld)
     {
         CompletableFuture<World> future = new CompletableFuture<>();
-        Guilds.get().scheduler().executeGlobal(() ->
+        module.scheduler().executeGlobal(() ->
         {
             try
             {
@@ -135,9 +141,9 @@ public class AspGuildWorldService implements GuildWorldService
                 loadedWorlds.put(guild.getGuildUuid(), loadedWorld);
                 future.complete(loadedWorld.getBukkitWorld());
             }
-            catch (Throwable throwable)
+            catch (RuntimeException | LinkageError exception)
             {
-                future.completeExceptionally(throwable);
+                future.completeExceptionally(exception);
             }
         });
         return future;
@@ -148,27 +154,27 @@ public class AspGuildWorldService implements GuildWorldService
         CompletableFuture<Void> initialized = new CompletableFuture<>();
         int y = world.getMaxHeight() / 2;
         Location spawn = new Location(world, 0.5, y + 1, 0.5);
-        Guilds.get().scheduler().executeRegion(spawn, () ->
+        module.scheduler().executeRegion(spawn, () ->
         {
             try
             {
                 world.getBlockAt(0, y, 0).setType(Material.GRASS_BLOCK, false);
-                Guilds.get().scheduler().executeGlobal(() ->
+                module.scheduler().executeGlobal(() ->
                 {
                     try
                     {
                         world.setSpawnLocation(spawn);
                         initialized.complete(null);
                     }
-                    catch (Throwable throwable)
+                    catch (RuntimeException | LinkageError exception)
                     {
-                        initialized.completeExceptionally(throwable);
+                        initialized.completeExceptionally(exception);
                     }
                 });
             }
-            catch (Throwable throwable)
+            catch (RuntimeException | LinkageError exception)
             {
-                initialized.completeExceptionally(throwable);
+                initialized.completeExceptionally(exception);
             }
         });
         return initialized;

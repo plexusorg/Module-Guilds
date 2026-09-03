@@ -14,9 +14,9 @@ import org.jetbrains.annotations.Nullable;
 
 public class PrefixSubCommand extends GuildSubCommand
 {
-    public PrefixSubCommand()
+    public PrefixSubCommand(Guilds module)
     {
-        super(command("prefix")
+        super(module, command("prefix")
                 .description("Sets the guild's default prefix")
                 .usage("/guild <command> <prefix>")
                 .aliases("tag,settag,setprefix")
@@ -26,52 +26,46 @@ public class PrefixSubCommand extends GuildSubCommand
     }
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
     {
-        if (args.length == 0)
+        if (first == null)
         {
             return usage();
         }
         assert player != null;
-        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
+        module.getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
         {
             if (!guild.isOwner(player.getUniqueId()))
             {
-                send(player, messageComponent("guildNotOwner"));
+                player.sendMessage(messageComponent("guildNotOwner"));
                 return;
             }
-            if (args[0].equalsIgnoreCase("clear") || args[0].equalsIgnoreCase("off"))
+            if (first.equalsIgnoreCase("clear") || first.equalsIgnoreCase("off"))
             {
-                Guilds.get().getGuildRepository().updatePrefix(guild.getGuildUuid(), null).whenComplete((unused, throwable) ->
+                module.getGuildMutationService().updatePrefix(guild, null).whenComplete((unused, throwable) ->
                 {
                     if (throwable != null)
                     {
-                        send(player, messageComponent("guildStorageFailed"));
+                        player.sendMessage(messageComponent("guildStorageFailed"));
                         return;
                     }
-                    guild.setPrefix(null);
-                    send(player, messageComponent("guildPrefixCleared"));
+                    player.sendMessage(messageComponent("guildPrefixCleared"));
                 });
                 return;
             }
-            String prefix = StringUtils.join(args, " ");
-            Guilds.get().getGuildRepository().updatePrefix(guild.getGuildUuid(), prefix).whenComplete((unused, throwable) ->
+            String prefix = arguments(first, remaining);
+            module.getGuildMutationService().updatePrefix(guild, prefix).whenComplete((unused, throwable) ->
             {
                 if (throwable != null)
                 {
-                    send(player, messageComponent("guildStorageFailed"));
+                    player.sendMessage(messageComponent("guildStorageFailed"));
                     return;
                 }
-                guild.setPrefix(prefix);
-                send(player, messageComponent("guildPrefixSet", GuildUtil.miniMessageWithoutEvents(guild.getPrefix())));
+                player.sendMessage(messageComponent("guildPrefixSet", GuildUtil.miniMessageWithoutEvents(guild.getPrefix())));
             });
-        }, () -> send(player, messageComponent("guildNotFound")));
+        }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;
     }
 
-    @Override
-    protected @NotNull List<String> suggestions(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
-    {
-        return Collections.emptyList();
-    }
+
 }

@@ -1,9 +1,10 @@
 package dev.plex.command.sub;
 
-import com.google.common.collect.ImmutableList;
 import dev.plex.Guilds;
+import dev.plex.command.exception.PlayerNotFoundException;
 import dev.plex.command.source.RequiredCommandSource;
 import net.kyori.adventure.text.Component;
+import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -12,12 +13,13 @@ import org.jetbrains.annotations.Nullable;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.UUID;
 
 public class InviteSubCommand extends GuildSubCommand
 {
-    public InviteSubCommand()
+    public InviteSubCommand(Guilds module)
     {
-        super(command("invite")
+        super(module, command("invite")
                 .description("Invites a player to the guild")
                 .usage("/guild <command> <player name>")
                 .aliases("inv")
@@ -27,50 +29,65 @@ public class InviteSubCommand extends GuildSubCommand
     }
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
     {
-        if (args.length == 0)
+        if (first == null)
         {
             return usage();
         }
         assert player != null;
-        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
+        module.getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
         {
             if (!guild.isOwner(player.getUniqueId()))
             {
-                send(player, messageComponent("guildNotOwner"));
+                player.sendMessage(messageComponent("guildNotOwner"));
                 return;
             }
-            Player target = getNonNullPlayer(args[0]);
+            Player resolvedTarget;
+            try
+            {
+                resolvedTarget = Bukkit.getPlayer(UUID.fromString(first));
+            }
+            catch (IllegalArgumentException ignored)
+            {
+                resolvedTarget = Bukkit.getPlayer(first);
+            }
+            if (resolvedTarget == null)
+            {
+                throw new PlayerNotFoundException();
+            }
+            Player target = resolvedTarget;
             if (target.getUniqueId().equals(player.getUniqueId()))
             {
-                send(player, messageComponent("guildCannotInviteSelf"));
+                player.sendMessage(messageComponent("guildCannotInviteSelf"));
                 return;
             }
-            if (guild.getMember(target.getUniqueId()) != null || Guilds.get().getGuildHolder().guild(target.getUniqueId()).isPresent())
+            if (guild.getMember(target.getUniqueId()) != null || module.getGuildHolder().guild(target.getUniqueId()).isPresent())
             {
-                send(player, messageComponent("guildTargetAlreadyInGuild"));
+                player.sendMessage(messageComponent("guildTargetAlreadyInGuild"));
                 return;
             }
             String inviterName = player.getName();
             String targetName = target.getName();
-            Guilds.get().getGuildRepository().createInvite(guild.getGuildUuid(), player.getUniqueId(), target.getUniqueId(), Instant.now().plus(5, ChronoUnit.MINUTES)).whenComplete((unused, throwable) ->
+            module.getGuildRepository().createInvite(guild.getGuildUuid(), player.getUniqueId(), target.getUniqueId(), Instant.now().plus(5, ChronoUnit.MINUTES)).whenComplete((unused, throwable) ->
             {
                 if (throwable != null)
                 {
-                    send(player, messageComponent("guildStorageFailed"));
+                    player.sendMessage(messageComponent("guildStorageFailed"));
                     return;
                 }
-                send(player, messageComponent("guildInviteSent", targetName));
-                send(target, messageComponent("guildInviteReceived", inviterName, guild.getName()));
+                player.sendMessage(messageComponent("guildInviteSent", targetName));
+                target.sendMessage(messageComponent("guildInviteReceived", inviterName, guild.getName()));
             });
-        }, () -> send(player, messageComponent("guildNotFound")));
+        }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;
     }
 
     @Override
-    protected @NotNull List<String> suggestions(@NotNull CommandSender sender, @NotNull String alias, @NotNull String[] args) throws IllegalArgumentException
+    public @NotNull List<String> suggestSubCommand(@NotNull CommandSender sender, @Nullable String first)
     {
-        return args.length == 1 ? onlinePlayerNames() : ImmutableList.of();
+        return first == null ? module.api().players().onlineNames() : List.of();
     }
+
+
 }

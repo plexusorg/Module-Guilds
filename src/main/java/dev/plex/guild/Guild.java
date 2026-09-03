@@ -1,6 +1,5 @@
 package dev.plex.guild;
 
-import dev.plex.Guilds;
 import dev.plex.guild.data.GuildPermission;
 import dev.plex.guild.data.GuildRole;
 import dev.plex.guild.data.Member;
@@ -11,8 +10,8 @@ import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -22,23 +21,22 @@ public class Guild
 {
     private final UUID guildUuid;
     private final ZonedDateTime createdAt;
-    private final List<Member> members = new ArrayList<>();
-    private final Map<String, CustomLocation> warps = new HashMap<>();
+    private final List<Member> members = new CopyOnWriteArrayList<>();
+    private final Map<String, CustomLocation> warps = new ConcurrentHashMap<>();
     private String name;
-    private UUID ownerUuid;
-    private String prefix;
+    private volatile UUID ownerUuid;
+    private volatile String prefix;
     private String motd;
-    private CustomLocation home;
+    private volatile CustomLocation home;
     private boolean tagEnabled = true;
     private boolean isPublic;
-    private boolean memberBlockBreaking;
-    private boolean memberBlockPlacing;
-    private boolean memberInteracting;
+    private volatile boolean memberBlockBreaking;
+    private volatile boolean memberBlockPlacing;
+    private volatile boolean memberInteracting;
 
-    public static Guild create(UUID ownerUuid, String guildName)
+    public static Guild create(UUID ownerUuid, String guildName, ZoneId zoneId)
     {
-        String timezone = Guilds.get().api().configuration().mainConfig().getString("server.timezone", "Etc/UTC");
-        Guild guild = new Guild(UUID.randomUUID(), ZonedDateTime.now(ZoneId.of(timezone)));
+        Guild guild = new Guild(UUID.randomUUID(), ZonedDateTime.now(zoneId));
         guild.setName(PlainTextComponentSerializer.plainText().serialize(GuildUtil.miniMessageWithoutEvents(guildName)));
         guild.setOwnerUuid(ownerUuid);
         guild.addMember(new Member(ownerUuid, GuildRole.OWNER));
@@ -107,5 +105,15 @@ public class Guild
             case BLOCK_PLACING -> memberBlockPlacing = enabled;
             case INTERACTING -> memberInteracting = enabled;
         }
+    }
+
+    public boolean isMemberPermissionEnabled(GuildPermission permission)
+    {
+        return switch (permission)
+        {
+            case BLOCK_BREAKING -> memberBlockBreaking;
+            case BLOCK_PLACING -> memberBlockPlacing;
+            case INTERACTING -> memberInteracting;
+        };
     }
 }

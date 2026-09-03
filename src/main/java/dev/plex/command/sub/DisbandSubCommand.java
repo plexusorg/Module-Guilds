@@ -10,9 +10,9 @@ import org.jetbrains.annotations.Nullable;
 
 public class DisbandSubCommand extends GuildSubCommand
 {
-    public DisbandSubCommand()
+    public DisbandSubCommand(Guilds module)
     {
-        super(command("disband")
+        super(module, command("disband")
                 .description("Disbands your guild")
                 .usage("/guild <command>")
                 .permission("plex.guilds.disband")
@@ -21,27 +21,26 @@ public class DisbandSubCommand extends GuildSubCommand
     }
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
     {
         assert player != null;
-        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
+        module.getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
         {
             if (!guild.isOwner(player.getUniqueId()))
             {
-                send(player, messageComponent("guildNotOwner"));
+                player.sendMessage(messageComponent("guildNotOwner"));
                 return;
             }
-            Guilds.get().getGuildRepository().deleteGuild(guild.getGuildUuid()).whenComplete((unused, throwable) ->
+            module.getGuildMutationService().deleteGuild(guild).whenComplete((unused, throwable) ->
             {
                 if (throwable != null)
                 {
-                    send(player, messageComponent("guildStorageFailed"));
+                    player.sendMessage(messageComponent("guildStorageFailed"));
                     return;
                 }
-                Guilds.get().getGuildHolder().removeGuild(guild.getGuildUuid());
-                send(player, messageComponent("guildDisbanded"));
+                player.sendMessage(messageComponent("guildDisbanded"));
             });
-        }, () -> send(player, messageComponent("guildNotFound")));
+        }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;
     }
 }

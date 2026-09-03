@@ -15,9 +15,9 @@ import org.jetbrains.annotations.Nullable;
 
 public class WarpListSubCommand extends GuildSubCommand
 {
-    public WarpListSubCommand()
+    public WarpListSubCommand(Guilds module)
     {
-        super(command("warps")
+        super(module, command("warps")
                 .description("Displays a clickable list of warps")
                 .usage("/guild <command>")
                 .aliases("listwarps")
@@ -27,13 +27,13 @@ public class WarpListSubCommand extends GuildSubCommand
     }
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
     {
         assert player != null;
-        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
+        module.getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
         {
-            send(player, getWarps(guild));
-        }, () -> send(player, messageComponent("guildNotFound")));
+            player.sendMessage(getWarps(guild));
+        }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;
     }
 
@@ -55,9 +55,5 @@ public class WarpListSubCommand extends GuildSubCommand
         return parent;
     }
 
-    @Override
-    protected @NotNull List<String> suggestions(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
-    {
-        return Collections.emptyList();
-    }
+
 }

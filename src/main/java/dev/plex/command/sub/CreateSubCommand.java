@@ -15,9 +15,9 @@ import org.jetbrains.annotations.Nullable;
 
 public class CreateSubCommand extends GuildSubCommand
 {
-    public CreateSubCommand()
+    public CreateSubCommand(Guilds module)
     {
-        super(command("create")
+        super(module, command("create")
                 .description("Creates a guild with a specified name")
                 .usage("/guild <command> <name>")
                 .aliases("make")
@@ -27,38 +27,34 @@ public class CreateSubCommand extends GuildSubCommand
     }
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
     {
-        if (args.length == 0)
+        if (first == null)
         {
             return usage();
         }
         assert player != null;
-        if (Guilds.get().getGuildHolder().guild(player.getUniqueId()).isPresent())
+        if (module.getGuildHolder().guild(player.getUniqueId()).isPresent())
         {
             return messageComponent("alreadyInGuild");
         }
-        Guild guildToCreate = Guild.create(player.getUniqueId(), StringUtils.join(args, " "));
-        Guilds.get().getGuildRepository().createGuild(guildToCreate)
-                .thenCompose(guild -> Guilds.get().isGuildWorldsEnabled()
-                        ? Guilds.get().getGuildWorldService().ensureWorld(guild).thenApply(world -> guild)
+        Guild guildToCreate = Guild.create(player.getUniqueId(), arguments(first, remaining), module.getZoneId());
+        module.getGuildRepository().createGuild(guildToCreate)
+                .thenCompose(guild -> module.isGuildWorldsEnabled()
+                        ? module.getGuildWorldService().ensureWorld(guild).thenApply(world -> guild)
                         : CompletableFuture.completedFuture(guild))
                 .whenComplete((guild, throwable) ->
         {
             if (throwable != null)
             {
-                send(player, messageComponent("guildStorageFailed"));
+                player.sendMessage(messageComponent("guildStorageFailed"));
                 return;
             }
-            Guilds.get().getGuildHolder().addGuild(guild);
-            send(player, messageComponent("guildCreated", guild.getName()));
+            module.getGuildHolder().addGuild(guild);
+            player.sendMessage(messageComponent("guildCreated", guild.getName()));
         });
         return null;
     }
 
-    @Override
-    protected @NotNull List<String> suggestions(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
-    {
-        return Collections.emptyList();
-    }
+
 }

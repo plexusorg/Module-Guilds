@@ -13,9 +13,9 @@ import org.jetbrains.annotations.Nullable;
 
 public class SetHomeSubCommand extends GuildSubCommand
 {
-    public SetHomeSubCommand()
+    public SetHomeSubCommand(Guilds module)
     {
-        super(command("sethome")
+        super(module, command("sethome")
                 .description("Sets the guild's home")
                 .usage("/guild <command>")
                 .aliases("setspawn")
@@ -25,53 +25,47 @@ public class SetHomeSubCommand extends GuildSubCommand
     }
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
     {
         assert player != null;
-        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
+        module.getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
         {
             if (!guild.isOwner(player.getUniqueId()))
             {
-                send(player, messageComponent("guildNotOwner"));
+                player.sendMessage(messageComponent("guildNotOwner"));
                 return;
             }
-            if (args.length > 0 && (args[0].equalsIgnoreCase("remove") || args[0].equalsIgnoreCase("unset") || args[0].equalsIgnoreCase("clear")))
+            if (first != null && (first.equalsIgnoreCase("remove") || first.equalsIgnoreCase("unset") || first.equalsIgnoreCase("clear")))
             {
                 if (guild.getHome() == null)
                 {
-                    send(player, messageComponent("guildHomeNotFound"));
+                    player.sendMessage(messageComponent("guildHomeNotFound"));
                     return;
                 }
-                Guilds.get().getGuildRepository().updateHome(guild.getGuildUuid(), null).whenComplete((unused, throwable) ->
+                module.getGuildMutationService().updateHome(guild, null).whenComplete((unused, throwable) ->
                 {
                     if (throwable != null)
                     {
-                        send(player, messageComponent("guildStorageFailed"));
+                        player.sendMessage(messageComponent("guildStorageFailed"));
                         return;
                     }
-                    guild.setHome(null);
-                    send(player, messageComponent("guildHomeRemoved"));
+                    player.sendMessage(messageComponent("guildHomeRemoved"));
                 });
                 return;
             }
             CustomLocation home = CustomLocation.fromLocation(player.getLocation());
-            Guilds.get().getGuildRepository().updateHome(guild.getGuildUuid(), home).whenComplete((unused, throwable) ->
+            module.getGuildMutationService().updateHome(guild, home).whenComplete((unused, throwable) ->
             {
                 if (throwable != null)
                 {
-                    send(player, messageComponent("guildStorageFailed"));
+                    player.sendMessage(messageComponent("guildStorageFailed"));
                     return;
                 }
-                guild.setHome(home);
-                send(player, messageComponent("guildHomeSet"));
+                player.sendMessage(messageComponent("guildHomeSet"));
             });
-        }, () -> send(player, messageComponent("guildNotFound")));
+        }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;
     }
 
-    @Override
-    protected @NotNull List<String> suggestions(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
-    {
-        return Collections.emptyList();
-    }
+
 }

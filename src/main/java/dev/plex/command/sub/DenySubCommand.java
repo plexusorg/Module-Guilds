@@ -13,9 +13,9 @@ import java.util.UUID;
 
 public class DenySubCommand extends GuildSubCommand
 {
-    public DenySubCommand()
+    public DenySubCommand(Guilds module)
     {
-        super(command("deny")
+        super(module, command("deny")
                 .description("Denies a guild invite")
                 .usage("/guild <command> <guild>")
                 .permission("plex.guilds.deny")
@@ -24,40 +24,40 @@ public class DenySubCommand extends GuildSubCommand
     }
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
     {
-        if (args.length == 0)
+        if (first == null)
         {
             return usage();
         }
         assert player != null;
         UUID playerUuid = player.getUniqueId();
-        Guilds.get().getGuildRepository().invitesFor(playerUuid).whenComplete((invites, throwable) ->
+        module.getGuildRepository().invitesFor(playerUuid).whenComplete((invites, throwable) ->
         {
             if (throwable != null)
             {
-                send(player, messageComponent("guildStorageFailed"));
+                player.sendMessage(messageComponent("guildStorageFailed"));
                 return;
             }
             GuildInviteEntity invite = invites.stream()
-                    .filter(candidate -> Guilds.get().getGuildHolder().guildById(UUID.fromString(candidate.getGuildUuid()))
-                            .map(guild -> guild.getName().equalsIgnoreCase(String.join(" ", args)))
+                    .filter(candidate -> module.getGuildHolder().guildById(UUID.fromString(candidate.getGuildUuid()))
+                            .map(guild -> guild.getName().equalsIgnoreCase(arguments(first, remaining)))
                             .orElse(false))
                     .findFirst()
                     .orElse(null);
             if (invite == null)
             {
-                send(player, messageComponent("guildNotValidInvite"));
+                player.sendMessage(messageComponent("guildNotValidInvite"));
                 return;
             }
-            Guilds.get().getGuildRepository().deleteInvite(UUID.fromString(invite.getGuildUuid()), playerUuid).whenComplete((unused, deleteThrowable) ->
+            module.getGuildRepository().deleteInvite(UUID.fromString(invite.getGuildUuid()), playerUuid).whenComplete((unused, deleteThrowable) ->
             {
                 if (deleteThrowable != null)
                 {
-                    send(player, messageComponent("guildStorageFailed"));
+                    player.sendMessage(messageComponent("guildStorageFailed"));
                     return;
                 }
-                send(player, messageComponent("guildInviteDenied"));
+                player.sendMessage(messageComponent("guildInviteDenied"));
             });
         });
         return null;

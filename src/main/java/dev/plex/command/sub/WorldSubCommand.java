@@ -10,9 +10,9 @@ import org.jetbrains.annotations.Nullable;
 
 public class WorldSubCommand extends GuildSubCommand
 {
-    public WorldSubCommand()
+    public WorldSubCommand(Guilds module)
     {
-        super(command("world")
+        super(module, command("world")
                 .description("Teleports to your guild world")
                 .usage("/guild <command>")
                 .aliases("base")
@@ -22,28 +22,28 @@ public class WorldSubCommand extends GuildSubCommand
     }
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
     {
         assert player != null;
-        if (!Guilds.get().isGuildWorldsEnabled())
+        if (!module.isGuildWorldsEnabled())
         {
             return messageComponent("guildWorldsUnavailable");
         }
-        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
+        module.getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
         {
-            send(player, messageComponent("guildWorldLoading"));
-            Guilds.get().getGuildWorldService().ensureWorld(guild).whenComplete((world, throwable) ->
+            player.sendMessage(messageComponent("guildWorldLoading"));
+            module.getGuildWorldService().ensureWorld(guild).whenComplete((world, throwable) ->
             {
                 if (throwable != null)
                 {
-                    Guilds.get().getLogger().error("Failed to load guild world", throwable);
-                    send(player, messageComponent("guildWorldLoadFailed"));
+                    module.getLogger().error("Failed to load guild world", throwable);
+                    player.sendMessage(messageComponent("guildWorldLoadFailed"));
                     return;
                 }
-                Guilds.get().scheduler().runEntity(player,
+                module.scheduler().runEntity(player,
                         () -> player.teleportAsync(world.getSpawnLocation().toCenterLocation()));
             });
-        }, () -> send(player, messageComponent("guildNotFound")));
+        }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;
     }
 

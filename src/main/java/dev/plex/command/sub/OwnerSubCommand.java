@@ -15,9 +15,9 @@ import org.jetbrains.annotations.Nullable;
 
 public class OwnerSubCommand extends GuildSubCommand
 {
-    public OwnerSubCommand()
+    public OwnerSubCommand(Guilds module)
     {
-        super(command("owner")
+        super(module, command("owner")
                 .description("Sets the guild owner")
                 .usage("/guild <command> <player name>")
                 .aliases("setowner,promote")
@@ -27,65 +27,55 @@ public class OwnerSubCommand extends GuildSubCommand
     }
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
     {
-        if (args.length == 0)
+        if (first == null)
         {
             return usage();
         }
         assert player != null;
         java.util.UUID playerUuid = player.getUniqueId();
-        Guilds.get().getGuildHolder().guild(playerUuid).ifPresentOrElse(guild ->
+        module.getGuildHolder().guild(playerUuid).ifPresentOrElse(guild ->
         {
             if (!guild.isOwner(playerUuid))
             {
-                send(player, messageComponent("guildNotOwner"));
+                player.sendMessage(messageComponent("guildNotOwner"));
                 return;
             }
             Member memberSender = guild.getMember(playerUuid);
-            api().players().byName(args[0]).whenComplete((result, failure) ->
+            module.api().players().byName(first).whenComplete((result, failure) ->
             {
                 if (failure != null)
                 {
-                    Guilds.get().getLogger().error("Failed to look up player {}", args[0], failure);
-                    send(player, messageComponent("guildStorageFailed"));
+                    module.getLogger().error("Failed to look up player {}", first, failure);
+                    player.sendMessage(messageComponent("guildStorageFailed"));
                     return;
                 }
                 if (result.isEmpty())
                 {
-                    send(player, messageComponent("playerNotFound"));
+                    player.sendMessage(messageComponent("playerNotFound"));
                     return;
                 }
                 PlexPlayerView plexPlayer = result.get();
                 Member member = guild.getMember(plexPlayer.uuid());
                 if (member == null)
                 {
-                    send(player, messageComponent("guildMemberNotFound"));
+                    player.sendMessage(messageComponent("guildMemberNotFound"));
                     return;
                 }
-                Guilds.get().getGuildRepository().transferOwner(guild.getGuildUuid(), member.getUuid(), playerUuid).whenComplete((unused, throwable) ->
+                module.getGuildMutationService().transferOwnership(guild, member, playerUuid, memberSender).whenComplete((unused, throwable) ->
                 {
                     if (throwable != null)
                     {
-                        send(player, messageComponent("guildStorageFailed"));
+                        player.sendMessage(messageComponent("guildStorageFailed"));
                         return;
                     }
-                    guild.setOwnerUuid(member.getUuid());
-                    member.setRole(GuildRole.OWNER);
-                    if (memberSender != null)
-                    {
-                        memberSender.setRole(GuildRole.MEMBER);
-                    }
-                    send(player, messageComponent("guildOwnerSet", plexPlayer.name()));
+                    player.sendMessage(messageComponent("guildOwnerSet", plexPlayer.name()));
                 });
             });
-        }, () -> send(player, messageComponent("guildNotFound")));
+        }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;
     }
 
-    @Override
-    protected @NotNull List<String> suggestions(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
-    {
-        return Collections.emptyList();
-    }
+
 }

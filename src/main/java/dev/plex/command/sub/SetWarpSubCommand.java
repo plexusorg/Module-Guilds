@@ -15,9 +15,9 @@ import org.jetbrains.annotations.Nullable;
 
 public class SetWarpSubCommand extends GuildSubCommand
 {
-    public SetWarpSubCommand()
+    public SetWarpSubCommand(Guilds module)
     {
-        super(command("setwarp")
+        super(module, command("setwarp")
                 .description("Creates a new warp at player's location with a specified name")
                 .usage("/guild <command> <name>")
                 .aliases("makewarp,createwarp")
@@ -27,50 +27,45 @@ public class SetWarpSubCommand extends GuildSubCommand
     }
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
     {
-        if (args.length == 0)
+        if (first == null)
         {
             return usage();
         }
         assert player != null;
-        Guilds.get().getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
+        module.getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
         {
             if (!guild.isOwner(player.getUniqueId()))
             {
-                send(player, messageComponent("guildNotOwner"));
+                player.sendMessage(messageComponent("guildNotOwner"));
                 return;
             }
-            String warpName = StringUtils.join(args, " ");
+            String warpName = arguments(first, remaining);
             if (warpName.length() > 16)
             {
-                send(player, mmString("<red>The max length of a warp name is 16 characters!"));
+                player.sendMessage(mmString("<red>The max length of a warp name is 16 characters!"));
                 return;
             }
             if (!StringUtils.isAlphanumericSpace(warpName.toLowerCase(Locale.ROOT)))
             {
-                send(player, messageComponent("guildWarpAlphanumeric"));
+                player.sendMessage(messageComponent("guildWarpAlphanumeric"));
                 return;
             }
             CustomLocation location = CustomLocation.fromLocation(player.getLocation());
             String localName = warpName.toLowerCase(Locale.ROOT);
-            Guilds.get().getGuildRepository().upsertWarp(guild.getGuildUuid(), localName, location).whenComplete((unused, throwable) ->
+            module.getGuildMutationService().upsertWarp(guild, localName, location).whenComplete((unused, throwable) ->
             {
                 if (throwable != null)
                 {
-                    send(player, messageComponent("guildStorageFailed"));
+                    player.sendMessage(messageComponent("guildStorageFailed"));
                     return;
                 }
-                guild.getWarps().put(localName, location);
-                send(player, messageComponent("guildWarpCreated", warpName));
+                player.sendMessage(messageComponent("guildWarpCreated", warpName));
             });
-        }, () -> send(player, messageComponent("guildNotFound")));
+        }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;
     }
 
-    @Override
-    protected @NotNull List<String> suggestions(@NotNull CommandSender commandSender, @NotNull String s, @NotNull String[] strings) throws IllegalArgumentException
-    {
-        return Collections.emptyList();
-    }
+
 }

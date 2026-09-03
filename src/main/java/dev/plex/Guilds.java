@@ -4,6 +4,7 @@ import dev.plex.command.GuildCommand;
 import dev.plex.api.config.ModuleConfiguration;
 import dev.plex.guild.Guild;
 import dev.plex.guild.GuildHolder;
+import dev.plex.guild.GuildMutationService;
 import dev.plex.handler.ChatHandlerImpl;
 import dev.plex.handler.GuildMenuListener;
 import dev.plex.handler.GuildWorldProtectionListener;
@@ -19,6 +20,9 @@ import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 
 import java.sql.SQLException;
+import java.time.ZoneId;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Getter
 public class Guilds extends PlexModule
@@ -27,28 +31,29 @@ public class Guilds extends PlexModule
     private static final String ASP_LOADER_CLASS = "com.infernalsuite.asp.api.loaders.SlimeLoader";
     private static final String ASP_WORLD_SERVICE_CLASS = "dev.plex.world.AspGuildWorldService";
 
-    private static Guilds module;
     private final GuildHolder guildHolder = new GuildHolder();
-    private final GuildMenuListener guildMenuListener = new GuildMenuListener();
-    private final GuildWorldProtectionListener guildWorldProtectionListener = new GuildWorldProtectionListener();
-    private final RankPermissionMenuListener rankPermissionMenuListener = new RankPermissionMenuListener();
+    private final GuildMutationService guildMutationService = new GuildMutationService(this);
+    private final GuildMenuListener guildMenuListener = new GuildMenuListener(this, guildMutationService);
+    private final GuildWorldProtectionListener guildWorldProtectionListener = new GuildWorldProtectionListener(this);
+    private final RankPermissionMenuListener rankPermissionMenuListener = new RankPermissionMenuListener(this);
 
     private GuildWorldService guildWorldService;
 
     private GuildRepository guildRepository;
 
     private ModuleConfiguration config;
+    private ZoneId zoneId;
     private volatile boolean ready;
     private volatile boolean loadFailed;
 
     @Override
     public void load()
     {
-        module = this;
         config = api().moduleConfigs().create(this, "config.yml");
         config.load();
+        zoneId = ZoneId.of(api().configuration().mainConfig().getString("server.timezone", "Etc/UTC"));
         loadMessages("messages.yml");
-        this.registerCommand(new GuildCommand());
+        this.registerCommand(new GuildCommand(this));
     }
 
     @Override
@@ -66,7 +71,7 @@ public class Guilds extends PlexModule
         {
             throw new IllegalStateException("Failed to run Guilds migrations", e);
         }
-        guildRepository = new JdbiGuildRepository(storage);
+        guildRepository = new JdbiGuildRepository(storage, scheduler().asyncExecutor(), zoneId);
         guildRepository.loadGuilds().whenComplete((guilds, throwable) ->
         {
             if (throwable != null)
@@ -79,7 +84,7 @@ public class Guilds extends PlexModule
             guildHolder.replaceAll(guilds);
             ready = true;
         });
-        registerListener(new ChatHandlerImpl());
+        registerListener(new ChatHandlerImpl(this));
         registerListener(guildMenuListener);
         registerListener(guildWorldProtectionListener);
         registerListener(rankPermissionMenuListener);
@@ -111,7 +116,7 @@ public class Guilds extends PlexModule
 
             Class<? extends GuildWorldService> serviceClass = Class.forName(ASP_WORLD_SERVICE_CLASS, true, classLoader)
                     .asSubclass(GuildWorldService.class);
-            GuildWorldService service = serviceClass.getConstructor().newInstance();
+            GuildWorldService service = serviceClass.getConstructor(Guilds.class).newInstance(this);
             service.enable();
             guildWorldService = service;
         }
@@ -121,20 +126,19 @@ public class Guilds extends PlexModule
         }
     }
 
-    public void broadcastToGuild(Guild guild, Component message)
+    public java.util.concurrent.CompletableFuture<Void> broadcastToGuild(Guild guild, Component message)
     {
-        guild.getMembers().forEach(member ->
+        java.util.concurrent.CompletableFuture<Void> completion = new java.util.concurrent.CompletableFuture<>();
+        Set<java.util.UUID> recipients = guild.getMembers().stream().map(member -> member.getUuid()).collect(Collectors.toSet());
+        scheduler().runGlobal(() ->
         {
-            Player player = Bukkit.getPlayer(member.getUuid());
-            if (player != null)
+            for (Player player : java.util.List.copyOf(Bukkit.getOnlinePlayers()))
             {
-                player.sendMessage(message);
+                if (recipients.contains(player.getUniqueId())) player.sendMessage(message);
             }
+            completion.complete(null);
         });
+        return completion;
     }
 
-    public static Guilds get()
-    {
-        return module;
-    }
 }

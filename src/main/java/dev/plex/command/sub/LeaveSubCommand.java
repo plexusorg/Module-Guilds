@@ -11,9 +11,9 @@ import org.jetbrains.annotations.Nullable;
 
 public class LeaveSubCommand extends GuildSubCommand
 {
-    public LeaveSubCommand()
+    public LeaveSubCommand(Guilds module)
     {
-        super(command("leave")
+        super(module, command("leave")
                 .description("Leaves your guild")
                 .usage("/guild <command>")
                 .permission("plex.guilds.leave")
@@ -22,45 +22,42 @@ public class LeaveSubCommand extends GuildSubCommand
     }
 
     @Override
-    protected Component execute(@NotNull CommandSender commandSender, @Nullable Player player, @NotNull String[] args)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
     {
         assert player != null;
         java.util.UUID playerUuid = player.getUniqueId();
         String playerName = player.getName();
-        Guilds.get().getGuildHolder().guild(playerUuid).ifPresentOrElse(guild ->
+        module.getGuildHolder().guild(playerUuid).ifPresentOrElse(guild ->
         {
             if (guild.isOwner(playerUuid))
             {
                 if (guild.getMembers().size() > 1)
                 {
-                    send(player, messageComponent("guildOwnerLeaveBlocked"));
+                    player.sendMessage(messageComponent("guildOwnerLeaveBlocked"));
                     return;
                 }
-                Guilds.get().getGuildRepository().deleteGuild(guild.getGuildUuid()).whenComplete((unused, throwable) ->
+                module.getGuildMutationService().deleteGuild(guild).whenComplete((unused, throwable) ->
                 {
                     if (throwable != null)
                     {
-                        send(player, messageComponent("guildStorageFailed"));
+                        player.sendMessage(messageComponent("guildStorageFailed"));
                         return;
                     }
-                    Guilds.get().getGuildHolder().removeGuild(guild.getGuildUuid());
-                    send(player, messageComponent("guildAutoDisbanded"));
+                    player.sendMessage(messageComponent("guildAutoDisbanded"));
                 });
                 return;
             }
-            Guilds.get().getGuildRepository().removeMember(guild.getGuildUuid(), playerUuid).whenComplete((unused, throwable) ->
+            module.getGuildMutationService().removeMember(guild, playerUuid, false).whenComplete((unused, throwable) ->
             {
                 if (throwable != null)
                 {
-                    send(player, messageComponent("guildStorageFailed"));
+                    player.sendMessage(messageComponent("guildStorageFailed"));
                     return;
                 }
-                guild.getMembers().removeIf(member -> member.getUuid().equals(playerUuid));
-                Guilds.get().getGuildHolder().unindexMember(playerUuid);
-                Guilds.get().broadcastToGuild(guild, messageComponent("guildMemberLeft", playerName));
-                send(player, messageComponent("guildLeft"));
+                module.broadcastToGuild(guild, messageComponent("guildMemberLeft", playerName))
+                        .thenRun(() -> player.sendMessage(messageComponent("guildLeft")));
             });
-        }, () -> send(player, messageComponent("guildNotFound")));
+        }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;
     }
 }

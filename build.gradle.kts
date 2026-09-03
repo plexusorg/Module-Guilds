@@ -1,5 +1,6 @@
 plugins {
     java
+    checkstyle
     `maven-publish`
     id("com.gradleup.shadow") version "9.6.1"
 }
@@ -38,6 +39,11 @@ description = "The Guilds module for Plex"
 
 java {
     toolchain.languageVersion.set(JavaLanguageVersion.of(25))
+}
+
+checkstyle {
+    toolVersion = "14.1.0"
+    configFile = rootProject.file("config/checkstyle/checkstyle.xml")
 }
 
 publishing {
