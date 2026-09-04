@@ -1,5 +1,7 @@
 package dev.plex.command.sub;
 
+import static dev.plex.api.message.MessagePlaceholder.placeholder;
+
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.data.Member;
@@ -36,13 +38,13 @@ public class ChatSubCommand extends GuildSubCommand
             {
                 Member member = guild.getMember(player.getUniqueId());
                 member.setChat(!member.isChat());
-                player.sendMessage(messageComponent("guildChatToggled", BooleanUtils.toStringOnOff(member.isChat())));
+                player.sendMessage(messageComponent("guildChatToggled", placeholder("status", BooleanUtils.toStringOnOff(member.isChat()))));
                 return;
             }
-            module.broadcastToGuild(guild, messageComponent("guildChatMessage", player.getName(), arguments(first, remaining)));
+            module.broadcastToGuild(guild, messageComponent("guildChatMessage", placeholder("player", player.getName()), placeholder("content", arguments(first, remaining))));
             if (module.getConfig().getBoolean("guilds.log-chat-message"))
             {
-                Bukkit.getConsoleSender().sendMessage(messageComponent("guildChatConsoleLog", guild.getName(), guild.getGuildUuid(), player.getName(), arguments(first, remaining)));
+                Bukkit.getConsoleSender().sendMessage(messageComponent("guildChatConsoleLog", placeholder("guild", guild.getName()), placeholder("guild_id", guild.getGuildUuid()), placeholder("player", player.getName()), placeholder("content", arguments(first, remaining))));
             }
         }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;

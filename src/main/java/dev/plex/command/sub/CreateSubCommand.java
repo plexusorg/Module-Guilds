@@ -1,5 +1,7 @@
 package dev.plex.command.sub;
 
+import static dev.plex.api.message.MessagePlaceholder.placeholder;
+
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
@@ -51,7 +53,7 @@ public class CreateSubCommand extends GuildSubCommand
                 return;
             }
             module.getGuildHolder().addGuild(guild);
-            player.sendMessage(messageComponent("guildCreated", guild.getName()));
+            player.sendMessage(messageComponent("guildCreated", placeholder("guild", guild.getName())));
         });
         return null;
     }

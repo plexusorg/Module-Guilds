@@ -1,5 +1,7 @@
 package dev.plex.command.sub;
 
+import static dev.plex.api.message.MessagePlaceholder.placeholder;
+
 import dev.plex.Guilds;
 import dev.plex.command.exception.PlayerNotFoundException;
 import dev.plex.command.source.RequiredCommandSource;
@@ -76,8 +78,8 @@ public class InviteSubCommand extends GuildSubCommand
                     player.sendMessage(messageComponent("guildStorageFailed"));
                     return;
                 }
-                player.sendMessage(messageComponent("guildInviteSent", targetName));
-                target.sendMessage(messageComponent("guildInviteReceived", inviterName, guild.getName()));
+                player.sendMessage(messageComponent("guildInviteSent", placeholder("player", targetName)));
+                target.sendMessage(messageComponent("guildInviteReceived", placeholder("player", inviterName), placeholder("guild", guild.getName())));
             });
         }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;

@@ -1,5 +1,7 @@
 package dev.plex.command.sub;
 
+import static dev.plex.api.message.MessagePlaceholder.placeholder;
+
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.util.GuildUtil;
@@ -61,7 +63,7 @@ public class PrefixSubCommand extends GuildSubCommand
                     player.sendMessage(messageComponent("guildStorageFailed"));
                     return;
                 }
-                player.sendMessage(messageComponent("guildPrefixSet", GuildUtil.miniMessageWithoutEvents(guild.getPrefix())));
+                player.sendMessage(messageComponent("guildPrefixSet", placeholder("prefix", GuildUtil.miniMessageWithoutEvents(guild.getPrefix()))));
             });
         }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;

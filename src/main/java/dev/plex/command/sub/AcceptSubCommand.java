@@ -1,5 +1,7 @@
 package dev.plex.command.sub;
 
+import static dev.plex.api.message.MessagePlaceholder.placeholder;
+
 import com.google.common.collect.ImmutableList;
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
@@ -112,7 +114,7 @@ public class AcceptSubCommand extends GuildSubCommand
                     player.sendMessage(messageComponent("guildStorageFailed"));
                     return;
                 }
-                module.broadcastToGuild(current, messageComponent("guildMemberLeft", playerName))
+                module.broadcastToGuild(current, messageComponent("guildMemberLeft", placeholder("player", playerName)))
                         .thenRun(() -> joinTarget(player, playerUuid, playerName, target));
             });
         }, () -> joinTarget(player, playerUuid, playerName, target));
@@ -129,7 +131,7 @@ public class AcceptSubCommand extends GuildSubCommand
                         player.sendMessage(messageComponent("guildStorageFailed"));
                         return;
                     }
-                    module.broadcastToGuild(guild, messageComponent("guildMemberJoined", playerName));
+                    module.broadcastToGuild(guild, messageComponent("guildMemberJoined", placeholder("player", playerName)));
                 });
     }
 

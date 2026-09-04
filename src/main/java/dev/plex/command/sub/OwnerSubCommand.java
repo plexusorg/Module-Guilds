@@ -1,5 +1,7 @@
 package dev.plex.command.sub;
 
+import static dev.plex.api.message.MessagePlaceholder.placeholder;
+
 import dev.plex.Guilds;
 import dev.plex.api.player.PlexPlayerView;
 import dev.plex.command.source.RequiredCommandSource;
@@ -70,7 +72,7 @@ public class OwnerSubCommand extends GuildSubCommand
                         player.sendMessage(messageComponent("guildStorageFailed"));
                         return;
                     }
-                    player.sendMessage(messageComponent("guildOwnerSet", plexPlayer.name()));
+                    player.sendMessage(messageComponent("guildOwnerSet", placeholder("player", plexPlayer.name())));
                 });
             });
         }, () -> player.sendMessage(messageComponent("guildNotFound")));

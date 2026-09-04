@@ -1,6 +1,7 @@
 package dev.plex.command.sub;
 
 import dev.plex.Guilds;
+import dev.plex.api.message.MessagePlaceholder;
 import dev.plex.command.CommandSpec;
 import dev.plex.command.source.RequiredCommandSource;
 import java.util.List;
@@ -66,9 +67,9 @@ public abstract class GuildSubCommand
         return List.of();
     }
 
-    protected Component messageComponent(String key, Object... replacements)
+    protected Component messageComponent(String key, MessagePlaceholder... placeholders)
     {
-        return module.messageComponent(key, replacements);
+        return module.messageComponent(key, placeholders);
     }
 
     protected Component usage()

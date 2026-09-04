@@ -1,5 +1,7 @@
 package dev.plex.command.sub;
 
+import static dev.plex.api.message.MessagePlaceholder.placeholder;
+
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import java.util.Collections;
@@ -37,7 +39,7 @@ public class WarpSubCommand extends GuildSubCommand
             String warpName = arguments(first, remaining);
             if (!guild.getWarps().containsKey(warpName.toLowerCase()))
             {
-                player.sendMessage(messageComponent("guildWarpNotFound", warpName));
+                player.sendMessage(messageComponent("guildWarpNotFound", placeholder("warp", warpName)));
                 return;
             }
             player.teleportAsync(guild.getWarps().get(warpName.toLowerCase()).toLocation());
