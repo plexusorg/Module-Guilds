@@ -231,7 +231,7 @@ public class GuildMenuListener implements Listener
         if (slot == KICK_SLOT && !guild.isOwner(memberUuid))
         {
             memberName(member).thenCompose(name -> mutationService.removeMember(guild, memberUuid).thenApply(unused -> name))
-                    .whenComplete((name, throwable) -> module.ownTask(player.getScheduler().run(module.plugin(), task ->
+                    .whenComplete((name, throwable) ->
             {
                 if (throwable != null)
                 {
@@ -241,7 +241,7 @@ public class GuildMenuListener implements Listener
                 }
                 player.sendMessage(module.messageComponent("guildMemberKicked", placeholder("player", name)));
                 openMembers(player, guild);
-            }, null)));
+            });
             return;
         }
         if (slot == OWNER_SLOT && !guild.isOwner(memberUuid))
@@ -249,7 +249,7 @@ public class GuildMenuListener implements Listener
             Member previousOwner = guild.getMember(player.getUniqueId());
             memberName(member).thenCompose(name -> mutationService.transferOwnership(
                             guild, member, player.getUniqueId(), previousOwner).thenApply(unused -> name))
-                    .whenComplete((name, throwable) -> module.ownTask(player.getScheduler().run(module.plugin(), task ->
+                    .whenComplete((name, throwable) ->
             {
                 if (throwable != null)
                 {
@@ -259,7 +259,7 @@ public class GuildMenuListener implements Listener
                 }
                 player.sendMessage(module.messageComponent("guildOwnerSet", placeholder("player", name)));
                 openMember(player, guild, previousOwner == null ? member : previousOwner);
-            }, null)));
+            });
             return;
         }
         if (slot == RANK_PERMISSIONS_SLOT)
