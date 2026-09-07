@@ -1,7 +1,5 @@
 package dev.plex.command.sub;
 
-import static dev.plex.api.message.MessagePlaceholder.placeholder;
-
 import com.google.common.collect.ImmutableList;
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
@@ -9,6 +7,7 @@ import dev.plex.guild.Guild;
 import dev.plex.guild.data.GuildRole;
 import dev.plex.storage.entity.GuildInviteEntity;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -114,7 +113,7 @@ public class AcceptSubCommand extends GuildSubCommand
                     player.sendMessage(messageComponent("guildStorageFailed"));
                     return;
                 }
-                module.broadcastToGuild(current, messageComponent("guildMemberLeft", placeholder("player", playerName)))
+                module.broadcastToGuild(current, messageComponent("guildMemberLeft", Placeholder.parsed("player", playerName)))
                         .thenRun(() -> joinTarget(player, playerUuid, playerName, target));
             });
         }, () -> joinTarget(player, playerUuid, playerName, target));
@@ -131,7 +130,7 @@ public class AcceptSubCommand extends GuildSubCommand
                         player.sendMessage(messageComponent("guildStorageFailed"));
                         return;
                     }
-                    module.broadcastToGuild(guild, messageComponent("guildMemberJoined", placeholder("player", playerName)));
+                    module.broadcastToGuild(guild, messageComponent("guildMemberJoined", Placeholder.parsed("player", playerName)));
                 });
     }
 

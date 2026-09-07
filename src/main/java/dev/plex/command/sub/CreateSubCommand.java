@@ -1,7 +1,5 @@
 package dev.plex.command.sub;
 
-import static dev.plex.api.message.MessagePlaceholder.placeholder;
-
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
@@ -9,6 +7,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -53,7 +52,7 @@ public class CreateSubCommand extends GuildSubCommand
                 return;
             }
             module.getGuildHolder().addGuild(guild);
-            player.sendMessage(messageComponent("guildCreated", placeholder("guild", guild.getName())));
+            player.sendMessage(messageComponent("guildCreated", Placeholder.parsed("guild", guild.getName())));
         });
         return null;
     }

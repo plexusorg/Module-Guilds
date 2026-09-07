@@ -1,12 +1,12 @@
 package dev.plex.command.sub;
 
 import dev.plex.Guilds;
-import dev.plex.api.message.MessagePlaceholder;
 import dev.plex.command.CommandSpec;
 import dev.plex.command.source.RequiredCommandSource;
 import java.util.List;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -67,7 +67,7 @@ public abstract class GuildSubCommand
         return List.of();
     }
 
-    protected Component messageComponent(String key, MessagePlaceholder... placeholders)
+    protected Component messageComponent(String key, TagResolver... placeholders)
     {
         return module.messageComponent(key, placeholders);
     }

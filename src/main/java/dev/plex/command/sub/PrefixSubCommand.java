@@ -1,13 +1,12 @@
 package dev.plex.command.sub;
 
-import static dev.plex.api.message.MessagePlaceholder.placeholder;
-
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.util.GuildUtil;
 import java.util.Collections;
 import java.util.List;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -63,7 +62,7 @@ public class PrefixSubCommand extends GuildSubCommand
                     player.sendMessage(messageComponent("guildStorageFailed"));
                     return;
                 }
-                player.sendMessage(messageComponent("guildPrefixSet", placeholder("prefix", GuildUtil.miniMessageWithoutEvents(guild.getPrefix()))));
+                player.sendMessage(messageComponent("guildPrefixSet", Placeholder.component("prefix", GuildUtil.miniMessageWithoutEvents(guild.getPrefix()))));
             });
         }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;

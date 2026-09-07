@@ -1,11 +1,11 @@
 package dev.plex.command.sub;
 
-import static dev.plex.api.message.MessagePlaceholder.placeholder;
-
 import dev.plex.Guilds;
 import dev.plex.command.exception.PlayerNotFoundException;
 import dev.plex.command.source.RequiredCommandSource;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -78,8 +78,9 @@ public class InviteSubCommand extends GuildSubCommand
                     player.sendMessage(messageComponent("guildStorageFailed"));
                     return;
                 }
-                player.sendMessage(messageComponent("guildInviteSent", placeholder("player", targetName)));
-                target.sendMessage(messageComponent("guildInviteReceived", placeholder("player", inviterName), placeholder("guild", guild.getName())));
+                player.sendMessage(messageComponent("guildInviteSent", Placeholder.parsed("player", targetName)));
+                target.sendMessage(messageComponent("guildInviteReceived", Placeholder.parsed("player", inviterName), Placeholder.parsed("guild", guild.getName()),
+                        Placeholder.styling("accept_invite", ClickEvent.runCommand("/guild accept " + guild.getName()))));
             });
         }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;

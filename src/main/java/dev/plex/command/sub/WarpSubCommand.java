@@ -1,12 +1,11 @@
 package dev.plex.command.sub;
 
-import static dev.plex.api.message.MessagePlaceholder.placeholder;
-
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import java.util.Collections;
 import java.util.List;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -39,7 +38,7 @@ public class WarpSubCommand extends GuildSubCommand
             String warpName = arguments(first, remaining);
             if (!guild.getWarps().containsKey(warpName.toLowerCase()))
             {
-                player.sendMessage(messageComponent("guildWarpNotFound", placeholder("warp", warpName)));
+                player.sendMessage(messageComponent("guildWarpNotFound", Placeholder.parsed("warp", warpName)));
                 return;
             }
             player.teleportAsync(guild.getWarps().get(warpName.toLowerCase()).toLocation());

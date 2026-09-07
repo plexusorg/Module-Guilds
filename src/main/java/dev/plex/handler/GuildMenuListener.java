@@ -1,7 +1,6 @@
 package dev.plex.handler;
 
-import static dev.plex.api.message.MessagePlaceholder.placeholder;
-
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.Bukkit;
 
 import dev.plex.Guilds;
@@ -239,7 +238,7 @@ public class GuildMenuListener implements Listener
                     player.sendMessage(module.messageComponent("guildStorageFailed"));
                     return;
                 }
-                player.sendMessage(module.messageComponent("guildMemberKicked", placeholder("player", name)));
+                player.sendMessage(module.messageComponent("guildMemberKicked", Placeholder.parsed("player", name)));
                 openMembers(player, guild);
             });
             return;
@@ -257,7 +256,7 @@ public class GuildMenuListener implements Listener
                     player.sendMessage(module.messageComponent("guildStorageFailed"));
                     return;
                 }
-                player.sendMessage(module.messageComponent("guildOwnerSet", placeholder("player", name)));
+                player.sendMessage(module.messageComponent("guildOwnerSet", Placeholder.parsed("player", name)));
                 openMember(player, guild, previousOwner == null ? member : previousOwner);
             });
             return;

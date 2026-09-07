@@ -1,7 +1,5 @@
 package dev.plex.command.sub;
 
-import static dev.plex.api.message.MessagePlaceholder.placeholder;
-
 import dev.plex.Guilds;
 import dev.plex.api.player.PlexPlayerView;
 import dev.plex.command.source.RequiredCommandSource;
@@ -10,6 +8,7 @@ import dev.plex.guild.data.Member;
 import java.util.Collections;
 import java.util.List;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -72,7 +71,7 @@ public class OwnerSubCommand extends GuildSubCommand
                         player.sendMessage(messageComponent("guildStorageFailed"));
                         return;
                     }
-                    player.sendMessage(messageComponent("guildOwnerSet", placeholder("player", plexPlayer.name())));
+                    player.sendMessage(messageComponent("guildOwnerSet", Placeholder.parsed("player", plexPlayer.name())));
                 });
             });
         }, () -> player.sendMessage(messageComponent("guildNotFound")));

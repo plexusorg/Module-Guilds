@@ -1,13 +1,12 @@
 package dev.plex.command.sub;
 
-import static dev.plex.api.message.MessagePlaceholder.placeholder;
-
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.data.Member;
 import java.util.Collections;
 import java.util.List;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.Bukkit;
@@ -38,13 +37,13 @@ public class ChatSubCommand extends GuildSubCommand
             {
                 Member member = guild.getMember(player.getUniqueId());
                 member.setChat(!member.isChat());
-                player.sendMessage(messageComponent("guildChatToggled", placeholder("status", BooleanUtils.toStringOnOff(member.isChat()))));
+                player.sendMessage(messageComponent("guildChatToggled", Placeholder.parsed("status", BooleanUtils.toStringOnOff(member.isChat()))));
                 return;
             }
-            module.broadcastToGuild(guild, messageComponent("guildChatMessage", placeholder("player", player.getName()), placeholder("content", arguments(first, remaining))));
+            module.broadcastToGuild(guild, messageComponent("guildChatMessage", Placeholder.parsed("player", player.getName()), Placeholder.parsed("content", arguments(first, remaining))));
             if (module.getConfig().getBoolean("guilds.log-chat-message"))
             {
-                Bukkit.getConsoleSender().sendMessage(messageComponent("guildChatConsoleLog", placeholder("guild", guild.getName()), placeholder("guild_id", guild.getGuildUuid()), placeholder("player", player.getName()), placeholder("content", arguments(first, remaining))));
+                Bukkit.getConsoleSender().sendMessage(messageComponent("guildChatConsoleLog", Placeholder.parsed("guild", guild.getName()), Placeholder.parsed("guild_id", guild.getGuildUuid().toString()), Placeholder.parsed("player", player.getName()), Placeholder.parsed("content", arguments(first, remaining))));
             }
         }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;

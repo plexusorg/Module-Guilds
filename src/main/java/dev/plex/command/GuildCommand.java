@@ -1,13 +1,12 @@
 package dev.plex.command;
 
-import static dev.plex.api.message.MessagePlaceholder.placeholder;
-
 import com.google.common.collect.Lists;
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.command.sub.*;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -100,7 +99,7 @@ public class GuildCommand extends SimplePlexCommand
         GuildSubCommand subCommand = getSubCommand(label);
         if (subCommand == null)
         {
-            return messageComponent("guildCommandNotFound", placeholder("command", label));
+            return messageComponent("guildCommandNotFound", Placeholder.parsed("command", label));
         }
         if (subCommand.getRequiredSource() == RequiredCommandSource.CONSOLE && sender instanceof Player)
         {
@@ -123,7 +122,7 @@ public class GuildCommand extends SimplePlexCommand
         GuildSubCommand subCommand = getSubCommand(first);
         if (subCommand == null)
         {
-            return messageComponent("guildCommandNotFound", placeholder("command", first));
+            return messageComponent("guildCommandNotFound", Placeholder.parsed("command", first));
         }
         return mmString("<gradient:gold:yellow>========<newline>").append(mmString("<gold>Command Name: <yellow>" + subCommand.getName())).append(Component.newline())
                 .append(mmString("<gold>Command Aliases: <yellow>" + StringUtils.join(subCommand.getAliases(), ", "))).append(Component.newline())
@@ -175,13 +174,13 @@ public class GuildCommand extends SimplePlexCommand
         Component commands = Component.empty();
         for (int i = 0; i < this.subCommands.size(); i++)
         {
-            commands = commands.append(messageComponent("guildsCommandDisplay", placeholder("command", "/guild " + this.subCommands.get(i).getName()), placeholder("description", this.subCommands.get(i).getDescription())).clickEvent(ClickEvent.suggestCommand("/guild help " + this.subCommands.get(i).getName())));
+            commands = commands.append(messageComponent("guildsCommandDisplay", Placeholder.parsed("command", "/guild " + this.subCommands.get(i).getName()), Placeholder.parsed("description", this.subCommands.get(i).getDescription())).clickEvent(ClickEvent.suggestCommand("/guild help " + this.subCommands.get(i).getName())));
             if (i < this.subCommands.size() - 1)
             {
                 commands = commands.append(Component.newline());
             }
         }
-        return messageComponent("guildsHelpCommand", placeholder("content", commands));
+        return messageComponent("guildsHelpCommand", Placeholder.component("content", commands));
     }
 
 }
