@@ -55,7 +55,7 @@ public class LeaveSubCommand extends GuildSubCommand
                     player.sendMessage(messageComponent("guildStorageFailed"));
                     return;
                 }
-                module.broadcastToGuild(guild, messageComponent("guildMemberLeft", Placeholder.parsed("player", playerName)))
+                module.broadcastToGuild(guild, messageComponent("guildMemberLeft", Placeholder.unparsed("player", playerName)))
                         .thenRun(() -> player.sendMessage(messageComponent("guildLeft")));
             });
         }, () -> player.sendMessage(messageComponent("guildNotFound")));

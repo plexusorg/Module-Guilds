@@ -71,7 +71,7 @@ public class OwnerSubCommand extends GuildSubCommand
                         player.sendMessage(messageComponent("guildStorageFailed"));
                         return;
                     }
-                    player.sendMessage(messageComponent("guildOwnerSet", Placeholder.parsed("player", plexPlayer.name())));
+                    player.sendMessage(messageComponent("guildOwnerSet", Placeholder.unparsed("player", plexPlayer.name())));
                 });
             });
         }, () -> player.sendMessage(messageComponent("guildNotFound")));

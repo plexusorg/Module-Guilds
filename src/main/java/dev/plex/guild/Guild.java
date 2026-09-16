@@ -4,9 +4,7 @@ import dev.plex.guild.data.GuildPermission;
 import dev.plex.guild.data.GuildRole;
 import dev.plex.guild.data.Member;
 import dev.plex.util.CustomLocation;
-import dev.plex.util.GuildUtil;
 import lombok.Data;
-import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -37,7 +35,7 @@ public class Guild
     public static Guild create(UUID ownerUuid, String guildName, ZoneId zoneId)
     {
         Guild guild = new Guild(UUID.randomUUID(), ZonedDateTime.now(zoneId));
-        guild.setName(PlainTextComponentSerializer.plainText().serialize(GuildUtil.miniMessageWithoutEvents(guildName)));
+        guild.setName(guildName);
         guild.setOwnerUuid(ownerUuid);
         guild.addMember(new Member(ownerUuid, GuildRole.OWNER));
         return guild;

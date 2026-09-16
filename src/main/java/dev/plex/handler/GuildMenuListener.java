@@ -238,7 +238,7 @@ public class GuildMenuListener implements Listener
                     player.sendMessage(module.messageComponent("guildStorageFailed"));
                     return;
                 }
-                player.sendMessage(module.messageComponent("guildMemberKicked", Placeholder.parsed("player", name)));
+                player.sendMessage(module.messageComponent("guildMemberKicked", Placeholder.unparsed("player", name)));
                 openMembers(player, guild);
             });
             return;
@@ -256,7 +256,7 @@ public class GuildMenuListener implements Listener
                     player.sendMessage(module.messageComponent("guildStorageFailed"));
                     return;
                 }
-                player.sendMessage(module.messageComponent("guildOwnerSet", Placeholder.parsed("player", name)));
+                player.sendMessage(module.messageComponent("guildOwnerSet", Placeholder.unparsed("player", name)));
                 openMember(player, guild, previousOwner == null ? member : previousOwner);
             });
             return;

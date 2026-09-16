@@ -99,7 +99,7 @@ public class GuildCommand extends SimplePlexCommand
         GuildSubCommand subCommand = getSubCommand(label);
         if (subCommand == null)
         {
-            return messageComponent("guildCommandNotFound", Placeholder.parsed("command", label));
+            return messageComponent("guildCommandNotFound", Placeholder.unparsed("command", label));
         }
         if (subCommand.getRequiredSource() == RequiredCommandSource.CONSOLE && sender instanceof Player)
         {
@@ -122,7 +122,7 @@ public class GuildCommand extends SimplePlexCommand
         GuildSubCommand subCommand = getSubCommand(first);
         if (subCommand == null)
         {
-            return messageComponent("guildCommandNotFound", Placeholder.parsed("command", first));
+            return messageComponent("guildCommandNotFound", Placeholder.unparsed("command", first));
         }
         return mmString("<gradient:gold:yellow>========<newline>").append(mmString("<gold>Command Name: <yellow>" + subCommand.getName())).append(Component.newline())
                 .append(mmString("<gold>Command Aliases: <yellow>" + StringUtils.join(subCommand.getAliases(), ", "))).append(Component.newline())
@@ -174,7 +174,7 @@ public class GuildCommand extends SimplePlexCommand
         Component commands = Component.empty();
         for (int i = 0; i < this.subCommands.size(); i++)
         {
-            commands = commands.append(messageComponent("guildsCommandDisplay", Placeholder.parsed("command", "/guild " + this.subCommands.get(i).getName()), Placeholder.parsed("description", this.subCommands.get(i).getDescription())).clickEvent(ClickEvent.suggestCommand("/guild help " + this.subCommands.get(i).getName())));
+            commands = commands.append(messageComponent("guildsCommandDisplay", Placeholder.unparsed("command", "/guild " + this.subCommands.get(i).getName()), Placeholder.unparsed("description", this.subCommands.get(i).getDescription())).clickEvent(ClickEvent.suggestCommand("/guild help " + this.subCommands.get(i).getName())));
             if (i < this.subCommands.size() - 1)
             {
                 commands = commands.append(Component.newline());

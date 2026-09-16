@@ -9,7 +9,6 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.apache.commons.lang3.BooleanUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -37,14 +36,11 @@ public class ChatSubCommand extends GuildSubCommand
             {
                 Member member = guild.getMember(player.getUniqueId());
                 member.setChat(!member.isChat());
-                player.sendMessage(messageComponent("guildChatToggled", Placeholder.parsed("status", BooleanUtils.toStringOnOff(member.isChat()))));
+                player.sendMessage(messageComponent("guildChatToggled", Placeholder.unparsed("status", BooleanUtils.toStringOnOff(member.isChat()))));
                 return;
             }
-            module.broadcastToGuild(guild, messageComponent("guildChatMessage", Placeholder.parsed("player", player.getName()), Placeholder.parsed("content", arguments(first, remaining))));
-            if (module.getConfig().getBoolean("guilds.log-chat-message"))
-            {
-                Bukkit.getConsoleSender().sendMessage(messageComponent("guildChatConsoleLog", Placeholder.parsed("guild", guild.getName()), Placeholder.parsed("guild_id", guild.getGuildUuid().toString()), Placeholder.parsed("player", player.getName()), Placeholder.parsed("content", arguments(first, remaining))));
-            }
+            Component message = module.api().messages().playerText(arguments(first, remaining));
+            module.sendChat(guild, player.getName(), message);
         }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;
     }

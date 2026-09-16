@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -39,7 +40,8 @@ public class CreateSubCommand extends GuildSubCommand
         {
             return messageComponent("alreadyInGuild");
         }
-        Guild guildToCreate = Guild.create(player.getUniqueId(), arguments(first, remaining), module.getZoneId());
+        String name = PlainTextComponentSerializer.plainText().serialize(module.api().messages().playerText(arguments(first, remaining)));
+        Guild guildToCreate = Guild.create(player.getUniqueId(), name, module.getZoneId());
         module.getGuildRepository().createGuild(guildToCreate)
                 .thenCompose(guild -> module.isGuildWorldsEnabled()
                         ? module.getGuildWorldService().ensureWorld(guild).thenApply(world -> guild)
@@ -52,7 +54,7 @@ public class CreateSubCommand extends GuildSubCommand
                 return;
             }
             module.getGuildHolder().addGuild(guild);
-            player.sendMessage(messageComponent("guildCreated", Placeholder.parsed("guild", guild.getName())));
+            player.sendMessage(messageComponent("guildCreated", Placeholder.unparsed("guild", guild.getName())));
         });
         return null;
     }

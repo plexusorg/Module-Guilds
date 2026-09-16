@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS {{table:guilds}} (
     guild_uuid VARCHAR(46) NOT NULL PRIMARY KEY,
     name VARCHAR(64) NOT NULL UNIQUE,
-    prefix VARCHAR(64),
+    prefix TEXT,
     owner_uuid VARCHAR(46) NOT NULL,
     created_at BIGINT NOT NULL,
     home_world VARCHAR(128),

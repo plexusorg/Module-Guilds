@@ -113,7 +113,7 @@ public class AcceptSubCommand extends GuildSubCommand
                     player.sendMessage(messageComponent("guildStorageFailed"));
                     return;
                 }
-                module.broadcastToGuild(current, messageComponent("guildMemberLeft", Placeholder.parsed("player", playerName)))
+                module.broadcastToGuild(current, messageComponent("guildMemberLeft", Placeholder.unparsed("player", playerName)))
                         .thenRun(() -> joinTarget(player, playerUuid, playerName, target));
             });
         }, () -> joinTarget(player, playerUuid, playerName, target));
@@ -130,7 +130,7 @@ public class AcceptSubCommand extends GuildSubCommand
                         player.sendMessage(messageComponent("guildStorageFailed"));
                         return;
                     }
-                    module.broadcastToGuild(guild, messageComponent("guildMemberJoined", Placeholder.parsed("player", playerName)));
+                    module.broadcastToGuild(guild, messageComponent("guildMemberJoined", Placeholder.unparsed("player", playerName)));
                 });
     }
 

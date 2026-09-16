@@ -78,8 +78,8 @@ public class InviteSubCommand extends GuildSubCommand
                     player.sendMessage(messageComponent("guildStorageFailed"));
                     return;
                 }
-                player.sendMessage(messageComponent("guildInviteSent", Placeholder.parsed("player", targetName)));
-                target.sendMessage(messageComponent("guildInviteReceived", Placeholder.parsed("player", inviterName), Placeholder.parsed("guild", guild.getName()),
+                player.sendMessage(messageComponent("guildInviteSent", Placeholder.unparsed("player", targetName)));
+                target.sendMessage(messageComponent("guildInviteReceived", Placeholder.unparsed("player", inviterName), Placeholder.unparsed("guild", guild.getName()),
                         Placeholder.styling("accept_invite", ClickEvent.runCommand("/guild accept " + guild.getName()))));
             });
         }, () -> player.sendMessage(messageComponent("guildNotFound")));

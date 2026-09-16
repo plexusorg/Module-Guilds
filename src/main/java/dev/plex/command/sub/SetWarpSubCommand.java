@@ -62,7 +62,7 @@ public class SetWarpSubCommand extends GuildSubCommand
                     player.sendMessage(messageComponent("guildStorageFailed"));
                     return;
                 }
-                player.sendMessage(messageComponent("guildWarpCreated", Placeholder.parsed("warp", warpName)));
+                player.sendMessage(messageComponent("guildWarpCreated", Placeholder.unparsed("warp", warpName)));
             });
         }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;

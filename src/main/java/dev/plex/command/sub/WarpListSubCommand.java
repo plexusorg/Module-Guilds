@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.event.ClickEvent;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -42,7 +43,7 @@ public class WarpListSubCommand extends GuildSubCommand
         Set<String> warps = guild.getWarps().keySet();
 
         List<Component> components = Lists.newArrayList();
-        warps.forEach(s -> components.add(mmString("<click:suggest_command:/guild warp " + s + ">" + s)));
+        warps.forEach(s -> components.add(Component.text(s).clickEvent(ClickEvent.suggestCommand("/guild warp " + s))));
         Component parent = mmString("<gold>Warps (" + warps.size() + "): ");
         for (int i = 0; i < components.size(); i++)
         {

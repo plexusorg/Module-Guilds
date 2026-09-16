@@ -38,7 +38,7 @@ public class WarpSubCommand extends GuildSubCommand
             String warpName = arguments(first, remaining);
             if (!guild.getWarps().containsKey(warpName.toLowerCase()))
             {
-                player.sendMessage(messageComponent("guildWarpNotFound", Placeholder.parsed("warp", warpName)));
+                player.sendMessage(messageComponent("guildWarpNotFound", Placeholder.unparsed("warp", warpName)));
                 return;
             }
             player.teleportAsync(guild.getWarps().get(warpName.toLowerCase()).toLocation());

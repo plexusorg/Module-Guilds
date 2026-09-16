@@ -18,6 +18,9 @@ import dev.plex.storage.JdbiGuildRepository;
 import dev.plex.world.GuildWorldService;
 import lombok.Getter;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.TextReplacementConfig;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.entity.Player;
 
 import java.sql.SQLException;
@@ -33,6 +36,10 @@ public class Guilds extends PlexModule
     private static final String ASP_API_CLASS = "com.infernalsuite.asp.api.AdvancedSlimePaperAPI";
     private static final String ASP_LOADER_CLASS = "com.infernalsuite.asp.api.loaders.SlimeLoader";
     private static final String ASP_WORLD_SERVICE_CLASS = "dev.plex.world.AspGuildWorldService";
+    private static final TextReplacementConfig CHAT_LINKS = TextReplacementConfig.builder()
+            .match("https?://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]")
+            .replacement((match, builder) -> builder.clickEvent(ClickEvent.openUrl(match.group())))
+            .build();
 
     private final GuildHolder guildHolder = new GuildHolder();
     private final GuildMutationService guildMutationService = new GuildMutationService(this);
@@ -139,6 +146,20 @@ public class Guilds extends PlexModule
         catch (ReflectiveOperationException | LinkageError | RuntimeException throwable)
         {
             getLogger().warn("Advanced Slime Paper (ASP/ASWM) is unavailable or incompatible; guild worlds are disabled, but all other guild features will remain enabled.");
+        }
+    }
+
+    public void sendChat(Guild guild, String senderName, Component message)
+    {
+        Component content = message.replaceText(CHAT_LINKS);
+        broadcastToGuild(guild, messageComponent("guildChatMessage",
+                Placeholder.unparsed("player", senderName), Placeholder.component("content", content)));
+        if (config.getBoolean("guilds.log-chat-message"))
+        {
+            Bukkit.getConsoleSender().sendMessage(messageComponent("guildChatConsoleLog",
+                    Placeholder.unparsed("guild", guild.getName()),
+                    Placeholder.unparsed("guild_id", guild.getGuildUuid().toString()),
+                    Placeholder.unparsed("player", senderName), Placeholder.component("content", content)));
         }
     }
 

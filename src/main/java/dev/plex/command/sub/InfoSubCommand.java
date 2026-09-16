@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -61,11 +62,11 @@ public class InfoSubCommand extends GuildSubCommand
                     return;
                 }
                 List<String> names = memberNames.stream().map(CompletableFuture::join).toList();
-                player.sendMessage(mmString("<gradient:yellow:gold>====<aqua>" + guild.getName() + "<gradient:yellow:gold>===="));
+                player.sendMessage(mmString("<gradient:yellow:gold>====").append(Component.text(guild.getName(), NamedTextColor.AQUA)).append(mmString("<gradient:yellow:gold>====")));
                 player.sendMessage(mmString(""));
                 player.sendMessage(mmString("<gold>Owner: <yellow>" + ownerName.join()));
                 player.sendMessage(mmString("<gold>Members (" + names.size() + "): " + StringUtils.join(names, ", ")));
-                player.sendMessage(mmString("<gold>Prefix: " + (guild.getPrefix() == null ? "N/A" : guild.getPrefix())));
+                player.sendMessage(Component.text("Prefix: ", NamedTextColor.GOLD).append(guild.getPrefix() == null ? Component.text("N/A") : module.api().messages().playerText(guild.getPrefix())));
                 player.sendMessage(mmString("<gold>Created At: " + formatter.format(guild.getCreatedAt())));
             });
         });

@@ -2,11 +2,13 @@ package dev.plex.command.sub;
 
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
-import dev.plex.util.GuildUtil;
 import java.util.Collections;
 import java.util.List;
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.ObjectComponent;
+import net.kyori.adventure.text.flattener.ComponentFlattener;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.apache.commons.lang3.StringUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -15,6 +17,11 @@ import org.jetbrains.annotations.Nullable;
 
 public class PrefixSubCommand extends GuildSubCommand
 {
+    private static final PlainTextComponentSerializer DISPLAY_TEXT = PlainTextComponentSerializer.builder()
+            .flattener(ComponentFlattener.basic().toBuilder()
+                    .mapper(ObjectComponent.class, component -> "\uFFFC").build())
+            .build();
+
     public PrefixSubCommand(Guilds module)
     {
         super(module, command("prefix")
@@ -55,6 +62,13 @@ public class PrefixSubCommand extends GuildSubCommand
                 return;
             }
             String prefix = arguments(first, remaining);
+            Component renderedPrefix = module.api().messages().playerText(prefix);
+            String displayedText = DISPLAY_TEXT.serialize(renderedPrefix);
+            if (displayedText.codePointCount(0, displayedText.length()) > 64)
+            {
+                player.sendMessage(messageComponent("guildPrefixTooLong"));
+                return;
+            }
             module.getGuildMutationService().updatePrefix(guild, prefix).whenComplete((unused, throwable) ->
             {
                 if (throwable != null)
@@ -62,7 +76,7 @@ public class PrefixSubCommand extends GuildSubCommand
                     player.sendMessage(messageComponent("guildStorageFailed"));
                     return;
                 }
-                player.sendMessage(messageComponent("guildPrefixSet", Placeholder.component("prefix", GuildUtil.miniMessageWithoutEvents(guild.getPrefix()))));
+                player.sendMessage(messageComponent("guildPrefixSet", Placeholder.component("prefix", renderedPrefix)));
             });
         }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;
