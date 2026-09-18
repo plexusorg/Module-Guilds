@@ -17,6 +17,7 @@ import org.jetbrains.annotations.Nullable;
 
 public class PrefixSubCommand extends GuildSubCommand
 {
+    // Count a head or sprite once, not by the length of its plain-text fallback.
     private static final PlainTextComponentSerializer DISPLAY_TEXT = PlainTextComponentSerializer.builder()
             .flattener(ComponentFlattener.basic().toBuilder()
                     .mapper(ObjectComponent.class, component -> "\uFFFC").build())
