@@ -17,7 +17,9 @@ public interface GuildWorldService
 
     CompletableFuture<World> ensureWorld(Guild guild);
 
-    void saveWorld(Guild guild);
+    CompletableFuture<Void> resetWorld(Guild guild);
+
+    boolean isResetting(String worldName);
 
     void ejectNonMembers(Guild guild);
 

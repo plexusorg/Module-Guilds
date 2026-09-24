@@ -19,6 +19,7 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
@@ -40,6 +41,7 @@ public class GuildMenuListener implements Listener
     private static final int WORLD_SLOT = 13;
     private static final int PERMISSIONS_SLOT = 15;
     private static final int BACK_SLOT = 26;
+    private static final int MEMBERS_BACK_SLOT = 53;
     private static final int KICK_SLOT = 11;
     private static final int OWNER_SLOT = 13;
     private static final int RANK_PERMISSIONS_SLOT = 15;
@@ -63,7 +65,7 @@ public class GuildMenuListener implements Listener
         )));
         if (guild.isOwner(player.getUniqueId()))
         {
-            inventory.setItem(PERMISSIONS_SLOT, item(Material.COMPARATOR, "Rank Permissions", NamedTextColor.GOLD, List.of(
+            inventory.setItem(PERMISSIONS_SLOT, item(Material.COMPARATOR, "Member Permissions", NamedTextColor.GOLD, List.of(
                     line("Configure member build permissions", NamedTextColor.GRAY),
                     line("Break - Place - Interact", NamedTextColor.YELLOW)
             )));
@@ -71,9 +73,9 @@ public class GuildMenuListener implements Listener
         player.openInventory(inventory);
     }
 
-    private void openMembers(Player player, Guild guild)
+    private void openMembers(Player player, Guild guild, Inventory source)
     {
-        List<Member> members = guild.getMembers();
+        List<Member> members = List.copyOf(guild.getMembers());
         List<CompletableFuture<String>> names = members.stream().limit(45).map(this::memberName).toList();
         CompletableFuture.allOf(names.toArray(CompletableFuture[]::new)).whenComplete((unused, failure) ->
         {
@@ -83,7 +85,13 @@ public class GuildMenuListener implements Listener
                 player.sendMessage(module.messageComponent("guildStorageFailed"));
                 return;
             }
-            player.getScheduler().execute(module.plugin(), () -> openMembers(player, guild, members, names), null, 1L);
+            module.ownTask(player.getScheduler().run(module.plugin(), task ->
+            {
+                if (player.getOpenInventory().getTopInventory() == source && guild.isMember(player.getUniqueId()))
+                {
+                    openMembers(player, guild, members, names);
+                }
+            }, null));
         });
     }
 
@@ -96,11 +104,11 @@ public class GuildMenuListener implements Listener
             String name = names.get(i).join();
             inventory.setItem(i, memberItem(guild, members.get(i), name, onlineNames.stream().anyMatch(name::equalsIgnoreCase)));
         }
-        inventory.setItem(BACK_SLOT, item(Material.ARROW, "Back", NamedTextColor.YELLOW, List.of(line("Return to the guild menu", NamedTextColor.GRAY))));
+        inventory.setItem(MEMBERS_BACK_SLOT, item(Material.ARROW, "Back", NamedTextColor.YELLOW, List.of(line("Return to the guild menu", NamedTextColor.GRAY))));
         player.openInventory(inventory);
     }
 
-    private void openMember(Player player, Guild guild, Member member)
+    private void openMember(Player player, Guild guild, Member member, Inventory source)
     {
         memberName(member).whenComplete((name, failure) ->
         {
@@ -110,7 +118,13 @@ public class GuildMenuListener implements Listener
                 player.sendMessage(module.messageComponent("guildStorageFailed"));
                 return;
             }
-            player.getScheduler().execute(module.plugin(), () -> openMember(player, guild, member, name), null, 1L);
+            module.ownTask(player.getScheduler().run(module.plugin(), task ->
+            {
+                if (player.getOpenInventory().getTopInventory() == source && guild.isMember(player.getUniqueId()))
+                {
+                    openMember(player, guild, member, name);
+                }
+            }, null));
         });
     }
 
@@ -132,8 +146,8 @@ public class GuildMenuListener implements Listener
         }
         if (guild.isOwner(player.getUniqueId()))
         {
-            inventory.setItem(RANK_PERMISSIONS_SLOT, item(Material.COMPARATOR, "Rank Permissions", NamedTextColor.AQUA, List.of(
-                    line("Open the rank permission editor", NamedTextColor.GRAY)
+            inventory.setItem(RANK_PERMISSIONS_SLOT, item(Material.COMPARATOR, "Member Permissions", NamedTextColor.AQUA, List.of(
+                    line("Edit permissions for all members", NamedTextColor.GRAY)
             )));
         }
         inventory.setItem(BACK_SLOT, item(Material.ARROW, "Back", NamedTextColor.YELLOW, List.of(line("Return to member list", NamedTextColor.GRAY))));
@@ -150,7 +164,14 @@ public class GuildMenuListener implements Listener
         event.setCancelled(true);
         if (!holder.guild().isMember(player.getUniqueId()))
         {
-            player.closeInventory();
+            Inventory inventory = event.getInventory();
+            module.ownTask(player.getScheduler().run(module.plugin(), task ->
+            {
+                if (player.getOpenInventory().getTopInventory() == inventory)
+                {
+                    player.closeInventory();
+                }
+            }, null));
             player.sendMessage(module.messageComponent("guildNotFound"));
             return;
         }
@@ -161,22 +182,38 @@ public class GuildMenuListener implements Listener
         }
         switch (holder.view())
         {
-            case HOME -> clickHome(player, holder.guild(), event.getRawSlot());
-            case MEMBERS -> clickMembers(player, holder.guild(), clickedItem, event.getRawSlot());
-            case MEMBER -> clickMember(player, holder.guild(), holder.memberUuid(), event.getRawSlot());
+            case HOME -> clickHome(player, holder.guild(), event.getRawSlot(), event.getInventory());
+            case MEMBERS -> clickMembers(player, holder.guild(), clickedItem, event.getRawSlot(), event.getInventory());
+            case MEMBER -> clickMember(player, holder.guild(), holder.memberUuid(), event.getRawSlot(), event.getInventory());
         }
     }
 
-    private void clickHome(Player player, Guild guild, int slot)
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onDrag(InventoryDragEvent event)
+    {
+        if (event.getInventory().getHolder() instanceof GuildMenuInventoryHolder
+                && event.getRawSlots().stream().anyMatch(slot -> slot < event.getInventory().getSize()))
+        {
+            event.setCancelled(true);
+        }
+    }
+
+    private void clickHome(Player player, Guild guild, int slot, Inventory source)
     {
         if (slot == MEMBERS_SLOT)
         {
-            openMembers(player, guild);
+            openMembers(player, guild, source);
             return;
         }
         if (slot == WORLD_SLOT)
         {
-            player.closeInventory();
+            module.ownTask(player.getScheduler().run(module.plugin(), task ->
+            {
+                if (player.getOpenInventory().getTopInventory() == source)
+                {
+                    player.closeInventory();
+                }
+            }, null));
             if (!module.isGuildWorldsEnabled())
             {
                 player.sendMessage(module.messageComponent("guildWorldsUnavailable"));
@@ -196,31 +233,43 @@ public class GuildMenuListener implements Listener
         }
         if (slot == PERMISSIONS_SLOT && guild.isOwner(player.getUniqueId()))
         {
-            module.getRankPermissionMenuListener().openRankList(player, guild);
+            module.ownTask(player.getScheduler().run(module.plugin(), task ->
+            {
+                if (player.getOpenInventory().getTopInventory() == source && guild.isOwner(player.getUniqueId()))
+                {
+                    module.getRankPermissionMenuListener().openPermissions(player, guild);
+                }
+            }, null));
         }
     }
 
-    private void clickMembers(Player player, Guild guild, ItemStack clickedItem, int slot)
+    private void clickMembers(Player player, Guild guild, ItemStack clickedItem, int slot, Inventory source)
     {
-        if (slot == BACK_SLOT)
+        if (slot == MEMBERS_BACK_SLOT)
         {
-            openHome(player, guild);
+            module.ownTask(player.getScheduler().run(module.plugin(), task ->
+            {
+                if (player.getOpenInventory().getTopInventory() == source && guild.isMember(player.getUniqueId()))
+                {
+                    openHome(player, guild);
+                }
+            }, null));
             return;
         }
-        memberUuid(clickedItem).map(guild::getMember).filter(Objects::nonNull).ifPresent(member -> openMember(player, guild, member));
+        memberUuid(clickedItem).map(guild::getMember).filter(Objects::nonNull).ifPresent(member -> openMember(player, guild, member, source));
     }
 
-    private void clickMember(Player player, Guild guild, UUID memberUuid, int slot)
+    private void clickMember(Player player, Guild guild, UUID memberUuid, int slot, Inventory source)
     {
         Member member = guild.getMember(memberUuid);
         if (member == null)
         {
-            openMembers(player, guild);
+            openMembers(player, guild, source);
             return;
         }
         if (slot == BACK_SLOT)
         {
-            openMembers(player, guild);
+            openMembers(player, guild, source);
             return;
         }
         if (!guild.isOwner(player.getUniqueId()))
@@ -239,7 +288,7 @@ public class GuildMenuListener implements Listener
                     return;
                 }
                 player.sendMessage(module.messageComponent("guildMemberKicked", Placeholder.unparsed("player", name)));
-                openMembers(player, guild);
+                openMembers(player, guild, source);
             });
             return;
         }
@@ -257,13 +306,19 @@ public class GuildMenuListener implements Listener
                     return;
                 }
                 player.sendMessage(module.messageComponent("guildOwnerSet", Placeholder.unparsed("player", name)));
-                openMember(player, guild, previousOwner == null ? member : previousOwner);
+                openMember(player, guild, previousOwner == null ? member : previousOwner, source);
             });
             return;
         }
         if (slot == RANK_PERMISSIONS_SLOT)
         {
-            module.getRankPermissionMenuListener().openRankList(player, guild);
+            module.ownTask(player.getScheduler().run(module.plugin(), task ->
+            {
+                if (player.getOpenInventory().getTopInventory() == source && guild.isOwner(player.getUniqueId()))
+                {
+                    module.getRankPermissionMenuListener().openPermissions(player, guild);
+                }
+            }, null));
         }
     }
 

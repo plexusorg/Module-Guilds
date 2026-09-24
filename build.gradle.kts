@@ -25,11 +25,11 @@ repositories {
 dependencies {
     compileOnly("org.projectlombok:lombok:1.18.46")
     annotationProcessor("org.projectlombok:lombok:1.18.46")
-    compileOnly("io.papermc.paper:paper-api:26.2.build.+")
+    compileOnly("io.github.scissorsmc:scissors-asp-api:${providers.gradleProperty("scissorsAspApiVersion").getOrElse("26.2")}")
     implementation("org.apache.commons:commons-lang3:3.20.0")
-    compileOnly("dev.plex:api:2.0-SNAPSHOT")
-    compileOnly("com.infernalsuite.asp:api:4.0.0-SNAPSHOT")
-    implementation("com.infernalsuite.asp:file-loader:4.0.0-SNAPSHOT")
+    compileOnly("dev.plex:api:2.0-SNAPSHOT") {
+        exclude(group = "io.papermc.paper", module = "paper-api")
+    }
     implementation("org.jetbrains:annotations:26.1.0")
 }
 

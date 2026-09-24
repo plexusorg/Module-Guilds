@@ -13,7 +13,7 @@ public class PermissionsSubCommand extends GuildSubCommand
     public PermissionsSubCommand(Guilds module)
     {
         super(module, command("permissions")
-                .description("Opens the rank permissions GUI")
+                .description("Edit member world permissions")
                 .usage("/guild <command>")
                 .aliases("perms")
                 .permission("plex.guilds.permissions")
@@ -32,7 +32,7 @@ public class PermissionsSubCommand extends GuildSubCommand
                 player.sendMessage(messageComponent("guildNotOwner"));
                 return;
             }
-            module.getRankPermissionMenuListener().openRankList(player, guild);
+            module.getRankPermissionMenuListener().openPermissions(player, guild);
         }, () -> player.sendMessage(messageComponent("guildNotFound")));
         return null;
     }

@@ -207,6 +207,23 @@ public class JdbiGuildRepository implements GuildRepository
     }
 
     @Override
+    public CompletableFuture<Void> clearWorldLocations(UUID guildUuid, String worldName)
+    {
+        return runAsync(() -> jdbi.useTransaction(h ->
+        {
+            h.createUpdate("UPDATE " + guildsTable + " SET home_world = NULL, home_x = NULL, home_y = NULL, " +
+                            "home_z = NULL, home_yaw = NULL, home_pitch = NULL WHERE guild_uuid = :g AND home_world = :w")
+                    .bind("g", guildUuid.toString())
+                    .bind("w", worldName)
+                    .execute();
+            h.createUpdate("DELETE FROM " + warpsTable + " WHERE guild_uuid = :g AND world = :w")
+                    .bind("g", guildUuid.toString())
+                    .bind("w", worldName)
+                    .execute();
+        }));
+    }
+
+    @Override
     public CompletableFuture<Void> upsertWarp(UUID guildUuid, String name, CustomLocation location)
     {
         return runAsync(() -> jdbi.useTransaction(h ->

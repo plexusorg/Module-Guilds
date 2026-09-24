@@ -5,7 +5,7 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.InventoryHolder;
 import org.jetbrains.annotations.NotNull;
 
-public record RankPermissionInventoryHolder(Guild guild, String rankName) implements InventoryHolder
+public record RankPermissionInventoryHolder(Guild guild) implements InventoryHolder
 {
     @Override
     public @NotNull Inventory getInventory()

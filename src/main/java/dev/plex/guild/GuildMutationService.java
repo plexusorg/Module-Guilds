@@ -67,14 +67,39 @@ public final class GuildMutationService
 
     public CompletableFuture<Void> updateHome(Guild guild, CustomLocation home)
     {
-        return serialize(guild, () -> module.getGuildRepository().updateHome(guild.getGuildUuid(), home)
+        return serializeLocationChange(guild, () -> module.getGuildRepository().updateHome(guild.getGuildUuid(), home)
                 .thenRun(() -> guild.setHome(home)));
     }
 
     public CompletableFuture<Void> upsertWarp(Guild guild, String name, CustomLocation location)
     {
-        return serialize(guild, () -> module.getGuildRepository().upsertWarp(guild.getGuildUuid(), name, location)
+        return serializeLocationChange(guild, () -> module.getGuildRepository().upsertWarp(guild.getGuildUuid(), name, location)
                 .thenRun(() -> guild.getWarps().put(name, location)));
+    }
+
+    public CompletableFuture<Void> resetWorld(Guild guild, Supplier<CompletableFuture<Void>> prepare,
+                                            Supplier<CompletableFuture<Void>> replace)
+    {
+        return serialize(guild, () ->
+        {
+            if (module.getGuildHolder().guildById(guild.getGuildUuid()).orElse(null) != guild)
+            {
+                return CompletableFuture.failedFuture(new IllegalStateException("The guild no longer exists"));
+            }
+            String worldName = guild.getWorldName();
+            return prepare.get()
+                    .thenCompose(unused -> module.getGuildRepository().clearWorldLocations(guild.getGuildUuid(), worldName))
+                    .thenRun(() ->
+                    {
+                        CustomLocation home = guild.getHome();
+                        if (home != null && worldName.equals(home.getWorldName()))
+                        {
+                            guild.setHome(null);
+                        }
+                        guild.getWarps().values().removeIf(location -> worldName.equals(location.getWorldName()));
+                    })
+                    .thenCompose(unused -> replace.get());
+        });
     }
 
     public CompletableFuture<Boolean> toggleMemberPermission(Guild guild, GuildPermission permission)
@@ -106,6 +131,23 @@ public final class GuildMutationService
                 oldOwner.setRole(GuildRole.MEMBER);
             }
         }));
+    }
+
+    private CompletableFuture<Void> serializeLocationChange(Guild guild, Supplier<CompletableFuture<Void>> mutation)
+    {
+        if (module.isGuildWorldsEnabled() && module.getGuildWorldService().isResetting(guild.getWorldName()))
+        {
+            return CompletableFuture.failedFuture(new IllegalStateException("The guild world is being reset"));
+        }
+        return serialize(guild, () ->
+        {
+            // A location captured before the reset must not be written after its cleanup.
+            if (module.isGuildWorldsEnabled() && module.getGuildWorldService().isResetting(guild.getWorldName()))
+            {
+                return CompletableFuture.failedFuture(new IllegalStateException("The guild world is being reset"));
+            }
+            return mutation.get();
+        });
     }
 
     private CompletableFuture<Void> serialize(Guild guild, Supplier<CompletableFuture<Void>> mutation)

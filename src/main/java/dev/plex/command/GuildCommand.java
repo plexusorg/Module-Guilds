@@ -24,7 +24,7 @@ public class GuildCommand extends SimplePlexCommand
     public GuildCommand(Guilds module)
     {
         super(command("guild")
-                .description("Guild menu")
+                .description("Guild commands and help")
                 .aliases("guilds,g")
                 .permission("plex.guilds.guild")
                 .build());
@@ -41,6 +41,7 @@ public class GuildCommand extends SimplePlexCommand
         this.registerSubCommand(new SetHomeSubCommand(module));
         this.registerSubCommand(new HomeSubCommand(module));
         this.registerSubCommand(new WorldSubCommand(module));
+        this.registerSubCommand(new ResetWorldSubCommand(module));
         this.registerSubCommand(new PermissionsSubCommand(module));
         this.registerSubCommand(new OwnerSubCommand(module));
         this.registerSubCommand(new InviteSubCommand(module));
@@ -75,15 +76,7 @@ public class GuildCommand extends SimplePlexCommand
         {
             return messageComponent(module.isLoadFailed() ? "guildStorageFailed" : "guildLoading");
         }
-        if (player == null)
-        {
-            return getSubs();
-        }
-        module.getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(
-                guild -> module.getGuildMenuListener().openHome(player, guild),
-                () -> player.sendMessage(messageComponent("guildNotFound"))
-        );
-        return null;
+        return getSubs();
     }
 
     private Component dispatch(CommandSender sender, Player player, String label, String first, String remaining)
@@ -117,7 +110,7 @@ public class GuildCommand extends SimplePlexCommand
     {
         if (first == null)
         {
-            return usage("/guild help <subcommand>");
+            return getSubs();
         }
         GuildSubCommand subCommand = getSubCommand(first);
         if (subCommand == null)
@@ -127,6 +120,7 @@ public class GuildCommand extends SimplePlexCommand
         return mmString("<gradient:gold:yellow>========<newline>").append(mmString("<gold>Command Name: <yellow>" + subCommand.getName())).append(Component.newline())
                 .append(mmString("<gold>Command Aliases: <yellow>" + StringUtils.join(subCommand.getAliases(), ", "))).append(Component.newline())
                 .append(mmString("<gold>Description: <yellow>" + subCommand.getDescription())).append(Component.newline())
+                .append(mmString("<gold>Usage: <yellow>").append(Component.text(subCommand.getUsage()))).append(Component.newline())
                 .append(mmString("<gold>Permission: <yellow>" + subCommand.getPermission())).append(Component.newline())
                 .append(mmString("<gold>Required Source: <yellow>" + subCommand.getRequiredSource().name()));
     }
@@ -174,7 +168,8 @@ public class GuildCommand extends SimplePlexCommand
         Component commands = Component.empty();
         for (int i = 0; i < this.subCommands.size(); i++)
         {
-            commands = commands.append(messageComponent("guildsCommandDisplay", Placeholder.unparsed("command", "/guild " + this.subCommands.get(i).getName()), Placeholder.unparsed("description", this.subCommands.get(i).getDescription())).clickEvent(ClickEvent.suggestCommand("/guild help " + this.subCommands.get(i).getName())));
+            commands = commands.append(messageComponent("guildsCommandDisplay", Placeholder.unparsed("command", "/guild " + this.subCommands.get(i).getName()), Placeholder.unparsed("description", this.subCommands.get(i).getDescription()))
+                    .clickEvent(ClickEvent.suggestCommand("/guild help " + this.subCommands.get(i).getName())));
             if (i < this.subCommands.size() - 1)
             {
                 commands = commands.append(Component.newline());

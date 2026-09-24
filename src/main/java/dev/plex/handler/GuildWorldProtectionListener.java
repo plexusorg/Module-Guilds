@@ -3,6 +3,7 @@ package dev.plex.handler;
 import dev.plex.Guilds;
 import dev.plex.guild.Guild;
 import dev.plex.guild.data.GuildPermission;
+import io.papermc.paper.event.player.AsyncPlayerSpawnLocationEvent;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -26,6 +27,16 @@ public class GuildWorldProtectionListener implements Listener
         this.module = module;
     }
 
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onSpawn(AsyncPlayerSpawnLocationEvent event)
+    {
+        if (module.isGuildWorldsEnabled()
+                && module.getGuildWorldService().isResetting(event.getSpawnLocation().getWorld().getName()))
+        {
+            event.getConnection().disconnect(module.messageComponent("guildWorldNoAccess"));
+        }
+    }
+
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
     public void onTeleport(PlayerTeleportEvent event)
     {
@@ -34,7 +45,8 @@ public class GuildWorldProtectionListener implements Listener
             return;
         }
         Optional<Guild> guild = guildByWorld(event.getTo().getWorld());
-        if (guild.isPresent() && !guild.get().isMember(event.getPlayer().getUniqueId()))
+        if ((guild.isPresent() && !guild.get().isMember(event.getPlayer().getUniqueId()))
+                || (module.isGuildWorldsEnabled() && module.getGuildWorldService().isResetting(event.getTo().getWorld().getName())))
         {
             event.setCancelled(true);
             event.getPlayer().sendMessage(module.messageComponent("guildWorldNoAccess"));
@@ -45,7 +57,8 @@ public class GuildWorldProtectionListener implements Listener
     public void onChangedWorld(PlayerChangedWorldEvent event)
     {
         Optional<Guild> guild = guildByWorld(event.getPlayer().getWorld());
-        if (guild.isPresent() && !guild.get().isMember(event.getPlayer().getUniqueId()))
+        if ((guild.isPresent() && !guild.get().isMember(event.getPlayer().getUniqueId()))
+                || (module.isGuildWorldsEnabled() && module.getGuildWorldService().isResetting(event.getPlayer().getWorld().getName())))
         {
             World fallback = Bukkit.getWorlds().getFirst();
             event.getPlayer().teleportAsync(fallback.getSpawnLocation());
@@ -89,13 +102,17 @@ public class GuildWorldProtectionListener implements Listener
 
     private boolean canUse(Player player, World world, GuildPermission permission)
     {
+        if (module.isGuildWorldsEnabled() && module.getGuildWorldService().isResetting(world.getName()))
+        {
+            return false;
+        }
         Optional<Guild> guild = guildByWorld(world);
         return guild.map(value -> value.hasPermission(player.getUniqueId(), permission)).orElse(true);
     }
 
     private Optional<Guild> guildByWorld(World world)
     {
-        if (world == null)
+        if (world == null || !module.isGuildWorldsEnabled())
         {
             return Optional.empty();
         }

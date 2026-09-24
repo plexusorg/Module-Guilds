@@ -16,6 +16,7 @@ import dev.plex.api.storage.ModuleStorage;
 import dev.plex.storage.GuildRepository;
 import dev.plex.storage.JdbiGuildRepository;
 import dev.plex.world.GuildWorldService;
+import dev.plex.world.AspGuildWorldService;
 import lombok.Getter;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextReplacementConfig;
@@ -34,8 +35,6 @@ import java.util.concurrent.Executors;
 public class Guilds extends PlexModule
 {
     private static final String ASP_API_CLASS = "com.infernalsuite.asp.api.AdvancedSlimePaperAPI";
-    private static final String ASP_LOADER_CLASS = "com.infernalsuite.asp.api.loaders.SlimeLoader";
-    private static final String ASP_WORLD_SERVICE_CLASS = "dev.plex.world.AspGuildWorldService";
     private static final TextReplacementConfig CHAT_LINKS = TextReplacementConfig.builder()
             .match("https?://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]")
             .replacement((match, builder) -> builder.clickEvent(ClickEvent.openUrl(match.group())))
@@ -135,18 +134,14 @@ public class Guilds extends PlexModule
         {
             ClassLoader classLoader = Guilds.class.getClassLoader();
             Class.forName(ASP_API_CLASS, false, classLoader);
-            Class.forName(ASP_LOADER_CLASS, false, classLoader);
-
-            Class<? extends GuildWorldService> serviceClass = Class.forName(ASP_WORLD_SERVICE_CLASS, true, classLoader)
-                    .asSubclass(GuildWorldService.class);
-            GuildWorldService service = serviceClass.getConstructor(Guilds.class).newInstance(this);
-            service.enable();
-            guildWorldService = service;
         }
-        catch (ReflectiveOperationException | LinkageError | RuntimeException throwable)
+        catch (ClassNotFoundException exception)
         {
-            getLogger().warn("Advanced Slime Paper (ASP/ASWM) is unavailable or incompatible; guild worlds are disabled, but all other guild features will remain enabled.");
+            getLogger().warn("Advanced Slime Paper is unavailable; guild worlds are disabled.");
+            return;
         }
+        guildWorldService = new AspGuildWorldService(this);
+        guildWorldService.enable();
     }
 
     public void sendChat(Guild guild, String senderName, Component message)

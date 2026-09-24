@@ -15,28 +15,20 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.List;
-import java.util.UUID;
 
 public class RankPermissionMenuListener implements Listener
 {
     private final Guilds module;
-    private static final UUID MEMBER_PERMISSION_PROBE = new UUID(0L, 0L);
 
     public RankPermissionMenuListener(Guilds module)
     {
         this.module = module;
-    }
-
-    public void openRankList(Player player, Guild guild)
-    {
-        Inventory inventory = Bukkit.createInventory(new RankPermissionInventoryHolder(guild, null), 27, title("* Guild Rank Permissions"));
-        inventory.setItem(13, rankItem());
-        player.openInventory(inventory);
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -47,48 +39,81 @@ public class RankPermissionMenuListener implements Listener
             return;
         }
         event.setCancelled(true);
+        Inventory inventory = event.getInventory();
         if (!holder.guild().isOwner(player.getUniqueId()))
         {
-            player.closeInventory();
+            module.ownTask(player.getScheduler().run(module.plugin(), task ->
+            {
+                if (player.getOpenInventory().getTopInventory() == inventory)
+                {
+                    player.closeInventory();
+                }
+            }, null));
             player.sendMessage(module.messageComponent("guildNotOwner"));
             return;
         }
+        int slot = event.getRawSlot();
         ItemStack clickedItem = event.getCurrentItem();
         if (clickedItem == null || clickedItem.getType() == Material.AIR)
         {
             return;
         }
-        if (holder.rankName() == null)
+        if (slot == 26)
         {
-            openPermissionEditor(player, holder.guild());
+            module.ownTask(player.getScheduler().run(module.plugin(), task ->
+            {
+                if (player.getOpenInventory().getTopInventory() == inventory
+                        && holder.guild().isMember(player.getUniqueId()))
+                {
+                    module.getGuildMenuListener().openHome(player, holder.guild());
+                }
+            }, null));
             return;
         }
-        GuildPermission permission = permissionBySlot(event.getRawSlot());
+        GuildPermission permission = permissionBySlot(slot);
         if (permission == null)
         {
             return;
         }
         module.getGuildMutationService().toggleMemberPermission(holder.guild(), permission)
                 .whenComplete((enabled, failure) ->
-                        module.ownTask(player.getScheduler().run(module.plugin(), task ->
+        {
+            if (failure != null)
+            {
+                module.getLogger().error("Failed to update guild member permission {}", permission, failure);
+                player.sendMessage(module.messageComponent("guildStorageFailed"));
+                return;
+            }
+            module.ownTask(player.getScheduler().run(module.plugin(), task ->
+            {
+                if (player.getOpenInventory().getTopInventory() == inventory
+                        && holder.guild().isOwner(player.getUniqueId()))
                 {
-                    if (failure != null)
-                    {
-                        player.sendMessage(module.messageComponent("guildStorageFailed"));
-                        return;
-                    }
-                    openPermissionEditor(player, holder.guild());
-                }, null)));
+                    inventory.setItem(slot, permissionItem(holder.guild(), permission));
+                }
+            }, null));
+        });
     }
 
-    private void openPermissionEditor(Player player, Guild guild)
+    @EventHandler(priority = EventPriority.HIGH)
+    public void onDrag(InventoryDragEvent event)
     {
-        Inventory inventory = Bukkit.createInventory(new RankPermissionInventoryHolder(guild, "MEMBER"), 27, title("* Member Permissions"));
+        if (event.getInventory().getHolder() instanceof RankPermissionInventoryHolder
+                && event.getRawSlots().stream().anyMatch(slot -> slot < event.getInventory().getSize()))
+        {
+            event.setCancelled(true);
+        }
+    }
+
+    public void openPermissions(Player player, Guild guild)
+    {
+        Inventory inventory = Bukkit.createInventory(new RankPermissionInventoryHolder(guild), 27, title("* Member Permissions"));
         GuildPermission[] permissions = GuildPermission.values();
         for (int i = 0; i < permissions.length; i++)
         {
             inventory.setItem(11 + i * 2, permissionItem(guild, permissions[i]));
         }
+        inventory.setItem(26, backItem());
         player.openInventory(inventory);
     }
 
@@ -103,15 +128,12 @@ public class RankPermissionMenuListener implements Listener
         };
     }
 
-    private ItemStack rankItem()
+    private ItemStack backItem()
     {
-        ItemStack itemStack = new ItemStack(Material.NAME_TAG);
+        ItemStack itemStack = new ItemStack(Material.ARROW);
         ItemMeta itemMeta = itemStack.getItemMeta();
-        itemMeta.displayName(text("Member", NamedTextColor.AQUA));
-        itemMeta.lore(List.of(
-                line("Manage member guild world access", NamedTextColor.GRAY),
-                line("Click to edit permissions", NamedTextColor.YELLOW)
-        ));
+        itemMeta.displayName(text("Back", NamedTextColor.YELLOW));
+        itemMeta.lore(List.of(line("Click to return to the guild menu", NamedTextColor.GRAY)));
         itemStack.setItemMeta(itemMeta);
         return itemStack;
     }
@@ -120,12 +142,12 @@ public class RankPermissionMenuListener implements Listener
     {
         ItemStack itemStack = new ItemStack(permission.material());
         ItemMeta itemMeta = itemStack.getItemMeta();
-        boolean enabled = guild.hasPermission(MEMBER_PERMISSION_PROBE, permission);
+        boolean enabled = guild.isMemberPermissionEnabled(permission);
         itemMeta.displayName(text(permission.displayName(), enabled ? NamedTextColor.GREEN : NamedTextColor.RED));
         itemMeta.lore(List.of(
                 text("Status: ", NamedTextColor.GRAY).append(text(enabled ? "Enabled" : "Disabled", enabled ? NamedTextColor.GREEN : NamedTextColor.RED)),
                 Component.empty(),
-                line("Click to toggle", NamedTextColor.YELLOW)
+                line(enabled ? "Click to deny" : "Click to allow", NamedTextColor.YELLOW)
         ));
         itemStack.setItemMeta(itemMeta);
         return itemStack;

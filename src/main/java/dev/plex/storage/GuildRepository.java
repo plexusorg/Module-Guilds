@@ -30,6 +30,8 @@ public interface GuildRepository
 
     CompletableFuture<Void> updateHome(UUID guildUuid, CustomLocation home);
 
+    CompletableFuture<Void> clearWorldLocations(UUID guildUuid, String worldName);
+
     CompletableFuture<Void> upsertWarp(UUID guildUuid, String name, CustomLocation location);
 
     CompletableFuture<Void> deleteWarp(UUID guildUuid, String name);
