@@ -23,19 +23,11 @@ public final class GuildMutationService
 
     public CompletableFuture<Void> removeMember(Guild guild, UUID memberUuid)
     {
-        return removeMember(guild, memberUuid, true);
-    }
-
-    public CompletableFuture<Void> removeMember(Guild guild, UUID memberUuid, boolean ejectNonMembers)
-    {
         return serialize(guild, () -> module.getGuildRepository().removeMember(guild.getGuildUuid(), memberUuid).thenRun(() ->
         {
             guild.removeMember(memberUuid);
             module.getGuildHolder().unindexMember(memberUuid);
-            if (ejectNonMembers && module.isGuildWorldsEnabled())
-            {
-                module.getGuildWorldService().ejectNonMembers(guild);
-            }
+            module.getGuildWorldAccessListener().revoke(memberUuid);
         }));
     }
 
@@ -56,7 +48,18 @@ public final class GuildMutationService
     public CompletableFuture<Void> deleteGuild(Guild guild)
     {
         return serialize(guild, () -> module.getGuildRepository().deleteGuild(guild.getGuildUuid())
-                .thenRun(() -> module.getGuildHolder().removeGuild(guild.getGuildUuid())));
+                .thenRun(() ->
+                {
+                    module.getGuildHolder().removeGuild(guild.getGuildUuid());
+                    for (Member member : guild.getMembers())
+                    {
+                        module.getGuildWorldAccessListener().revoke(member.getUuid());
+                    }
+                    if (!guild.isMember(guild.getOwnerUuid()))
+                    {
+                        module.getGuildWorldAccessListener().revoke(guild.getOwnerUuid());
+                    }
+                }));
     }
 
     public CompletableFuture<Void> updatePrefix(Guild guild, String prefix)

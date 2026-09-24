@@ -247,38 +247,6 @@ public final class AspGuildWorldService implements GuildWorldService
     }
 
     @Override
-    public void ejectNonMembers(Guild guild)
-    {
-        onGlobal(() ->
-        {
-            SlimeWorldInstance world = loadedWorlds.get(guild.getGuildUuid());
-            if (world != null)
-            {
-                Location spawn = Bukkit.getWorlds().getFirst().getSpawnLocation();
-                for (Player player : List.copyOf(world.getBukkitWorld().getPlayers()))
-                {
-                    if (!guild.isMember(player.getUniqueId()))
-                    {
-                        evacuatePlayer(player, spawn).whenComplete((unused, failure) ->
-                        {
-                            if (failure != null)
-                            {
-                                module.getLogger().error("Failed to remove player from guild world", failure);
-                            }
-                        });
-                        player.sendMessage(module.messageComponent("guildWorldNoAccess"));
-                    }
-                }
-            }
-            return null;
-        }).exceptionally(failure ->
-        {
-            module.getLogger().error("Failed to remove nonmembers from guild world", failure);
-            return null;
-        });
-    }
-
-    @Override
     public synchronized void disable()
     {
         // Only file-only work holds this lock. Never wait here for an API save that needs the server thread.

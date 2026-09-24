@@ -48,7 +48,7 @@ public class LeaveSubCommand extends GuildSubCommand
                 });
                 return;
             }
-            module.getGuildMutationService().removeMember(guild, playerUuid, false).whenComplete((unused, throwable) ->
+            module.getGuildMutationService().removeMember(guild, playerUuid).whenComplete((unused, throwable) ->
             {
                 if (throwable != null)
                 {

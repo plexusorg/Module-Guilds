@@ -21,7 +21,5 @@ public interface GuildWorldService
 
     boolean isResetting(String worldName);
 
-    void ejectNonMembers(Guild guild);
-
     void disable();
 }

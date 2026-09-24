@@ -106,7 +106,7 @@ public class AcceptSubCommand extends GuildSubCommand
                 });
                 return;
             }
-            module.getGuildMutationService().removeMember(current, playerUuid, false).whenComplete((unused, throwable) ->
+            module.getGuildMutationService().removeMember(current, playerUuid).whenComplete((unused, throwable) ->
             {
                 if (throwable != null)
                 {

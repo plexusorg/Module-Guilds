@@ -11,11 +11,13 @@ import java.util.concurrent.ConcurrentHashMap;
 public class GuildHolder
 {
     private final Map<UUID, Guild> guildsById = new ConcurrentHashMap<>();
+    private final Map<String, Guild> guildsByWorld = new ConcurrentHashMap<>();
     private final Map<UUID, UUID> guildByPlayer = new ConcurrentHashMap<>();
 
     public void replaceAll(Collection<Guild> guilds)
     {
         guildsById.clear();
+        guildsByWorld.clear();
         guildByPlayer.clear();
         guilds.forEach(this::addGuild);
     }
@@ -24,6 +26,11 @@ public class GuildHolder
     {
         UUID guildUuid = guildByPlayer.get(playerUuid);
         return guildUuid == null ? Optional.empty() : Optional.ofNullable(guildsById.get(guildUuid));
+    }
+
+    public Optional<Guild> guildByWorld(String worldName)
+    {
+        return Optional.ofNullable(guildsByWorld.get(worldName));
     }
 
     public Optional<Guild> guildById(UUID guildUuid)
@@ -44,6 +51,7 @@ public class GuildHolder
     public void addGuild(Guild guild)
     {
         guildsById.put(guild.getGuildUuid(), guild);
+        guildsByWorld.put(guild.getWorldName(), guild);
         guild.getMembers().stream().map(Member::getUuid).forEach(playerUuid -> indexMember(guild.getGuildUuid(), playerUuid));
     }
 
@@ -52,6 +60,7 @@ public class GuildHolder
         Guild removed = guildsById.remove(guildUuid);
         if (removed != null)
         {
+            guildsByWorld.remove(removed.getWorldName(), removed);
             removed.getMembers().stream().map(Member::getUuid).forEach(guildByPlayer::remove);
         }
     }
@@ -69,6 +78,7 @@ public class GuildHolder
     public void clear()
     {
         guildsById.clear();
+        guildsByWorld.clear();
         guildByPlayer.clear();
     }
 

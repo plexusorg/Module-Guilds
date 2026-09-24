@@ -9,7 +9,9 @@ import dev.plex.guild.GuildHolder;
 import dev.plex.guild.GuildMutationService;
 import dev.plex.handler.ChatHandlerImpl;
 import dev.plex.handler.GuildMenuListener;
+import dev.plex.handler.GuildWorldAccessListener;
 import dev.plex.handler.GuildWorldProtectionListener;
+import dev.plex.handler.GuildWorldEntityProtectionListener;
 import dev.plex.handler.RankPermissionMenuListener;
 import dev.plex.module.PlexModule;
 import dev.plex.api.storage.ModuleStorage;
@@ -44,6 +46,7 @@ public class Guilds extends PlexModule
     private final GuildMutationService guildMutationService = new GuildMutationService(this);
     private final GuildMenuListener guildMenuListener = new GuildMenuListener(this, guildMutationService);
     private final GuildWorldProtectionListener guildWorldProtectionListener = new GuildWorldProtectionListener(this);
+    private final GuildWorldAccessListener guildWorldAccessListener = new GuildWorldAccessListener(this);
     private final RankPermissionMenuListener rankPermissionMenuListener = new RankPermissionMenuListener(this);
 
     private GuildWorldService guildWorldService;
@@ -98,6 +101,8 @@ public class Guilds extends PlexModule
         registerListener(new ChatHandlerImpl(this));
         registerListener(guildMenuListener);
         registerListener(guildWorldProtectionListener);
+        registerListener(new GuildWorldEntityProtectionListener(this));
+        registerListener(guildWorldAccessListener);
         registerListener(rankPermissionMenuListener);
     }
 
