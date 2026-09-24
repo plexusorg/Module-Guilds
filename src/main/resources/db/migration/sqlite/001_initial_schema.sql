@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS {{table:guilds}} (
     home_pitch FLOAT,
     motd VARCHAR(3000),
     tag_enabled BOOLEAN NOT NULL DEFAULT 1,
-    is_public BOOLEAN NOT NULL DEFAULT 0
+    is_public BOOLEAN NOT NULL DEFAULT 0,
+    member_manage_guests BOOLEAN NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS {{table:members}} (
@@ -44,4 +45,13 @@ CREATE TABLE IF NOT EXISTS {{table:invites}} (
     invitee_uuid VARCHAR(46) NOT NULL,
     expires_at BIGINT NOT NULL,
     UNIQUE (guild_uuid, invitee_uuid)
+);
+
+CREATE TABLE IF NOT EXISTS {{table:guests}} (
+    guild_uuid VARCHAR(46) NOT NULL,
+    player_uuid VARCHAR(46) NOT NULL,
+    editing BOOLEAN NOT NULL,
+    expires_at BIGINT NOT NULL,
+    PRIMARY KEY (guild_uuid, player_uuid),
+    FOREIGN KEY (guild_uuid) REFERENCES {{table:guilds}} (guild_uuid) ON DELETE CASCADE
 );

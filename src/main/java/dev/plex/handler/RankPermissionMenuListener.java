@@ -21,6 +21,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 
 import java.util.List;
+import java.util.concurrent.CompletionException;
 
 public class RankPermissionMenuListener implements Listener
 {
@@ -75,11 +76,16 @@ public class RankPermissionMenuListener implements Listener
         {
             return;
         }
-        module.getGuildMutationService().toggleMemberPermission(holder.guild(), permission)
+        module.getGuildMutationService().toggleMemberPermission(holder.guild(), player.getUniqueId(), permission)
                 .whenComplete((enabled, failure) ->
         {
             if (failure != null)
             {
+                if (failure.getCause() instanceof SecurityException)
+                {
+                    player.sendMessage(module.messageComponent("guildNotOwner"));
+                    return;
+                }
                 module.getLogger().error("Failed to update guild member permission {}", permission, failure);
                 player.sendMessage(module.messageComponent("guildStorageFailed"));
                 return;
@@ -124,6 +130,7 @@ public class RankPermissionMenuListener implements Listener
             case 11 -> GuildPermission.BLOCK_BREAKING;
             case 13 -> GuildPermission.BLOCK_PLACING;
             case 15 -> GuildPermission.INTERACTING;
+            case 17 -> GuildPermission.MANAGE_GUESTS;
             default -> null;
         };
     }

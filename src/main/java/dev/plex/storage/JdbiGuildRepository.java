@@ -2,6 +2,7 @@ package dev.plex.storage;
 
 import dev.plex.api.storage.ModuleStorage;
 import dev.plex.guild.Guild;
+import dev.plex.guild.data.Guest;
 import dev.plex.guild.data.GuildPermission;
 import dev.plex.guild.data.GuildRole;
 import dev.plex.guild.data.Member;
@@ -34,6 +35,7 @@ public class JdbiGuildRepository implements GuildRepository
     private final String membersTable;
     private final String warpsTable;
     private final String invitesTable;
+    private final String guestsTable;
 
     public JdbiGuildRepository(ModuleStorage storage, Executor executor, ZoneId zoneId)
     {
@@ -44,6 +46,7 @@ public class JdbiGuildRepository implements GuildRepository
         this.membersTable = storage.table("members");
         this.warpsTable = storage.table("warps");
         this.invitesTable = storage.table("invites");
+        this.guestsTable = storage.table("guests");
     }
 
     @Override
@@ -63,6 +66,12 @@ public class JdbiGuildRepository implements GuildRepository
                     Map<String, List<GuildWarpEntity>> warpsByGuild = h.createQuery("SELECT * FROM " + warpsTable)
                             .map((rs, ctx) -> warpMapRow(rs)).list().stream()
                             .collect(Collectors.groupingBy(GuildWarpEntity::getGuildUuid));
+                    Map<String, List<Guest>> guestsByGuild = h.createQuery("SELECT * FROM " + guestsTable + " WHERE expires_at > :now")
+                            .bind("now", Instant.now().toEpochMilli())
+                            .map((rs, ctx) -> Map.entry(rs.getString("guild_uuid"), new Guest(
+                                    UUID.fromString(rs.getString("player_uuid")), rs.getBoolean("editing"),
+                                    Instant.ofEpochMilli(rs.getLong("expires_at")))))
+                            .collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
                     return guilds.stream().map(entity ->
                     {
                         Guild guild = toGuildBase(entity);
@@ -70,6 +79,9 @@ public class JdbiGuildRepository implements GuildRepository
                                 .forEach(member -> guild.addMember(toMember(member)));
                         warpsByGuild.getOrDefault(entity.getGuildUuid(), List.of())
                                 .forEach(warp -> guild.getWarps().put(warp.getName(), toLocation(warp)));
+                        guestsByGuild.getOrDefault(entity.getGuildUuid(), List.of()).stream()
+                                .filter(guest -> !guild.isOwner(guest.playerUuid()) && !guild.isMember(guest.playerUuid()))
+                                .forEach(guest -> guild.getGuests().put(guest.playerUuid(), guest));
                         return guild;
                     }).toList();
                 });
@@ -93,9 +105,9 @@ public class JdbiGuildRepository implements GuildRepository
                 {
                     h.createUpdate("INSERT INTO " + guildsTable + " (guild_uuid, name, prefix, owner_uuid, created_at, " +
                                     "home_world, home_x, home_y, home_z, home_yaw, home_pitch, motd, tag_enabled, is_public, " +
-                                    "member_block_breaking, member_block_placing, member_interacting) " +
+                                    "member_block_breaking, member_block_placing, member_interacting, member_manage_guests) " +
                                     "VALUES (:guildUuid, :name, :prefix, :ownerUuid, :createdAt, :homeWorld, :homeX, :homeY, :homeZ, " +
-                                    ":homeYaw, :homePitch, :motd, :tagEnabled, :isPublic, :memberBlockBreaking, :memberBlockPlacing, :memberInteracting)")
+                                    ":homeYaw, :homePitch, :motd, :tagEnabled, :isPublic, :memberBlockBreaking, :memberBlockPlacing, :memberInteracting, :memberManageGuests)")
                             .bind("guildUuid", e.getGuildUuid())
                             .bind("name", e.getName())
                             .bind("prefix", e.getPrefix())
@@ -113,6 +125,7 @@ public class JdbiGuildRepository implements GuildRepository
                             .bind("memberBlockBreaking", e.isMemberBlockBreaking())
                             .bind("memberBlockPlacing", e.isMemberBlockPlacing())
                             .bind("memberInteracting", e.isMemberInteracting())
+                            .bind("memberManageGuests", e.isMemberManageGuests())
                             .execute();
                     insertMember(h, guild.getGuildUuid(), guild.getOwnerUuid(), GuildRole.OWNER);
                 });
@@ -133,6 +146,7 @@ public class JdbiGuildRepository implements GuildRepository
             h.createUpdate("DELETE FROM " + membersTable + " WHERE guild_uuid = :g").bind("g", guildUuid.toString()).execute();
             h.createUpdate("DELETE FROM " + warpsTable + " WHERE guild_uuid = :g").bind("g", guildUuid.toString()).execute();
             h.createUpdate("DELETE FROM " + invitesTable + " WHERE guild_uuid = :g").bind("g", guildUuid.toString()).execute();
+            h.createUpdate("DELETE FROM " + guestsTable + " WHERE guild_uuid = :g").bind("g", guildUuid.toString()).execute();
             h.createUpdate("DELETE FROM " + guildsTable + " WHERE guild_uuid = :g").bind("g", guildUuid.toString()).execute();
         }));
     }
@@ -140,13 +154,54 @@ public class JdbiGuildRepository implements GuildRepository
     @Override
     public CompletableFuture<Void> addMember(UUID guildUuid, UUID playerUuid, GuildRole role)
     {
-        return runAsync(() -> jdbi.useTransaction(h -> upsertMember(h, guildUuid, playerUuid, role)));
+        return runAsync(() -> jdbi.useTransaction(h ->
+        {
+            upsertMember(h, guildUuid, playerUuid, role);
+            h.createUpdate("DELETE FROM " + guestsTable + " WHERE guild_uuid = :g AND player_uuid = :p")
+                    .bind("g", guildUuid.toString())
+                    .bind("p", playerUuid.toString())
+                    .execute();
+        }));
     }
 
     @Override
     public CompletableFuture<Void> removeMember(UUID guildUuid, UUID playerUuid)
     {
-        return runAsync(() -> jdbi.useHandle(h -> h.createUpdate("DELETE FROM " + membersTable + " WHERE guild_uuid = :g AND player_uuid = :p")
+        return runAsync(() -> jdbi.useTransaction(h ->
+        {
+            h.createUpdate("DELETE FROM " + membersTable + " WHERE guild_uuid = :g AND player_uuid = :p")
+                    .bind("g", guildUuid.toString())
+                    .bind("p", playerUuid.toString())
+                    .execute();
+            h.createUpdate("DELETE FROM " + guestsTable + " WHERE guild_uuid = :g AND player_uuid = :p")
+                    .bind("g", guildUuid.toString())
+                    .bind("p", playerUuid.toString())
+                    .execute();
+        }));
+    }
+
+    @Override
+    public CompletableFuture<Void> upsertGuest(UUID guildUuid, Guest guest)
+    {
+        return runAsync(() -> jdbi.useTransaction(h ->
+        {
+            h.createUpdate("DELETE FROM " + guestsTable + " WHERE guild_uuid = :g AND player_uuid = :p")
+                    .bind("g", guildUuid.toString())
+                    .bind("p", guest.playerUuid().toString())
+                    .execute();
+            h.createUpdate("INSERT INTO " + guestsTable + " (guild_uuid, player_uuid, editing, expires_at) VALUES (:g, :p, :editing, :expires)")
+                    .bind("g", guildUuid.toString())
+                    .bind("p", guest.playerUuid().toString())
+                    .bind("editing", guest.editing())
+                    .bind("expires", guest.expiresAt().toEpochMilli())
+                    .execute();
+        }));
+    }
+
+    @Override
+    public CompletableFuture<Void> removeGuest(UUID guildUuid, UUID playerUuid)
+    {
+        return runAsync(() -> jdbi.useHandle(h -> h.createUpdate("DELETE FROM " + guestsTable + " WHERE guild_uuid = :g AND player_uuid = :p")
                 .bind("g", guildUuid.toString())
                 .bind("p", playerUuid.toString())
                 .execute()));
@@ -174,6 +229,7 @@ public class JdbiGuildRepository implements GuildRepository
             case BLOCK_BREAKING -> "member_block_breaking";
             case BLOCK_PLACING -> "member_block_placing";
             case INTERACTING -> "member_interacting";
+            case MANAGE_GUESTS -> "member_manage_guests";
         };
         return runAsync(() -> jdbi.useHandle(h -> h.createUpdate("UPDATE " + guildsTable + " SET " + column + " = :enabled WHERE guild_uuid = :g")
                 .bind("enabled", enabled)
@@ -342,6 +398,7 @@ public class JdbiGuildRepository implements GuildRepository
         e.setMemberBlockBreaking(rs.getBoolean("member_block_breaking"));
         e.setMemberBlockPlacing(rs.getBoolean("member_block_placing"));
         e.setMemberInteracting(rs.getBoolean("member_interacting"));
+        e.setMemberManageGuests(rs.getBoolean("member_manage_guests"));
         return e;
     }
 
@@ -394,6 +451,7 @@ public class JdbiGuildRepository implements GuildRepository
         guild.setMemberBlockBreaking(entity.isMemberBlockBreaking());
         guild.setMemberBlockPlacing(entity.isMemberBlockPlacing());
         guild.setMemberInteracting(entity.isMemberInteracting());
+        guild.setMemberManageGuests(entity.isMemberManageGuests());
         guild.setHome(toLocation(entity));
         return guild;
     }
@@ -412,6 +470,7 @@ public class JdbiGuildRepository implements GuildRepository
         entity.setMemberBlockBreaking(guild.isMemberBlockBreaking());
         entity.setMemberBlockPlacing(guild.isMemberBlockPlacing());
         entity.setMemberInteracting(guild.isMemberInteracting());
+        entity.setMemberManageGuests(guild.isMemberManageGuests());
         setHome(entity, guild.getHome());
         return entity;
     }

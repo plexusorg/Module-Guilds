@@ -103,6 +103,7 @@ public class Guilds extends PlexModule
         registerListener(guildWorldProtectionListener);
         registerListener(new GuildWorldEntityProtectionListener(this));
         registerListener(guildWorldAccessListener);
+        guildWorldAccessListener.startGuestExpiry();
         registerListener(rankPermissionMenuListener);
     }
 

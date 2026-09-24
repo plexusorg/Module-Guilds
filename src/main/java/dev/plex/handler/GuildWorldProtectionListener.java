@@ -63,7 +63,7 @@ public class GuildWorldProtectionListener implements Listener
             return true;
         }
         Guild guild = accessibleGuild(world);
-        return guild != null && (guild.isOwner(playerId) || guild.isMember(playerId));
+        return guild != null && guild.canEnterWorld(playerId);
     }
 
     public boolean canUse(UUID playerId, World world, GuildPermission permission)

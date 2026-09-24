@@ -1,11 +1,13 @@
 package dev.plex.guild;
 
+import dev.plex.guild.data.Guest;
 import dev.plex.guild.data.GuildPermission;
 import dev.plex.guild.data.GuildRole;
 import dev.plex.guild.data.Member;
 import dev.plex.util.CustomLocation;
 import lombok.Data;
 
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -21,6 +23,7 @@ public class Guild
     private final ZonedDateTime createdAt;
     private final List<Member> members = new CopyOnWriteArrayList<>();
     private final Map<String, CustomLocation> warps = new ConcurrentHashMap<>();
+    private final Map<UUID, Guest> guests = new ConcurrentHashMap<>();
     private String name;
     private volatile UUID ownerUuid;
     private volatile String prefix;
@@ -31,6 +34,7 @@ public class Guild
     private volatile boolean memberBlockBreaking;
     private volatile boolean memberBlockPlacing;
     private volatile boolean memberInteracting;
+    private volatile boolean memberManageGuests;
 
     public static Guild create(UUID ownerUuid, String guildName, ZoneId zoneId)
     {
@@ -67,6 +71,17 @@ public class Guild
         return getMember(uuid) != null;
     }
 
+    public Guest getActiveGuest(UUID uuid)
+    {
+        Guest guest = guests.get(uuid);
+        return guest != null && guest.isActive(Instant.now()) ? guest : null;
+    }
+
+    public boolean canEnterWorld(UUID uuid)
+    {
+        return isOwner(uuid) || isMember(uuid) || getActiveGuest(uuid) != null;
+    }
+
     public void removeMember(UUID uuid)
     {
         members.removeIf(member -> member.getUuid().equals(uuid));
@@ -85,13 +100,15 @@ public class Guild
         }
         if (!isMember(uuid))
         {
-            return false;
+            Guest guest = getActiveGuest(uuid);
+            return permission != GuildPermission.MANAGE_GUESTS && guest != null && guest.editing();
         }
         return switch (permission)
         {
             case BLOCK_BREAKING -> memberBlockBreaking;
             case BLOCK_PLACING -> memberBlockPlacing;
             case INTERACTING -> memberInteracting;
+            case MANAGE_GUESTS -> memberManageGuests;
         };
     }
 
@@ -102,6 +119,7 @@ public class Guild
             case BLOCK_BREAKING -> memberBlockBreaking = enabled;
             case BLOCK_PLACING -> memberBlockPlacing = enabled;
             case INTERACTING -> memberInteracting = enabled;
+            case MANAGE_GUESTS -> memberManageGuests = enabled;
         }
     }
 
@@ -112,6 +130,7 @@ public class Guild
             case BLOCK_BREAKING -> memberBlockBreaking;
             case BLOCK_PLACING -> memberBlockPlacing;
             case INTERACTING -> memberInteracting;
+            case MANAGE_GUESTS -> memberManageGuests;
         };
     }
 }

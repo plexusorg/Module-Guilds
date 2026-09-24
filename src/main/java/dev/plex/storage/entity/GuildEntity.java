@@ -24,6 +24,7 @@ public class GuildEntity
     private boolean memberBlockBreaking;
     private boolean memberBlockPlacing;
     private boolean memberInteracting;
+    private boolean memberManageGuests;
 
     public GuildEntity()
     {

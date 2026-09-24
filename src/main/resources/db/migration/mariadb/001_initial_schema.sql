@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS {{table:guilds}} (
     `motd` VARCHAR(3000),
     `tag_enabled` BOOLEAN NOT NULL DEFAULT TRUE,
     `is_public` BOOLEAN NOT NULL DEFAULT FALSE,
+    `member_manage_guests` BOOLEAN NOT NULL DEFAULT FALSE,
     PRIMARY KEY (`guild_uuid`),
     UNIQUE KEY `uq_guilds_name` (`name`)
 );
@@ -49,4 +50,13 @@ CREATE TABLE IF NOT EXISTS {{table:invites}} (
     `expires_at` BIGINT NOT NULL,
     PRIMARY KEY (`id`),
     UNIQUE KEY `uq_invites_guild_invitee` (`guild_uuid`, `invitee_uuid`)
+);
+
+CREATE TABLE IF NOT EXISTS {{table:guests}} (
+    guild_uuid VARCHAR(46) NOT NULL,
+    player_uuid VARCHAR(46) NOT NULL,
+    editing BOOLEAN NOT NULL,
+    expires_at BIGINT NOT NULL,
+    PRIMARY KEY (guild_uuid, player_uuid),
+    FOREIGN KEY (guild_uuid) REFERENCES {{table:guilds}} (guild_uuid) ON DELETE CASCADE
 );

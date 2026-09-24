@@ -33,6 +33,10 @@ public class GuildCommand extends SimplePlexCommand
         this.registerSubCommand(new InviteSubCommand(module));
         this.registerSubCommand(new AcceptSubCommand(module));
         this.registerSubCommand(new WorldSubCommand(module));
+        this.registerSubCommand(new VisitSubCommand(module));
+        this.registerSubCommand(new GuestAccessSubCommand(module, true));
+        this.registerSubCommand(new GuestAccessSubCommand(module, false));
+        this.registerSubCommand(new GuestsSubCommand(module));
         this.registerSubCommand(new HomeSubCommand(module));
         this.registerSubCommand(new ChatSubCommand(module));
         this.registerSubCommand(new WarpSubCommand(module));

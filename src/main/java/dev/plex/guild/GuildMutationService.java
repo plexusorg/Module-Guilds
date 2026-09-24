@@ -4,7 +4,9 @@ import dev.plex.Guilds;
 import dev.plex.guild.data.GuildRole;
 import dev.plex.guild.data.GuildPermission;
 import dev.plex.guild.data.Member;
+import dev.plex.guild.data.Guest;
 import java.util.UUID;
+import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
@@ -25,6 +27,7 @@ public final class GuildMutationService
     {
         return serialize(guild, () -> module.getGuildRepository().removeMember(guild.getGuildUuid(), memberUuid).thenRun(() ->
         {
+            guild.getGuests().remove(memberUuid);
             guild.removeMember(memberUuid);
             module.getGuildHolder().unindexMember(memberUuid);
             module.getGuildWorldAccessListener().revoke(memberUuid);
@@ -40,6 +43,7 @@ public final class GuildMutationService
                         : CompletableFuture.completedFuture(null))
                 .thenRun(() ->
                 {
+                    guild.getGuests().remove(memberUuid);
                     guild.addMember(memberUuid);
                     module.getGuildHolder().indexMember(guild.getGuildUuid(), memberUuid);
                 }));
@@ -55,11 +59,55 @@ public final class GuildMutationService
                     {
                         module.getGuildWorldAccessListener().revoke(member.getUuid());
                     }
+                    for (UUID guestId : guild.getGuests().keySet())
+                    {
+                        module.getGuildWorldAccessListener().revoke(guestId);
+                    }
                     if (!guild.isMember(guild.getOwnerUuid()))
                     {
                         module.getGuildWorldAccessListener().revoke(guild.getOwnerUuid());
                     }
                 }));
+    }
+
+    public CompletableFuture<Void> grantGuest(Guild guild, UUID managerId, Guest guest)
+    {
+        return serialize(guild, () ->
+        {
+            requireGuestManager(guild, managerId);
+            if (guild.isOwner(guest.playerUuid()) || guild.isMember(guest.playerUuid()))
+            {
+                throw new IllegalArgumentException("Guild members do not need guest access");
+            }
+            if (!guest.isActive(Instant.now()))
+            {
+                throw new IllegalArgumentException("Guest access must expire in the future");
+            }
+            return module.getGuildRepository().upsertGuest(guild.getGuildUuid(), guest)
+                    .thenRun(() -> guild.getGuests().put(guest.playerUuid(), guest));
+        });
+    }
+
+    public CompletableFuture<Void> revokeGuest(Guild guild, UUID managerId, UUID guestId)
+    {
+        return serialize(guild, () ->
+        {
+            requireGuestManager(guild, managerId);
+            return module.getGuildRepository().removeGuest(guild.getGuildUuid(), guestId).thenRun(() ->
+            {
+                guild.getGuests().remove(guestId);
+                module.getGuildWorldAccessListener().revoke(guestId);
+            });
+        });
+    }
+
+    private void requireGuestManager(Guild guild, UUID managerId)
+    {
+        if (!module.isReady() || module.getGuildHolder().guildById(guild.getGuildUuid()).orElse(null) != guild
+                || !guild.hasPermission(managerId, GuildPermission.MANAGE_GUESTS))
+        {
+            throw new SecurityException("You cannot manage guests for this guild");
+        }
     }
 
     public CompletableFuture<Void> updatePrefix(Guild guild, String prefix)
@@ -105,11 +153,15 @@ public final class GuildMutationService
         });
     }
 
-    public CompletableFuture<Boolean> toggleMemberPermission(Guild guild, GuildPermission permission)
+    public CompletableFuture<Boolean> toggleMemberPermission(Guild guild, UUID actorId, GuildPermission permission)
     {
         CompletableFuture<Boolean> result = new CompletableFuture<>();
         serialize(guild, () ->
         {
+            if (module.getGuildHolder().guildById(guild.getGuildUuid()).orElse(null) != guild || !guild.isOwner(actorId))
+            {
+                throw new SecurityException("Only the guild owner can change member permissions");
+            }
             boolean enabled = !guild.isMemberPermissionEnabled(permission);
             return module.getGuildRepository().updateMemberPermission(guild.getGuildUuid(), permission, enabled)
                     .thenRun(() -> guild.setPermission(permission, enabled))

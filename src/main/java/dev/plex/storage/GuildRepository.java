@@ -1,6 +1,7 @@
 package dev.plex.storage;
 
 import dev.plex.guild.Guild;
+import dev.plex.guild.data.Guest;
 import dev.plex.guild.data.GuildPermission;
 import dev.plex.guild.data.GuildRole;
 import dev.plex.storage.entity.GuildInviteEntity;
@@ -21,6 +22,10 @@ public interface GuildRepository
     CompletableFuture<Void> addMember(UUID guildUuid, UUID playerUuid, GuildRole role);
 
     CompletableFuture<Void> removeMember(UUID guildUuid, UUID playerUuid);
+
+    CompletableFuture<Void> upsertGuest(UUID guildUuid, Guest guest);
+
+    CompletableFuture<Void> removeGuest(UUID guildUuid, UUID playerUuid);
 
     CompletableFuture<Void> transferOwner(UUID guildUuid, UUID newOwnerUuid, UUID oldOwnerUuid);
 
