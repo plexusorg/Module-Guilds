@@ -17,7 +17,7 @@ public class WarpSubCommand extends GuildSubCommand
     public WarpSubCommand(Guilds module)
     {
         super(module, command("warp")
-                .description("Warps to a specified guild warp")
+                .description("Go to a guild warp")
                 .usage("/guild <command> <name>")
                 .aliases("goto")
                 .permission("plex.guilds.warp")

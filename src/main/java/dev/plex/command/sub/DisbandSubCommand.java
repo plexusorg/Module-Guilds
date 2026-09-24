@@ -13,7 +13,7 @@ public class DisbandSubCommand extends GuildSubCommand
     public DisbandSubCommand(Guilds module)
     {
         super(module, command("disband")
-                .description("Disbands your guild")
+                .description("Disband your guild")
                 .usage("/guild <command>")
                 .permission("plex.guilds.disband")
                 .source(RequiredCommandSource.IN_GAME)

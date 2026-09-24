@@ -15,7 +15,7 @@ public class LeaveSubCommand extends GuildSubCommand
     public LeaveSubCommand(Guilds module)
     {
         super(module, command("leave")
-                .description("Leaves your guild")
+                .description("Leave your guild")
                 .usage("/guild <command>")
                 .permission("plex.guilds.leave")
                 .source(RequiredCommandSource.IN_GAME)

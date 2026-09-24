@@ -20,7 +20,7 @@ public class CreateSubCommand extends GuildSubCommand
     public CreateSubCommand(Guilds module)
     {
         super(module, command("create")
-                .description("Creates a guild with a specified name")
+                .description("Create a guild")
                 .usage("/guild <command> <name>")
                 .aliases("make")
                 .permission("plex.guilds.create")

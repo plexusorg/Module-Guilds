@@ -16,7 +16,7 @@ public class SetHomeSubCommand extends GuildSubCommand
     public SetHomeSubCommand(Guilds module)
     {
         super(module, command("sethome")
-                .description("Sets the guild's home")
+                .description("Set your guild home here")
                 .usage("/guild <command>")
                 .aliases("setspawn")
                 .permission("plex.guilds.sethome")

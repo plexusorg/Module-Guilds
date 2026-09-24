@@ -19,7 +19,7 @@ public class OwnerSubCommand extends GuildSubCommand
     public OwnerSubCommand(Guilds module)
     {
         super(module, command("owner")
-                .description("Sets the guild owner")
+                .description("Transfer guild ownership")
                 .usage("/guild <command> <player name>")
                 .aliases("setowner,promote")
                 .permission("plex.guilds.owner")

@@ -13,7 +13,7 @@ public class MenuSubCommand extends GuildSubCommand
     public MenuSubCommand(Guilds module)
     {
         super(module, command("menu")
-                .description("Opens the guild management menu")
+                .description("Open your guild menu")
                 .usage("/guild <command>")
                 .aliases("gui,panel")
                 .permission("plex.guilds.menu")

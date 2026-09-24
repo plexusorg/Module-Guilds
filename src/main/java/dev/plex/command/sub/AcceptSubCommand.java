@@ -22,7 +22,7 @@ public class AcceptSubCommand extends GuildSubCommand
     public AcceptSubCommand(Guilds module)
     {
         super(module, command("accept")
-                .description("Accepts a guild invite")
+                .description("Accept an invite")
                 .usage("/guild <command> <guild>")
                 .permission("plex.guilds.accept")
                 .source(RequiredCommandSource.IN_GAME)

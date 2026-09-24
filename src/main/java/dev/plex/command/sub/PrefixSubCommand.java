@@ -26,7 +26,7 @@ public class PrefixSubCommand extends GuildSubCommand
     public PrefixSubCommand(Guilds module)
     {
         super(module, command("prefix")
-                .description("Sets the guild's default prefix")
+                .description("Change your guild prefix")
                 .usage("/guild <command> <prefix>")
                 .aliases("tag,settag,setprefix")
                 .permission("plex.guilds.prefix")

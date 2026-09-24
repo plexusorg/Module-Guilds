@@ -19,7 +19,7 @@ public class ChatSubCommand extends GuildSubCommand
     public ChatSubCommand(Guilds module)
     {
         super(module, command("chat")
-                .description("Toggles guild chat or sends a guild chat message")
+                .description("Toggle guild chat or send a message")
                 .usage("/guild <command> [message]")
                 .permission("plex.guilds.chat")
                 .source(RequiredCommandSource.IN_GAME)

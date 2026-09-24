@@ -13,7 +13,7 @@ public class WorldSubCommand extends GuildSubCommand
     public WorldSubCommand(Guilds module)
     {
         super(module, command("world")
-                .description("Teleports to your guild world")
+                .description("Visit your guild world")
                 .usage("/guild <command>")
                 .aliases("base")
                 .permission("plex.guilds.world")

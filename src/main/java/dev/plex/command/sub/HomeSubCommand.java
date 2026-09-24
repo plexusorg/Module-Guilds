@@ -15,7 +15,7 @@ public class HomeSubCommand extends GuildSubCommand
     public HomeSubCommand(Guilds module)
     {
         super(module, command("home")
-                .description("Teleports to the guild home")
+                .description("Go to your guild home")
                 .usage("/guild <command>")
                 .aliases("spawn")
                 .permission("plex.guilds.home")

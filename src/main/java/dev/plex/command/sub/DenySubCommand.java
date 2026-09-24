@@ -16,7 +16,7 @@ public class DenySubCommand extends GuildSubCommand
     public DenySubCommand(Guilds module)
     {
         super(module, command("deny")
-                .description("Denies a guild invite")
+                .description("Decline an invite")
                 .usage("/guild <command> <guild>")
                 .permission("plex.guilds.deny")
                 .source(RequiredCommandSource.IN_GAME)

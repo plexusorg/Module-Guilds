@@ -21,7 +21,7 @@ public class InfoSubCommand extends GuildSubCommand
     public InfoSubCommand(Guilds module)
     {
         super(module, command("info")
-                .description("Shows the guild's information")
+                .description("View your guild")
                 .usage("/guild <command>")
                 .aliases("information")
                 .permission("plex.guilds.info")

@@ -19,7 +19,7 @@ public class WarpListSubCommand extends GuildSubCommand
     public WarpListSubCommand(Guilds module)
     {
         super(module, command("warps")
-                .description("Displays a clickable list of warps")
+                .description("Browse guild warps")
                 .usage("/guild <command>")
                 .aliases("listwarps")
                 .permission("plex.guilds.warps")

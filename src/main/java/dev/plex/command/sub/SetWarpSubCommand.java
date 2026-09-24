@@ -19,7 +19,7 @@ public class SetWarpSubCommand extends GuildSubCommand
     public SetWarpSubCommand(Guilds module)
     {
         super(module, command("setwarp")
-                .description("Creates a new warp at player's location with a specified name")
+                .description("Create a guild warp here")
                 .usage("/guild <command> <name>")
                 .aliases("makewarp,createwarp")
                 .permission("plex.guilds.setwarp")

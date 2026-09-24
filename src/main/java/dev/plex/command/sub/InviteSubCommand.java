@@ -22,7 +22,7 @@ public class InviteSubCommand extends GuildSubCommand
     public InviteSubCommand(Guilds module)
     {
         super(module, command("invite")
-                .description("Invites a player to the guild")
+                .description("Invite a player")
                 .usage("/guild <command> <player name>")
                 .aliases("inv")
                 .permission("plex.guilds.invite")
