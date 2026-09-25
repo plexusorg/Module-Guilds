@@ -2,7 +2,6 @@ package dev.plex.storage;
 
 import dev.plex.guild.Guild;
 import dev.plex.guild.data.Guest;
-import dev.plex.guild.data.GuildPermission;
 import dev.plex.guild.data.GuildRole;
 import dev.plex.storage.entity.GuildInviteEntity;
 import dev.plex.util.CustomLocation;
@@ -27,13 +26,14 @@ public interface GuildRepository
 
     CompletableFuture<Void> removeGuest(UUID guildUuid, UUID playerUuid);
 
-    CompletableFuture<Void> transferOwner(UUID guildUuid, UUID newOwnerUuid, UUID oldOwnerUuid);
+    CompletableFuture<Void> updateRole(UUID guildUuid, UUID playerUuid, GuildRole role);
 
-    CompletableFuture<Void> updateMemberPermission(UUID guildUuid, GuildPermission permission, boolean enabled);
+    /** Sets the new owner and makes the old owner an officer in one transaction. */
+    CompletableFuture<Void> transferOwner(UUID guildUuid, UUID newOwnerUuid, UUID oldOwnerUuid);
 
     CompletableFuture<Void> updatePrefix(UUID guildUuid, String prefix);
 
-    CompletableFuture<Void> updateHome(UUID guildUuid, CustomLocation home);
+    CompletableFuture<Void> updateSpawn(UUID guildUuid, CustomLocation spawn);
 
     CompletableFuture<Void> clearWorldLocations(UUID guildUuid, String worldName);
 

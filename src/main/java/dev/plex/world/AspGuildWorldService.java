@@ -40,6 +40,7 @@ public final class AspGuildWorldService implements GuildWorldService
     private final Map<UUID, CompletableFuture<World>> loads = new ConcurrentHashMap<>();
     private final Map<UUID, CompletableFuture<Void>> resets = new ConcurrentHashMap<>();
     private final Set<String> pendingResets = ConcurrentHashMap.newKeySet();
+    private final Set<String> deletedWorlds = ConcurrentHashMap.newKeySet();
     private final AtomicBoolean cleanupQueued = new AtomicBoolean();
     private final Object storageLock = new Object();
     private GuildWorldFiles files;
@@ -89,9 +90,9 @@ public final class AspGuildWorldService implements GuildWorldService
     @Override
     public synchronized CompletableFuture<World> ensureWorld(Guild guild)
     {
-        if (stopped || isResetting(guild.getWorldName()))
+        if (stopped || isResetting(guild.getWorldName()) || deletedWorlds.contains(guild.getWorldName()))
         {
-            return CompletableFuture.failedFuture(new IllegalStateException("Guild worlds are stopped or this world has a pending reset"));
+            return CompletableFuture.failedFuture(new IllegalStateException("Guild worlds are stopped or this world has a pending reset or deletion"));
         }
         UUID id = guild.getGuildUuid();
         SlimeWorldInstance loaded = loadedWorlds.get(id);
@@ -129,9 +130,9 @@ public final class AspGuildWorldService implements GuildWorldService
     public synchronized CompletableFuture<Void> resetWorld(Guild guild)
     {
         UUID id = guild.getGuildUuid();
-        if (stopped || resets.containsKey(id))
+        if (stopped || resets.containsKey(id) || deletedWorlds.contains(guild.getWorldName()))
         {
-            return CompletableFuture.failedFuture(new IllegalStateException("Guild worlds are stopped or a reset is already running"));
+            return CompletableFuture.failedFuture(new IllegalStateException("Guild worlds are stopped, a reset is already running, or the world is deleted"));
         }
         pendingResets.add(guild.getWorldName());
         CompletableFuture<World> loading = loads.getOrDefault(id, CompletableFuture.completedFuture(null));
@@ -200,6 +201,45 @@ public final class AspGuildWorldService implements GuildWorldService
                 return null;
             }));
         });
+    }
+
+    @Override
+    public synchronized CompletableFuture<Void> deleteWorld(Guild guild)
+    {
+        UUID id = guild.getGuildUuid();
+        String worldName = guild.getWorldName();
+        // Close the name first: ensureWorld and resetWorld refuse it from here on, so nothing can load it again.
+        if (!deletedWorlds.add(worldName))
+        {
+            return CompletableFuture.completedFuture(null);
+        }
+        CompletableFuture<World> loading = loads.getOrDefault(id, CompletableFuture.completedFuture(null));
+        return loading.handle((world, failure) -> null).thenCompose(unused -> onGlobal(() ->
+        {
+            loadedWorlds.remove(id);
+            return asp.getLoadedWorld(worldName);
+        })).thenCompose(loaded -> loaded == null ? CompletableFuture.completedFuture(null)
+                : evacuate(loaded.getBukkitWorld()).thenCompose(unused -> onGlobal(() ->
+                {
+                    if (!Bukkit.unloadWorld(loaded.getBukkitWorld(), false))
+                    {
+                        throw new IllegalStateException("Could not unload guild world " + worldName);
+                    }
+                    return null;
+                }))).thenCompose(unused -> onStorage(() ->
+                {
+                    try
+                    {
+                        files.deleteWorld(worldName);
+                    }
+                    catch (UnknownWorldException ignored)
+                    {
+                        // The world was never created.
+                    }
+                    files.cancelReset(worldName);
+                    pendingResets.remove(worldName);
+                    return null;
+                }));
     }
 
     private CompletableFuture<Void> evacuate(World world)

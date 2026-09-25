@@ -21,5 +21,12 @@ public interface GuildWorldService
 
     boolean isResetting(String worldName);
 
+    /**
+     * Permanently deletes the guild world with no backup. Evacuates its players, unloads it without a save,
+     * and removes its file. The world name stays closed after this call, also when the deletion fails.
+     * Completes normally when the world does not exist.
+     */
+    CompletableFuture<Void> deleteWorld(Guild guild);
+
     void disable();
 }

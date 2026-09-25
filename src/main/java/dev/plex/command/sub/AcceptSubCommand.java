@@ -1,11 +1,12 @@
 package dev.plex.command.sub;
 
-import com.google.common.collect.ImmutableList;
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
-import dev.plex.guild.data.GuildRole;
 import dev.plex.storage.entity.GuildInviteEntity;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.command.CommandSender;
@@ -13,20 +14,22 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.time.Instant;
-import java.util.List;
-import java.util.UUID;
-
 public class AcceptSubCommand extends GuildSubCommand
 {
     public AcceptSubCommand(Guilds module)
     {
         super(module, command("accept")
-                .description("Accept an invite")
+                .description("Accept a guild invite")
                 .usage("/guild <command> <guild>")
                 .permission("plex.guilds.accept")
                 .source(RequiredCommandSource.IN_GAME)
                 .build());
+    }
+
+    @Override
+    public boolean isAvailable(@Nullable Player player)
+    {
+        return player != null && guildOf(player) == null;
     }
 
     @Override
@@ -37,12 +40,16 @@ public class AcceptSubCommand extends GuildSubCommand
             return usage();
         }
         assert player != null;
+        if (guildOf(player) != null)
+        {
+            return messageComponent("alreadyInGuild");
+        }
         UUID playerUuid = player.getUniqueId();
-        String playerName = player.getName();
         module.getGuildRepository().invitesFor(playerUuid).whenComplete((invites, throwable) ->
         {
             if (throwable != null)
             {
+                module.getLogger().error("Failed to load invites for {}", playerUuid, throwable);
                 player.sendMessage(messageComponent("guildStorageFailed"));
                 return;
             }
@@ -52,19 +59,14 @@ public class AcceptSubCommand extends GuildSubCommand
                 player.sendMessage(messageComponent("guildNotValidInvite"));
                 return;
             }
-            if (invite.getExpiresAt() < Instant.now().toEpochMilli())
+            Guild guild = module.getGuildHolder().guildById(UUID.fromString(invite.getGuildUuid())).orElse(null);
+            if (invite.getExpiresAt() < Instant.now().toEpochMilli() || guild == null)
             {
                 module.getGuildRepository().deleteInvite(UUID.fromString(invite.getGuildUuid()), playerUuid);
                 player.sendMessage(messageComponent("guildInviteExpired"));
                 return;
             }
-            Guild target = module.getGuildHolder().guildById(UUID.fromString(invite.getGuildUuid())).orElse(null);
-            if (target == null)
-            {
-                player.sendMessage(messageComponent("guildNotValidInvite"));
-                return;
-            }
-            leaveCurrentIfNeeded(player, playerUuid, playerName, target);
+            join(player, guild);
         });
         return null;
     }
@@ -79,60 +81,23 @@ public class AcceptSubCommand extends GuildSubCommand
                 .orElse(null);
     }
 
-    private void leaveCurrentIfNeeded(Player player, UUID playerUuid, String playerName, Guild target)
+    private void join(Player player, Guild guild)
     {
-        module.getGuildHolder().guild(playerUuid).ifPresentOrElse(current ->
+        // The player may have joined or created a guild while the invites loaded.
+        if (guildOf(player) != null)
         {
-            if (current.getGuildUuid().equals(target.getGuildUuid()))
+            player.sendMessage(messageComponent("alreadyInGuild"));
+            return;
+        }
+        String playerName = player.getName();
+        module.getGuildMutationService().addMember(guild, player.getUniqueId(), true).whenComplete((unused, throwable) ->
+        {
+            if (throwable != null)
             {
-                player.sendMessage(messageComponent("guildInThis"));
+                player.sendMessage(failureMessage(throwable, null));
                 return;
             }
-            if (current.isOwner(playerUuid) && current.getMembers().size() > 1)
-            {
-                player.sendMessage(messageComponent("guildOwnerLeaveBlocked"));
-                return;
-            }
-            if (current.isOwner(playerUuid))
-            {
-                module.getGuildMutationService().deleteGuild(current).whenComplete((unused, throwable) ->
-                {
-                    if (throwable != null)
-                    {
-                        player.sendMessage(messageComponent("guildStorageFailed"));
-                        return;
-                    }
-                    joinTarget(player, playerUuid, playerName, target);
-                });
-                return;
-            }
-            module.getGuildMutationService().removeMember(current, playerUuid).whenComplete((unused, throwable) ->
-            {
-                if (throwable != null)
-                {
-                    player.sendMessage(messageComponent("guildStorageFailed"));
-                    return;
-                }
-                module.broadcastToGuild(current, messageComponent("guildMemberLeft", Placeholder.unparsed("player", playerName)))
-                        .thenRun(() -> joinTarget(player, playerUuid, playerName, target));
-            });
-        }, () -> joinTarget(player, playerUuid, playerName, target));
+            module.broadcastToGuild(guild, messageComponent("guildMemberJoined", Placeholder.unparsed("player", playerName)));
+        });
     }
-
-    private void joinTarget(Player player, UUID playerUuid, String playerName, Guild guild)
-    {
-        UUID guildUuid = guild.getGuildUuid();
-        module.getGuildMutationService().addMember(guild, playerUuid, true)
-                .whenComplete((unused, throwable) ->
-                {
-                    if (throwable != null)
-                    {
-                        player.sendMessage(messageComponent("guildStorageFailed"));
-                        return;
-                    }
-                    module.broadcastToGuild(guild, messageComponent("guildMemberJoined", Placeholder.unparsed("player", playerName)));
-                });
-    }
-
-
 }

@@ -175,7 +175,7 @@ public final class GuildWorldAccessListener implements Listener
     public void onMount(EntityMountEvent event)
     {
         if (event.getEntity() instanceof Player player
-                && !module.getGuildWorldProtectionListener().canUse(player.getUniqueId(), event.getMount().getWorld(), GuildPermission.INTERACTING))
+                && !module.getGuildWorldProtectionListener().canUse(player.getUniqueId(), event.getMount().getWorld(), GuildPermission.INTERACT))
         {
             event.setCancelled(true);
         }

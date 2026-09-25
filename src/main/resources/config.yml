@@ -6,6 +6,10 @@
 
 guilds:
   log-chat-message: true
+  guests:
+    # Use a positive whole number followed by m, h, or d (for example 30m, 12h, 7d).
+    default-duration: 24h
+    max-duration: 30d
   worlds:
     # Apply this border and terrain size to new worlds and confirmed resets.
     size: 500000

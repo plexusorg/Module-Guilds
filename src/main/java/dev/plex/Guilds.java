@@ -12,11 +12,11 @@ import dev.plex.handler.GuildMenuListener;
 import dev.plex.handler.GuildWorldAccessListener;
 import dev.plex.handler.GuildWorldProtectionListener;
 import dev.plex.handler.GuildWorldEntityProtectionListener;
-import dev.plex.handler.RankPermissionMenuListener;
 import dev.plex.module.PlexModule;
 import dev.plex.api.storage.ModuleStorage;
 import dev.plex.storage.GuildRepository;
 import dev.plex.storage.JdbiGuildRepository;
+import dev.plex.util.DurationParser;
 import dev.plex.world.GuildWorldService;
 import dev.plex.world.AspGuildWorldService;
 import lombok.Getter;
@@ -27,6 +27,7 @@ import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.entity.Player;
 
 import java.sql.SQLException;
+import java.time.Duration;
 import java.time.ZoneId;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -47,7 +48,6 @@ public class Guilds extends PlexModule
     private final GuildMenuListener guildMenuListener = new GuildMenuListener(this, guildMutationService);
     private final GuildWorldProtectionListener guildWorldProtectionListener = new GuildWorldProtectionListener(this);
     private final GuildWorldAccessListener guildWorldAccessListener = new GuildWorldAccessListener(this);
-    private final RankPermissionMenuListener rankPermissionMenuListener = new RankPermissionMenuListener(this);
 
     private GuildWorldService guildWorldService;
 
@@ -56,6 +56,8 @@ public class Guilds extends PlexModule
 
     private ModuleConfiguration config;
     private ZoneId zoneId;
+    private Duration guestDefaultDuration;
+    private Duration guestMaxDuration;
     private volatile boolean ready;
     private volatile boolean loadFailed;
 
@@ -65,6 +67,12 @@ public class Guilds extends PlexModule
         config = api().moduleConfigs().create(this, "config.yml");
         config.load();
         zoneId = ZoneId.of(api().configuration().mainConfig().getString("server.timezone", "Etc/UTC"));
+        guestDefaultDuration = DurationParser.parse(config.getString("guilds.guests.default-duration", "24h"));
+        guestMaxDuration = DurationParser.parse(config.getString("guilds.guests.max-duration", "30d"));
+        if (guestDefaultDuration == null || guestMaxDuration == null || guestDefaultDuration.compareTo(guestMaxDuration) > 0)
+        {
+            throw new IllegalArgumentException("Guest durations must use <number>m, <number>h, or <number>d, and the default must not exceed the maximum");
+        }
         loadMessages("messages.yml");
         this.registerCommand(new GuildCommand(this));
     }
@@ -104,7 +112,6 @@ public class Guilds extends PlexModule
         registerListener(new GuildWorldEntityProtectionListener(this));
         registerListener(guildWorldAccessListener);
         guildWorldAccessListener.startGuestExpiry();
-        registerListener(rankPermissionMenuListener);
     }
 
     @Override

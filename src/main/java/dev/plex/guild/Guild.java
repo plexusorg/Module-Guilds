@@ -27,14 +27,7 @@ public class Guild
     private String name;
     private volatile UUID ownerUuid;
     private volatile String prefix;
-    private String motd;
-    private volatile CustomLocation home;
-    private boolean tagEnabled = true;
-    private boolean isPublic;
-    private volatile boolean memberBlockBreaking;
-    private volatile boolean memberBlockPlacing;
-    private volatile boolean memberInteracting;
-    private volatile boolean memberManageGuests;
+    private volatile CustomLocation spawn;
 
     public static Guild create(UUID ownerUuid, String guildName, ZoneId zoneId)
     {
@@ -71,6 +64,13 @@ public class Guild
         return getMember(uuid) != null;
     }
 
+    /** Returns the member's role, or null when the player is not a member. */
+    public GuildRole getRole(UUID uuid)
+    {
+        Member member = getMember(uuid);
+        return member == null ? null : member.getRole();
+    }
+
     public Guest getActiveGuest(UUID uuid)
     {
         Guest guest = guests.get(uuid);
@@ -94,43 +94,46 @@ public class Guild
 
     public boolean hasPermission(UUID uuid, GuildPermission permission)
     {
-        if (isOwner(uuid))
+        GuildRole role = getRole(uuid);
+        if (role != null)
         {
-            return true;
+            return permission != GuildPermission.MANAGE || role != GuildRole.MEMBER;
         }
-        if (!isMember(uuid))
+        Guest guest = getActiveGuest(uuid);
+        return permission != GuildPermission.MANAGE && guest != null && guest.editing();
+    }
+
+    public boolean canManage(UUID actor)
+    {
+        return hasPermission(actor, GuildPermission.MANAGE);
+    }
+
+    public boolean canKick(UUID actor, UUID target)
+    {
+        GuildRole actorRole = getRole(actor);
+        GuildRole targetRole = getRole(target);
+        if (actorRole == null || targetRole == null || actor.equals(target))
         {
-            Guest guest = getActiveGuest(uuid);
-            return permission != GuildPermission.MANAGE_GUESTS && guest != null && guest.editing();
+            return false;
         }
-        return switch (permission)
+        return switch (targetRole)
         {
-            case BLOCK_BREAKING -> memberBlockBreaking;
-            case BLOCK_PLACING -> memberBlockPlacing;
-            case INTERACTING -> memberInteracting;
-            case MANAGE_GUESTS -> memberManageGuests;
+            case MEMBER -> actorRole != GuildRole.MEMBER;
+            case OFFICER -> actorRole == GuildRole.OWNER;
+            case OWNER -> false;
         };
     }
 
-    public void setPermission(GuildPermission permission, boolean enabled)
+    /** The owner promotes a member to officer, or an officer to owner. */
+    public boolean canPromote(UUID actor, UUID target)
     {
-        switch (permission)
-        {
-            case BLOCK_BREAKING -> memberBlockBreaking = enabled;
-            case BLOCK_PLACING -> memberBlockPlacing = enabled;
-            case INTERACTING -> memberInteracting = enabled;
-            case MANAGE_GUESTS -> memberManageGuests = enabled;
-        }
+        GuildRole targetRole = getRole(target);
+        return getRole(actor) == GuildRole.OWNER && (targetRole == GuildRole.MEMBER || targetRole == GuildRole.OFFICER);
     }
 
-    public boolean isMemberPermissionEnabled(GuildPermission permission)
+    /** The owner demotes an officer to member. */
+    public boolean canDemote(UUID actor, UUID target)
     {
-        return switch (permission)
-        {
-            case BLOCK_BREAKING -> memberBlockBreaking;
-            case BLOCK_PLACING -> memberBlockPlacing;
-            case INTERACTING -> memberInteracting;
-            case MANAGE_GUESTS -> memberManageGuests;
-        };
+        return getRole(actor) == GuildRole.OWNER && getRole(target) == GuildRole.OFFICER;
     }
 }

@@ -3,7 +3,6 @@ package dev.plex.storage;
 import dev.plex.api.storage.ModuleStorage;
 import dev.plex.guild.Guild;
 import dev.plex.guild.data.Guest;
-import dev.plex.guild.data.GuildPermission;
 import dev.plex.guild.data.GuildRole;
 import dev.plex.guild.data.Member;
 import dev.plex.storage.entity.GuildEntity;
@@ -104,28 +103,20 @@ public class JdbiGuildRepository implements GuildRepository
                 jdbi.useTransaction(h ->
                 {
                     h.createUpdate("INSERT INTO " + guildsTable + " (guild_uuid, name, prefix, owner_uuid, created_at, " +
-                                    "home_world, home_x, home_y, home_z, home_yaw, home_pitch, motd, tag_enabled, is_public, " +
-                                    "member_block_breaking, member_block_placing, member_interacting, member_manage_guests) " +
-                                    "VALUES (:guildUuid, :name, :prefix, :ownerUuid, :createdAt, :homeWorld, :homeX, :homeY, :homeZ, " +
-                                    ":homeYaw, :homePitch, :motd, :tagEnabled, :isPublic, :memberBlockBreaking, :memberBlockPlacing, :memberInteracting, :memberManageGuests)")
+                                    "spawn_world, spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch) " +
+                                    "VALUES (:guildUuid, :name, :prefix, :ownerUuid, :createdAt, :spawnWorld, :spawnX, :spawnY, :spawnZ, " +
+                                    ":spawnYaw, :spawnPitch)")
                             .bind("guildUuid", e.getGuildUuid())
                             .bind("name", e.getName())
                             .bind("prefix", e.getPrefix())
                             .bind("ownerUuid", e.getOwnerUuid())
                             .bind("createdAt", e.getCreatedAt())
-                            .bind("homeWorld", e.getHomeWorld())
-                            .bind("homeX", e.getHomeX())
-                            .bind("homeY", e.getHomeY())
-                            .bind("homeZ", e.getHomeZ())
-                            .bind("homeYaw", e.getHomeYaw())
-                            .bind("homePitch", e.getHomePitch())
-                            .bind("motd", e.getMotd())
-                            .bind("tagEnabled", e.isTagEnabled())
-                            .bind("isPublic", e.isPublicGuild())
-                            .bind("memberBlockBreaking", e.isMemberBlockBreaking())
-                            .bind("memberBlockPlacing", e.isMemberBlockPlacing())
-                            .bind("memberInteracting", e.isMemberInteracting())
-                            .bind("memberManageGuests", e.isMemberManageGuests())
+                            .bind("spawnWorld", e.getSpawnWorld())
+                            .bind("spawnX", e.getSpawnX())
+                            .bind("spawnY", e.getSpawnY())
+                            .bind("spawnZ", e.getSpawnZ())
+                            .bind("spawnYaw", e.getSpawnYaw())
+                            .bind("spawnPitch", e.getSpawnPitch())
                             .execute();
                     insertMember(h, guild.getGuildUuid(), guild.getOwnerUuid(), GuildRole.OWNER);
                 });
@@ -208,6 +199,12 @@ public class JdbiGuildRepository implements GuildRepository
     }
 
     @Override
+    public CompletableFuture<Void> updateRole(UUID guildUuid, UUID playerUuid, GuildRole role)
+    {
+        return runAsync(() -> jdbi.useHandle(h -> updateRoleSync(h, guildUuid, playerUuid, role)));
+    }
+
+    @Override
     public CompletableFuture<Void> transferOwner(UUID guildUuid, UUID newOwnerUuid, UUID oldOwnerUuid)
     {
         return runAsync(() -> jdbi.useTransaction(h ->
@@ -216,25 +213,9 @@ public class JdbiGuildRepository implements GuildRepository
                     .bind("o", newOwnerUuid.toString())
                     .bind("g", guildUuid.toString())
                     .execute();
-            upsertMember(h, guildUuid, oldOwnerUuid, GuildRole.MEMBER);
-            upsertMember(h, guildUuid, newOwnerUuid, GuildRole.OWNER);
+            updateRoleSync(h, guildUuid, oldOwnerUuid, GuildRole.OFFICER);
+            updateRoleSync(h, guildUuid, newOwnerUuid, GuildRole.OWNER);
         }));
-    }
-
-    @Override
-    public CompletableFuture<Void> updateMemberPermission(UUID guildUuid, GuildPermission permission, boolean enabled)
-    {
-        String column = switch (permission)
-        {
-            case BLOCK_BREAKING -> "member_block_breaking";
-            case BLOCK_PLACING -> "member_block_placing";
-            case INTERACTING -> "member_interacting";
-            case MANAGE_GUESTS -> "member_manage_guests";
-        };
-        return runAsync(() -> jdbi.useHandle(h -> h.createUpdate("UPDATE " + guildsTable + " SET " + column + " = :enabled WHERE guild_uuid = :g")
-                .bind("enabled", enabled)
-                .bind("g", guildUuid.toString())
-                .execute()));
     }
 
     @Override
@@ -247,17 +228,17 @@ public class JdbiGuildRepository implements GuildRepository
     }
 
     @Override
-    public CompletableFuture<Void> updateHome(UUID guildUuid, CustomLocation home)
+    public CompletableFuture<Void> updateSpawn(UUID guildUuid, CustomLocation spawn)
     {
         return runAsync(() -> jdbi.useHandle(h -> h.createUpdate("UPDATE " + guildsTable +
-                        " SET home_world = :w, home_x = :x, home_y = :y, home_z = :z, home_yaw = :yaw, home_pitch = :pitch " +
+                        " SET spawn_world = :w, spawn_x = :x, spawn_y = :y, spawn_z = :z, spawn_yaw = :yaw, spawn_pitch = :pitch " +
                         "WHERE guild_uuid = :g")
-                .bind("w", home == null ? null : home.getWorldName())
-                .bind("x", home == null ? null : home.getX())
-                .bind("y", home == null ? null : home.getY())
-                .bind("z", home == null ? null : home.getZ())
-                .bind("yaw", home == null ? null : home.getYaw())
-                .bind("pitch", home == null ? null : home.getPitch())
+                .bind("w", spawn == null ? null : spawn.getWorldName())
+                .bind("x", spawn == null ? null : spawn.getX())
+                .bind("y", spawn == null ? null : spawn.getY())
+                .bind("z", spawn == null ? null : spawn.getZ())
+                .bind("yaw", spawn == null ? null : spawn.getYaw())
+                .bind("pitch", spawn == null ? null : spawn.getPitch())
                 .bind("g", guildUuid.toString())
                 .execute()));
     }
@@ -267,8 +248,8 @@ public class JdbiGuildRepository implements GuildRepository
     {
         return runAsync(() -> jdbi.useTransaction(h ->
         {
-            h.createUpdate("UPDATE " + guildsTable + " SET home_world = NULL, home_x = NULL, home_y = NULL, " +
-                            "home_z = NULL, home_yaw = NULL, home_pitch = NULL WHERE guild_uuid = :g AND home_world = :w")
+            h.createUpdate("UPDATE " + guildsTable + " SET spawn_world = NULL, spawn_x = NULL, spawn_y = NULL, " +
+                            "spawn_z = NULL, spawn_yaw = NULL, spawn_pitch = NULL WHERE guild_uuid = :g AND spawn_world = :w")
                     .bind("g", guildUuid.toString())
                     .bind("w", worldName)
                     .execute();
@@ -386,19 +367,12 @@ public class JdbiGuildRepository implements GuildRepository
         e.setPrefix(rs.getString("prefix"));
         e.setOwnerUuid(rs.getString("owner_uuid"));
         e.setCreatedAt(rs.getLong("created_at"));
-        e.setHomeWorld(rs.getString("home_world"));
-        e.setHomeX(rs.getObject("home_x", Double.class));
-        e.setHomeY(rs.getObject("home_y", Double.class));
-        e.setHomeZ(rs.getObject("home_z", Double.class));
-        e.setHomeYaw(rs.getObject("home_yaw", Float.class));
-        e.setHomePitch(rs.getObject("home_pitch", Float.class));
-        e.setMotd(rs.getString("motd"));
-        e.setTagEnabled(rs.getBoolean("tag_enabled"));
-        e.setPublicGuild(rs.getBoolean("is_public"));
-        e.setMemberBlockBreaking(rs.getBoolean("member_block_breaking"));
-        e.setMemberBlockPlacing(rs.getBoolean("member_block_placing"));
-        e.setMemberInteracting(rs.getBoolean("member_interacting"));
-        e.setMemberManageGuests(rs.getBoolean("member_manage_guests"));
+        e.setSpawnWorld(rs.getString("spawn_world"));
+        e.setSpawnX(rs.getObject("spawn_x", Double.class));
+        e.setSpawnY(rs.getObject("spawn_y", Double.class));
+        e.setSpawnZ(rs.getObject("spawn_z", Double.class));
+        e.setSpawnYaw(rs.getObject("spawn_yaw", Float.class));
+        e.setSpawnPitch(rs.getObject("spawn_pitch", Float.class));
         return e;
     }
 
@@ -445,14 +419,7 @@ public class JdbiGuildRepository implements GuildRepository
         guild.setName(entity.getName());
         guild.setOwnerUuid(UUID.fromString(entity.getOwnerUuid()));
         guild.setPrefix(entity.getPrefix());
-        guild.setMotd(entity.getMotd());
-        guild.setTagEnabled(entity.isTagEnabled());
-        guild.setPublic(entity.isPublicGuild());
-        guild.setMemberBlockBreaking(entity.isMemberBlockBreaking());
-        guild.setMemberBlockPlacing(entity.isMemberBlockPlacing());
-        guild.setMemberInteracting(entity.isMemberInteracting());
-        guild.setMemberManageGuests(entity.isMemberManageGuests());
-        guild.setHome(toLocation(entity));
+        guild.setSpawn(toLocation(entity));
         return guild;
     }
 
@@ -464,14 +431,7 @@ public class JdbiGuildRepository implements GuildRepository
         entity.setOwnerUuid(guild.getOwnerUuid().toString());
         entity.setCreatedAt(guild.getCreatedAt().toInstant().toEpochMilli());
         entity.setPrefix(guild.getPrefix());
-        entity.setMotd(guild.getMotd());
-        entity.setTagEnabled(guild.isTagEnabled());
-        entity.setPublicGuild(guild.isPublic());
-        entity.setMemberBlockBreaking(guild.isMemberBlockBreaking());
-        entity.setMemberBlockPlacing(guild.isMemberBlockPlacing());
-        entity.setMemberInteracting(guild.isMemberInteracting());
-        entity.setMemberManageGuests(guild.isMemberManageGuests());
-        setHome(entity, guild.getHome());
+        setSpawn(entity, guild.getSpawn());
         return entity;
     }
 
@@ -522,6 +482,20 @@ public class JdbiGuildRepository implements GuildRepository
                 .execute();
     }
 
+    private void updateRoleSync(Handle h, UUID guildUuid, UUID playerUuid, GuildRole role)
+    {
+        int updated = h.createUpdate("UPDATE " + membersTable + " SET role = :r WHERE guild_uuid = :g AND player_uuid = :p")
+                .bind("r", role.name())
+                .bind("g", guildUuid.toString())
+                .bind("p", playerUuid.toString())
+                .execute();
+        if (updated != 1)
+        {
+            // Throwing rolls back an enclosing transaction.
+            throw new IllegalStateException("Guild member " + playerUuid + " does not exist");
+        }
+    }
+
     private void deleteInviteSync(Handle h, UUID guildUuid, UUID inviteeUuid)
     {
         h.createUpdate("DELETE FROM " + invitesTable + " WHERE guild_uuid = :g AND invitee_uuid = :i")
@@ -530,23 +504,23 @@ public class JdbiGuildRepository implements GuildRepository
                 .execute();
     }
 
-    private void setHome(GuildEntity entity, CustomLocation home)
+    private void setSpawn(GuildEntity entity, CustomLocation spawn)
     {
-        entity.setHomeWorld(home == null ? null : home.getWorldName());
-        entity.setHomeX(home == null ? null : home.getX());
-        entity.setHomeY(home == null ? null : home.getY());
-        entity.setHomeZ(home == null ? null : home.getZ());
-        entity.setHomeYaw(home == null ? null : home.getYaw());
-        entity.setHomePitch(home == null ? null : home.getPitch());
+        entity.setSpawnWorld(spawn == null ? null : spawn.getWorldName());
+        entity.setSpawnX(spawn == null ? null : spawn.getX());
+        entity.setSpawnY(spawn == null ? null : spawn.getY());
+        entity.setSpawnZ(spawn == null ? null : spawn.getZ());
+        entity.setSpawnYaw(spawn == null ? null : spawn.getYaw());
+        entity.setSpawnPitch(spawn == null ? null : spawn.getPitch());
     }
 
     private CustomLocation toLocation(GuildEntity entity)
     {
-        if (entity.getHomeWorld() == null)
+        if (entity.getSpawnWorld() == null)
         {
             return null;
         }
-        return new CustomLocation(entity.getHomeWorld(), entity.getHomeX(), entity.getHomeY(), entity.getHomeZ(), entity.getHomeYaw(), entity.getHomePitch());
+        return new CustomLocation(entity.getSpawnWorld(), entity.getSpawnX(), entity.getSpawnY(), entity.getSpawnZ(), entity.getSpawnYaw(), entity.getSpawnPitch());
     }
 
     private void setWarpLocation(GuildWarpEntity entity, CustomLocation location)

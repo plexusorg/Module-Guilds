@@ -1,21 +1,40 @@
 package dev.plex.command;
 
 import com.google.common.collect.Lists;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.suggestion.Suggestions;
+import com.mojang.brigadier.suggestion.SuggestionsBuilder;
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
-import dev.plex.command.sub.*;
+import dev.plex.command.sub.AcceptSubCommand;
+import dev.plex.command.sub.ChatSubCommand;
+import dev.plex.command.sub.CreateSubCommand;
+import dev.plex.command.sub.GuestSubCommand;
+import dev.plex.command.sub.GuildSubCommand;
+import dev.plex.command.sub.InviteSubCommand;
+import dev.plex.command.sub.LeaveSubCommand;
+import dev.plex.command.sub.PrefixSubCommand;
+import dev.plex.command.sub.ResetWorldSubCommand;
+import dev.plex.command.sub.VisitSubCommand;
+import dev.plex.command.sub.WarpSubCommand;
+import dev.plex.command.sub.WorldSubCommand;
+import dev.plex.guild.Guild;
+import dev.plex.storage.entity.GuildInviteEntity;
+import io.papermc.paper.command.brigadier.CommandSourceStack;
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.event.HoverEvent;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
-import java.util.List;
-
 public class GuildCommand extends SimplePlexCommand
 {
-    private static final int HELP_PAGE_SIZE = 5;
-
     private final Guilds module;
     private final List<GuildSubCommand> subCommands = Lists.newArrayList();
 
@@ -27,37 +46,25 @@ public class GuildCommand extends SimplePlexCommand
                 .permission("plex.guilds.guild")
                 .build());
         this.module = module;
-        this.registerSubCommand(new MenuSubCommand(module));
-        this.registerSubCommand(new InfoSubCommand(module));
-        this.registerSubCommand(new CreateSubCommand(module));
-        this.registerSubCommand(new InviteSubCommand(module));
-        this.registerSubCommand(new AcceptSubCommand(module));
-        this.registerSubCommand(new WorldSubCommand(module));
-        this.registerSubCommand(new VisitSubCommand(module));
-        this.registerSubCommand(new GuestAccessSubCommand(module, true));
-        this.registerSubCommand(new GuestAccessSubCommand(module, false));
-        this.registerSubCommand(new GuestsSubCommand(module));
-        this.registerSubCommand(new HomeSubCommand(module));
-        this.registerSubCommand(new ChatSubCommand(module));
-        this.registerSubCommand(new WarpSubCommand(module));
-        this.registerSubCommand(new WarpListSubCommand(module));
-        this.registerSubCommand(new SetHomeSubCommand(module));
-        this.registerSubCommand(new SetWarpSubCommand(module));
-        this.registerSubCommand(new PermissionsSubCommand(module));
-        this.registerSubCommand(new PrefixSubCommand(module));
-        this.registerSubCommand(new OwnerSubCommand(module));
-        this.registerSubCommand(new DenySubCommand(module));
-        this.registerSubCommand(new LeaveSubCommand(module));
-        this.registerSubCommand(new DisbandSubCommand(module));
-        this.registerSubCommand(new ResetWorldSubCommand(module));
+        subCommands.add(new CreateSubCommand(module));
+        subCommands.add(new AcceptSubCommand(module));
+        subCommands.add(new VisitSubCommand(module));
+        subCommands.add(new WorldSubCommand(module));
+        subCommands.add(new WarpSubCommand(module));
+        subCommands.add(new ChatSubCommand(module));
+        subCommands.add(new LeaveSubCommand(module));
+        subCommands.add(new InviteSubCommand(module));
+        subCommands.add(new GuestSubCommand(module));
+        subCommands.add(new PrefixSubCommand(module));
+        subCommands.add(new ResetWorldSubCommand(module));
     }
 
     @Override
-    protected void configureCommand(com.mojang.brigadier.builder.LiteralArgumentBuilder<io.papermc.paper.command.brigadier.CommandSourceStack> command)
+    protected void configureCommand(LiteralArgumentBuilder<CommandSourceStack> command)
     {
         command.executes(context -> executeCommand(context, this::executeRoot));
         var subcommand = word("subcommand")
-                .suggests((context, builder) -> suggestMatching(builder, subcommandNames()))
+                .suggests((context, builder) -> suggestMatching(builder, subcommandNames(context.getSource().getSender())))
                 .executes(context -> executeCommand(context, (sender, player) ->
                         dispatch(sender, player, string(context, "subcommand"), null, null)));
         var first = word("first")
@@ -78,7 +85,56 @@ public class GuildCommand extends SimplePlexCommand
         {
             return messageComponent(module.isLoadFailed() ? "guildStorageFailed" : "guildLoading");
         }
-        return helpPage(1);
+        if (player == null)
+        {
+            return help(sender, null);
+        }
+        Guild guild = module.getGuildHolder().guild(player.getUniqueId()).orElse(null);
+        if (guild != null)
+        {
+            module.getGuildMenuListener().open(player, guild);
+            return null;
+        }
+        showInvites(player);
+        return null;
+    }
+
+    private void showInvites(Player player)
+    {
+        module.getGuildRepository().invitesFor(player.getUniqueId()).whenComplete((invites, throwable) ->
+        {
+            if (throwable != null)
+            {
+                module.getLogger().error("Failed to load invites for {}", player.getUniqueId(), throwable);
+                player.sendMessage(messageComponent("guildStorageFailed"));
+                return;
+            }
+            Component message = messageComponent("guildNoGuild");
+            boolean found = false;
+            long now = Instant.now().toEpochMilli();
+            for (GuildInviteEntity invite : invites)
+            {
+                Guild guild = module.getGuildHolder().guildById(UUID.fromString(invite.getGuildUuid())).orElse(null);
+                if (guild == null || invite.getExpiresAt() < now)
+                {
+                    continue;
+                }
+                found = true;
+                message = message.append(Component.newline()).append(messageComponent("guildInviteEntry",
+                        Placeholder.unparsed("guild", guild.getName()),
+                        Placeholder.styling("join", ClickEvent.runCommand("/guild accept " + guild.getName()),
+                                HoverEvent.showText(Component.text("Click to join " + guild.getName())))));
+            }
+            if (!found)
+            {
+                message = message.append(Component.newline()).append(messageComponent("guildNoInvites"));
+            }
+            message = message.append(Component.newline()).append(messageComponent("guildCreateHint",
+                            Placeholder.unparsed("command", "/guild create <name>"))
+                    .clickEvent(ClickEvent.suggestCommand("/guild create "))
+                    .hoverEvent(Component.text("Click to fill in this command")));
+            player.sendMessage(message);
+        });
     }
 
     private Component dispatch(CommandSender sender, Player player, String label, String first, String remaining)
@@ -89,150 +145,85 @@ public class GuildCommand extends SimplePlexCommand
         }
         if (label.equalsIgnoreCase("help"))
         {
-            return help(first, remaining);
+            return help(sender, player);
         }
         GuildSubCommand subCommand = getSubCommand(label);
-        if (subCommand == null)
+        if (subCommand == null || !canRun(sender, player, subCommand))
         {
-            return messageComponent("guildCommandNotFound", Placeholder.unparsed("command", label));
+            return messageComponent("guildCommandNotFound");
         }
-        if (subCommand.getRequiredSource() == RequiredCommandSource.CONSOLE && sender instanceof Player)
-        {
-            return messageComponent("noPermissionInGame");
-        }
-        if (subCommand.getRequiredSource() == RequiredCommandSource.IN_GAME && player == null)
-        {
-            return messageComponent("noPermissionConsole");
-        }
-        checkPermission(sender, subCommand.getPermission());
         return subCommand.executeSubCommand(sender, player, first, remaining);
     }
 
-    private Component help(String first, String remaining)
+    private Component help(CommandSender sender, Player player)
     {
-        if (remaining != null)
+        Component content = messageComponent("guildHelpHeader");
+        for (GuildSubCommand subCommand : subCommands)
         {
-            return messageComponent("guildHelpUsage");
-        }
-        if (first == null)
-        {
-            return helpPage(1);
-        }
-        if (first.matches("[+-]?[0-9]+"))
-        {
-            try
+            if (!isUsable(sender, player, subCommand))
             {
-                return helpPage(Integer.parseInt(first));
+                continue;
             }
-            catch (NumberFormatException exception)
+            for (GuildSubCommand.HelpEntry entry : subCommand.helpEntries(player))
             {
-                return messageComponent("guildHelpPageInvalid", Placeholder.unparsed("pages", Integer.toString(helpPageCount())));
+                content = content.append(Component.newline()).append(messageComponent("guildHelpLine",
+                                Placeholder.unparsed("usage", entry.usage()),
+                                Placeholder.unparsed("description", entry.description()))
+                        .clickEvent(ClickEvent.suggestCommand(entry.suggestion()))
+                        .hoverEvent(Component.text("Click to fill in this command")));
             }
         }
-        GuildSubCommand subCommand = getSubCommand(first);
-        if (subCommand == null)
-        {
-            return messageComponent("guildHelpUsage");
-        }
-        Component usage = Component.text(subCommand.getUsage())
-                .clickEvent(ClickEvent.suggestCommand("/guild " + subCommand.getName() + " "))
-                .hoverEvent(Component.text("Click to fill in this command"));
-        return messageComponent("guildHelpDetail",
-                Placeholder.component("usage", usage),
-                Placeholder.unparsed("description", subCommand.getDescription()));
+        return content;
     }
 
-    private java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions> suggestArguments(
-            com.mojang.brigadier.context.CommandContext<io.papermc.paper.command.brigadier.CommandSourceStack> context,
-            com.mojang.brigadier.suggestion.SuggestionsBuilder builder, String first)
+    private CompletableFuture<Suggestions> suggestArguments(CommandContext<CommandSourceStack> context,
+                                                            SuggestionsBuilder builder, String first)
     {
-        if (string(context, "subcommand").equalsIgnoreCase("help") && first == null)
-        {
-            List<String> options = Lists.newArrayList();
-            for (int page = 1; page <= helpPageCount(); page++)
-            {
-                options.add(Integer.toString(page));
-            }
-            subCommands.forEach(command -> options.add(command.getName()));
-            return suggestMatching(builder, options);
-        }
+        CommandSender sender = context.getSource().getSender();
         GuildSubCommand subCommand = getSubCommand(string(context, "subcommand"));
-        return subCommand == null ? builder.buildFuture()
-                : suggestMatching(builder, subCommand.suggestSubCommand(context.getSource().getSender(), first));
+        if (subCommand == null || !isUsable(sender, sender instanceof Player player ? player : null, subCommand))
+        {
+            return builder.buildFuture();
+        }
+        return suggestMatching(builder, subCommand.suggestSubCommand(sender, first));
     }
 
-    private List<String> subcommandNames()
+    private List<String> subcommandNames(CommandSender sender)
     {
+        Player player = sender instanceof Player online ? online : null;
         List<String> names = Lists.newArrayList("help");
-        subCommands.forEach(command ->
-        {
-            names.add(command.getName());
-            names.addAll(command.getAliases());
-        });
+        subCommands.stream()
+                .filter(command -> isUsable(sender, player, command))
+                .forEach(command -> names.add(command.getName()));
         return names;
+    }
+
+    /** The sender has the source and permission for the command. */
+    private boolean canRun(CommandSender sender, Player player, GuildSubCommand subCommand)
+    {
+        RequiredCommandSource source = subCommand.getRequiredSource();
+        if (source == RequiredCommandSource.IN_GAME && player == null || source == RequiredCommandSource.CONSOLE && player != null)
+        {
+            return false;
+        }
+        return silentCheckPermission(sender, subCommand.getPermission());
+    }
+
+    /** The sender can run the command, and the command fits the player's current state. */
+    private boolean isUsable(CommandSender sender, Player player, GuildSubCommand subCommand)
+    {
+        return canRun(sender, player, subCommand) && subCommand.isAvailable(player);
     }
 
     private String normalize(String value)
     {
-        return value.isBlank() ? "" : String.join(" ", value.trim().split("\\s+"));
+        return value.isBlank() ? null : String.join(" ", value.trim().split("\\s+"));
     }
 
     private GuildSubCommand getSubCommand(String label)
     {
         return subCommands.stream()
-                .filter(command -> command.getName().equalsIgnoreCase(label)
-                        || command.getAliases().stream().anyMatch(alias -> alias.equalsIgnoreCase(label)))
+                .filter(command -> command.getName().equalsIgnoreCase(label))
                 .findFirst().orElse(null);
-    }
-
-    private void registerSubCommand(GuildSubCommand subCommand)
-    {
-        subCommands.add(subCommand);
-    }
-
-    private int helpPageCount()
-    {
-        return (subCommands.size() + HELP_PAGE_SIZE - 1) / HELP_PAGE_SIZE;
-    }
-
-    private Component helpPage(int page)
-    {
-        int pages = helpPageCount();
-        if (page < 1 || page > pages)
-        {
-            return messageComponent("guildHelpPageInvalid", Placeholder.unparsed("pages", Integer.toString(pages)));
-        }
-        Component commands = Component.empty();
-        int start = (page - 1) * HELP_PAGE_SIZE;
-        int end = Math.min(start + HELP_PAGE_SIZE, subCommands.size());
-        for (int i = start; i < end; i++)
-        {
-            GuildSubCommand subCommand = subCommands.get(i);
-            if (i > start)
-            {
-                commands = commands.append(Component.newline());
-            }
-            commands = commands.append(messageComponent("guildsCommandDisplay",
-                    Placeholder.unparsed("command", "/guild " + subCommand.getName()),
-                    Placeholder.unparsed("description", subCommand.getDescription()))
-                    .clickEvent(ClickEvent.runCommand("/guild help " + subCommand.getName()))
-                    .hoverEvent(Component.text("Click for usage")));
-        }
-        Component navigation = Component.empty();
-        if (page > 1)
-        {
-            navigation = navigation.append(messageComponent("guildHelpBack")
-                    .clickEvent(ClickEvent.runCommand("/guild help " + (page - 1))));
-        }
-        if (page < pages)
-        {
-            navigation = navigation.append(messageComponent("guildHelpNext")
-                    .clickEvent(ClickEvent.runCommand("/guild help " + (page + 1))));
-        }
-        return messageComponent("guildHelpPage",
-                Placeholder.unparsed("page", Integer.toString(page)),
-                Placeholder.unparsed("pages", Integer.toString(pages)),
-                Placeholder.component("content", commands),
-                Placeholder.component("navigation", navigation));
     }
 }

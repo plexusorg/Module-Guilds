@@ -150,6 +150,11 @@ final class GuildWorldFiles implements SlimeLoader
         Files.delete(path(worldName, ".reset"));
     }
 
+    void cancelReset(String worldName) throws IOException
+    {
+        Files.deleteIfExists(path(worldName, ".reset"));
+    }
+
     void expireBackups(Duration retention) throws IOException
     {
         Set<String> protectedBackups = new HashSet<>();

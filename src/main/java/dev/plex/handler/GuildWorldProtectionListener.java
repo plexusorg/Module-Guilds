@@ -89,7 +89,7 @@ public class GuildWorldProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockBreak(BlockBreakEvent event)
     {
-        if (!canUse(event.getPlayer().getUniqueId(), event.getBlock().getWorld(), GuildPermission.BLOCK_BREAKING))
+        if (!canUse(event.getPlayer().getUniqueId(), event.getBlock().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
             event.getPlayer().sendMessage(module.messageComponent("guildWorldPermissionDenied"));
@@ -99,7 +99,7 @@ public class GuildWorldProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBlockPlace(BlockPlaceEvent event)
     {
-        if (!canUse(event.getPlayer().getUniqueId(), event.getBlock().getWorld(), GuildPermission.BLOCK_PLACING))
+        if (!canUse(event.getPlayer().getUniqueId(), event.getBlock().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
             event.getPlayer().sendMessage(module.messageComponent("guildWorldPermissionDenied"));
@@ -110,7 +110,7 @@ public class GuildWorldProtectionListener implements Listener
     public void onInteract(PlayerInteractEvent event)
     {
         World world = event.getClickedBlock() == null ? event.getPlayer().getWorld() : event.getClickedBlock().getWorld();
-        if (!canUse(event.getPlayer().getUniqueId(), world, GuildPermission.INTERACTING))
+        if (!canUse(event.getPlayer().getUniqueId(), world, GuildPermission.INTERACT))
         {
             // Air interactions can start cancelled for blocks but still permit item use.
             event.setUseInteractedBlock(Event.Result.DENY);
@@ -121,7 +121,7 @@ public class GuildWorldProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBucketEmpty(PlayerBucketEmptyEvent event)
     {
-        if (!canUse(event.getPlayer().getUniqueId(), event.getBlock().getWorld(), GuildPermission.BLOCK_PLACING))
+        if (!canUse(event.getPlayer().getUniqueId(), event.getBlock().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
         }
@@ -130,7 +130,7 @@ public class GuildWorldProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBucketFill(PlayerBucketFillEvent event)
     {
-        if (!canUse(event.getPlayer().getUniqueId(), event.getBlock().getWorld(), GuildPermission.BLOCK_BREAKING))
+        if (!canUse(event.getPlayer().getUniqueId(), event.getBlock().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
         }
@@ -139,7 +139,7 @@ public class GuildWorldProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onHarvest(PlayerHarvestBlockEvent event)
     {
-        if (!canUse(event.getPlayer().getUniqueId(), event.getHarvestedBlock().getWorld(), GuildPermission.BLOCK_BREAKING))
+        if (!canUse(event.getPlayer().getUniqueId(), event.getHarvestedBlock().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
         }
@@ -149,7 +149,7 @@ public class GuildWorldProtectionListener implements Listener
     public void onFertilize(BlockFertilizeEvent event)
     {
         Player player = event.getPlayer();
-        if (player != null && !canUse(player.getUniqueId(), event.getBlock().getWorld(), GuildPermission.BLOCK_PLACING))
+        if (player != null && !canUse(player.getUniqueId(), event.getBlock().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
         }
@@ -160,7 +160,7 @@ public class GuildWorldProtectionListener implements Listener
     {
         Player player = event.getPlayer();
         if (isGuildWorld(event.getBlock().getWorld())
-                && (player == null || !canUse(player.getUniqueId(), event.getBlock().getWorld(), GuildPermission.BLOCK_PLACING)))
+                && (player == null || !canUse(player.getUniqueId(), event.getBlock().getWorld(), GuildPermission.BUILD)))
         {
             event.setCancelled(true);
         }
@@ -169,7 +169,7 @@ public class GuildWorldProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onSignChange(SignChangeEvent event)
     {
-        if (!canUse(event.getPlayer().getUniqueId(), event.getBlock().getWorld(), GuildPermission.INTERACTING))
+        if (!canUse(event.getPlayer().getUniqueId(), event.getBlock().getWorld(), GuildPermission.INTERACT))
         {
             event.setCancelled(true);
         }
@@ -205,7 +205,7 @@ public class GuildWorldProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBedEnter(PlayerBedEnterEvent event)
     {
-        if (!canUse(event.getPlayer().getUniqueId(), event.getBed().getWorld(), GuildPermission.INTERACTING))
+        if (!canUse(event.getPlayer().getUniqueId(), event.getBed().getWorld(), GuildPermission.INTERACT))
         {
             event.setCancelled(true);
         }
@@ -214,7 +214,7 @@ public class GuildWorldProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onLecternTake(PlayerTakeLecternBookEvent event)
     {
-        if (!canUse(event.getPlayer().getUniqueId(), event.getLectern().getWorld(), GuildPermission.INTERACTING))
+        if (!canUse(event.getPlayer().getUniqueId(), event.getLectern().getWorld(), GuildPermission.INTERACT))
         {
             event.setCancelled(true);
         }
@@ -223,7 +223,7 @@ public class GuildWorldProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onLecternInsert(PlayerInsertLecternBookEvent event)
     {
-        if (!canUse(event.getPlayer().getUniqueId(), event.getBlock().getWorld(), GuildPermission.INTERACTING))
+        if (!canUse(event.getPlayer().getUniqueId(), event.getBlock().getWorld(), GuildPermission.INTERACT))
         {
             event.setCancelled(true);
         }
@@ -232,7 +232,7 @@ public class GuildWorldProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onLecternPage(PlayerLecternPageChangeEvent event)
     {
-        if (!canUse(event.getPlayer().getUniqueId(), event.getLectern().getWorld(), GuildPermission.INTERACTING))
+        if (!canUse(event.getPlayer().getUniqueId(), event.getLectern().getWorld(), GuildPermission.INTERACT))
         {
             event.setCancelled(true);
         }
@@ -241,7 +241,7 @@ public class GuildWorldProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onOpenSign(PlayerOpenSignEvent event)
     {
-        if (!canUse(event.getPlayer().getUniqueId(), event.getSign().getWorld(), GuildPermission.INTERACTING))
+        if (!canUse(event.getPlayer().getUniqueId(), event.getSign().getWorld(), GuildPermission.INTERACT))
         {
             event.setCancelled(true);
         }
@@ -250,7 +250,7 @@ public class GuildWorldProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBeaconChange(PlayerChangeBeaconEffectEvent event)
     {
-        if (!canUse(event.getPlayer().getUniqueId(), event.getBeacon().getWorld(), GuildPermission.INTERACTING))
+        if (!canUse(event.getPlayer().getUniqueId(), event.getBeacon().getWorld(), GuildPermission.INTERACT))
         {
             event.setCancelled(true);
         }
@@ -259,7 +259,7 @@ public class GuildWorldProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onFlowerPot(PlayerFlowerPotManipulateEvent event)
     {
-        if (!canUse(event.getPlayer().getUniqueId(), event.getFlowerpot().getWorld(), GuildPermission.INTERACTING))
+        if (!canUse(event.getPlayer().getUniqueId(), event.getFlowerpot().getWorld(), GuildPermission.INTERACT))
         {
             event.setCancelled(true);
         }
@@ -268,7 +268,7 @@ public class GuildWorldProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onShearBlock(PlayerShearBlockEvent event)
     {
-        if (!canUse(event.getPlayer().getUniqueId(), event.getBlock().getWorld(), GuildPermission.BLOCK_BREAKING))
+        if (!canUse(event.getPlayer().getUniqueId(), event.getBlock().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
         }
@@ -278,7 +278,7 @@ public class GuildWorldProtectionListener implements Listener
     public void onStructureGrow(StructureGrowEvent event)
     {
         Player player = event.getPlayer();
-        if (player != null && !canUse(player.getUniqueId(), event.getWorld(), GuildPermission.BLOCK_PLACING))
+        if (player != null && !canUse(player.getUniqueId(), event.getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
         }
@@ -315,6 +315,6 @@ public class GuildWorldProtectionListener implements Listener
         }
         // Plugin menus have no world container to edit.
         Location location = view.getTopInventory().getLocation();
-        return location == null || canUse(player.getUniqueId(), location.getWorld(), GuildPermission.INTERACTING);
+        return location == null || canUse(player.getUniqueId(), location.getWorld(), GuildPermission.INTERACT);
     }
 }

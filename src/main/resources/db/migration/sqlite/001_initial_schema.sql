@@ -1,19 +1,15 @@
 CREATE TABLE IF NOT EXISTS {{table:guilds}} (
     guild_uuid VARCHAR(46) NOT NULL PRIMARY KEY,
-    name VARCHAR(64) NOT NULL UNIQUE,
+    name VARCHAR(64) NOT NULL UNIQUE COLLATE NOCASE,
     prefix TEXT,
     owner_uuid VARCHAR(46) NOT NULL,
     created_at BIGINT NOT NULL,
-    home_world VARCHAR(128),
-    home_x DOUBLE,
-    home_y DOUBLE,
-    home_z DOUBLE,
-    home_yaw FLOAT,
-    home_pitch FLOAT,
-    motd VARCHAR(3000),
-    tag_enabled BOOLEAN NOT NULL DEFAULT 1,
-    is_public BOOLEAN NOT NULL DEFAULT 0,
-    member_manage_guests BOOLEAN NOT NULL DEFAULT 0
+    spawn_world VARCHAR(128),
+    spawn_x DOUBLE,
+    spawn_y DOUBLE,
+    spawn_z DOUBLE,
+    spawn_yaw FLOAT,
+    spawn_pitch FLOAT
 );
 
 CREATE TABLE IF NOT EXISTS {{table:members}} (
@@ -22,7 +18,7 @@ CREATE TABLE IF NOT EXISTS {{table:members}} (
     player_uuid VARCHAR(46) NOT NULL,
     role VARCHAR(20) NOT NULL,
     joined_at BIGINT NOT NULL,
-    UNIQUE (guild_uuid, player_uuid)
+    UNIQUE (player_uuid)
 );
 
 CREATE TABLE IF NOT EXISTS {{table:warps}} (

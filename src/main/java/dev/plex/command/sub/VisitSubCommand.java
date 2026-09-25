@@ -3,7 +3,7 @@ package dev.plex.command.sub;
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
-import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
+import java.util.List;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import org.bukkit.command.CommandSender;
@@ -16,11 +16,17 @@ public final class VisitSubCommand extends GuildSubCommand
     public VisitSubCommand(Guilds module)
     {
         super(module, command("visit")
-                .description("Visit a guild that gives you access")
-                .usage("/guild <command> <guild name or UUID>")
+                .description("Visit a guild world where you are a guest")
+                .usage("/guild <command> <guild>")
                 .permission("plex.guilds.world")
                 .source(RequiredCommandSource.IN_GAME)
                 .build());
+    }
+
+    @Override
+    public boolean isAvailable(@Nullable Player player)
+    {
+        return player != null && (guildOf(player) == null || !guestGuilds(player.getUniqueId()).isEmpty());
     }
 
     @Override
@@ -41,44 +47,23 @@ public final class VisitSubCommand extends GuildSubCommand
         {
             return messageComponent("guildWorldNoAccess");
         }
-        player.sendMessage(messageComponent("guildWorldLoading"));
-        module.getGuildWorldService().ensureWorld(guild).whenComplete((world, failure) ->
-        {
-            if (failure != null)
-            {
-                module.getLogger().error("Failed to load guild world {}", guild.getWorldName(), failure);
-                player.sendMessage(messageComponent("guildWorldLoadFailed"));
-                return;
-            }
-            ScheduledTask scheduled = player.getScheduler().run(module.plugin(), task ->
-            {
-                if (!module.getGuildWorldProtectionListener().canEnter(player.getUniqueId(), world))
-                {
-                    player.sendMessage(messageComponent("guildWorldNoAccess"));
-                    return;
-                }
-                player.teleportAsync(world.getSpawnLocation().toCenterLocation()).whenComplete((teleported, teleportFailure) ->
-                {
-                    if (teleportFailure != null)
-                    {
-                        module.getLogger().error("Failed to teleport a guest to guild world {}", guild.getWorldName(), teleportFailure);
-                    }
-                    if (teleportFailure != null || !Boolean.TRUE.equals(teleported))
-                    {
-                        player.sendMessage(messageComponent("guildWorldVisitFailed"));
-                    }
-                });
-            }, () -> player.sendMessage(messageComponent("guildWorldVisitFailed")));
-            if (scheduled == null)
-            {
-                player.sendMessage(messageComponent("guildWorldVisitFailed"));
-            }
-            else
-            {
-                module.ownTask(scheduled);
-            }
-        });
+        teleportInGuildWorld(player, guild, world -> spawnLocation(guild, world));
         return null;
+    }
+
+    @Override
+    public @NotNull List<String> suggestSubCommand(@NotNull CommandSender sender, @Nullable String first)
+    {
+        return first == null && sender instanceof Player player
+                ? guestGuilds(player.getUniqueId()).stream().map(Guild::getName).toList()
+                : List.of();
+    }
+
+    private List<Guild> guestGuilds(UUID playerId)
+    {
+        return module.getGuildHolder().guilds().stream()
+                .filter(guild -> guild.getActiveGuest(playerId) != null)
+                .toList();
     }
 
     private Guild findGuild(String target)

@@ -2,13 +2,11 @@ package dev.plex.command.sub;
 
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
+import dev.plex.guild.Guild;
 import dev.plex.guild.data.Member;
-import java.util.Collections;
-import java.util.List;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.apache.commons.lang3.BooleanUtils;
-import org.apache.commons.lang3.StringUtils;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -27,23 +25,27 @@ public class ChatSubCommand extends GuildSubCommand
     }
 
     @Override
+    public boolean isAvailable(@Nullable Player player)
+    {
+        return guildOf(player) != null;
+    }
+
+    @Override
     public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
     {
         assert player != null;
-        module.getGuildHolder().guild(player.getUniqueId()).ifPresentOrElse(guild ->
+        Guild guild = guildOf(player);
+        Member member = guild == null ? null : guild.getMember(player.getUniqueId());
+        if (member == null)
         {
-            if (first == null)
-            {
-                Member member = guild.getMember(player.getUniqueId());
-                member.setChat(!member.isChat());
-                player.sendMessage(messageComponent("guildChatToggled", Placeholder.unparsed("status", BooleanUtils.toStringOnOff(member.isChat()))));
-                return;
-            }
-            Component message = module.api().messages().playerText(arguments(first, remaining));
-            module.sendChat(guild, player.getName(), message);
-        }, () -> player.sendMessage(messageComponent("guildNotFound")));
+            return messageComponent("guildNotFound");
+        }
+        if (first == null)
+        {
+            member.setChat(!member.isChat());
+            return messageComponent("guildChatToggled", Placeholder.unparsed("status", BooleanUtils.toStringOnOff(member.isChat())));
+        }
+        module.sendChat(guild, player.getName(), module.api().messages().playerText(arguments(first, remaining)));
         return null;
     }
-
-
 }
