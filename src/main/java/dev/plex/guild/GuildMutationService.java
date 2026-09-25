@@ -4,6 +4,7 @@ import dev.plex.Guilds;
 import dev.plex.guild.data.GuildRole;
 import dev.plex.guild.data.Member;
 import dev.plex.guild.data.Guest;
+import net.kyori.adventure.text.Component;
 import java.time.Duration;
 import java.util.Locale;
 import java.util.UUID;
@@ -228,8 +229,9 @@ public final class GuildMutationService
             {
                 throw new SecurityException("Only the guild owner can set the prefix");
             }
+            Component parsedPrefix = prefix == null || prefix.isEmpty() ? Component.empty() : module.api().messages().playerText(prefix);
             return module.getGuildRepository().updatePrefix(guild.getGuildUuid(), prefix)
-                    .thenRun(() -> guild.setPrefix(prefix));
+                    .thenRun(() -> guild.setPrefix(prefix, parsedPrefix));
         });
     }
 

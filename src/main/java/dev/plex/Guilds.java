@@ -9,6 +9,7 @@ import dev.plex.guild.GuildHolder;
 import dev.plex.guild.GuildMutationService;
 import dev.plex.handler.ChatHandlerImpl;
 import dev.plex.handler.GuildMenuListener;
+import dev.plex.handler.GuildPrefixListener;
 import dev.plex.handler.GuildWorldAccessListener;
 import dev.plex.handler.GuildWorldProtectionListener;
 import dev.plex.handler.GuildWorldEntityProtectionListener;
@@ -93,7 +94,7 @@ public class Guilds extends PlexModule
         {
             throw new IllegalStateException("Failed to run Guilds migrations", e);
         }
-        guildRepository = new JdbiGuildRepository(storage, executor, zoneId);
+        guildRepository = new JdbiGuildRepository(storage, executor, zoneId, api().messages()::playerText);
         guildRepository.loadGuilds().whenComplete((guilds, throwable) ->
         {
             if (throwable != null)
@@ -107,6 +108,7 @@ public class Guilds extends PlexModule
             ready = true;
         });
         registerListener(new ChatHandlerImpl(this));
+        registerListener(new GuildPrefixListener(this));
         registerListener(guildMenuListener);
         registerListener(guildWorldProtectionListener);
         registerListener(new GuildWorldEntityProtectionListener(this));

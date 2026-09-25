@@ -10,6 +10,7 @@ import dev.plex.storage.entity.GuildInviteEntity;
 import dev.plex.storage.entity.GuildMemberEntity;
 import dev.plex.storage.entity.GuildWarpEntity;
 import dev.plex.util.CustomLocation;
+import net.kyori.adventure.text.Component;
 import org.jdbi.v3.core.Handle;
 import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.JdbiException;
@@ -23,6 +24,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 public class JdbiGuildRepository implements GuildRepository
@@ -30,17 +32,19 @@ public class JdbiGuildRepository implements GuildRepository
     private final Jdbi jdbi;
     private final Executor executor;
     private final ZoneId zoneId;
+    private final Function<String, Component> prefixParser;
     private final String guildsTable;
     private final String membersTable;
     private final String warpsTable;
     private final String invitesTable;
     private final String guestsTable;
 
-    public JdbiGuildRepository(ModuleStorage storage, Executor executor, ZoneId zoneId)
+    public JdbiGuildRepository(ModuleStorage storage, Executor executor, ZoneId zoneId, Function<String, Component> prefixParser)
     {
         this.jdbi = storage.jdbi();
         this.executor = executor;
         this.zoneId = zoneId;
+        this.prefixParser = prefixParser;
         this.guildsTable = storage.table("guilds");
         this.membersTable = storage.table("members");
         this.warpsTable = storage.table("warps");
@@ -418,7 +422,7 @@ public class JdbiGuildRepository implements GuildRepository
         Guild guild = new Guild(UUID.fromString(entity.getGuildUuid()), ZonedDateTime.ofInstant(Instant.ofEpochMilli(entity.getCreatedAt()), zoneId));
         guild.setName(entity.getName());
         guild.setOwnerUuid(UUID.fromString(entity.getOwnerUuid()));
-        guild.setPrefix(entity.getPrefix());
+        guild.setPrefix(entity.getPrefix(), parsePrefix(entity.getPrefix()));
         guild.setSpawn(toLocation(entity));
         return guild;
     }
@@ -512,6 +516,11 @@ public class JdbiGuildRepository implements GuildRepository
         entity.setSpawnZ(spawn == null ? null : spawn.getZ());
         entity.setSpawnYaw(spawn == null ? null : spawn.getYaw());
         entity.setSpawnPitch(spawn == null ? null : spawn.getPitch());
+    }
+
+    private Component parsePrefix(String prefix)
+    {
+        return prefix == null || prefix.isEmpty() ? Component.empty() : prefixParser.apply(prefix);
     }
 
     private CustomLocation toLocation(GuildEntity entity)

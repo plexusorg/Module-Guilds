@@ -5,7 +5,10 @@ import dev.plex.guild.data.GuildPermission;
 import dev.plex.guild.data.GuildRole;
 import dev.plex.guild.data.Member;
 import dev.plex.util.CustomLocation;
+import lombok.AccessLevel;
 import lombok.Data;
+import lombok.Setter;
+import net.kyori.adventure.text.Component;
 
 import java.time.Instant;
 import java.time.ZoneId;
@@ -26,7 +29,10 @@ public class Guild
     private final Map<UUID, Guest> guests = new ConcurrentHashMap<>();
     private String name;
     private volatile UUID ownerUuid;
+    @Setter(AccessLevel.NONE)
     private volatile String prefix;
+    @Setter(AccessLevel.NONE)
+    private volatile Component prefixComponent = Component.empty();
     private volatile CustomLocation spawn;
 
     public static Guild create(UUID ownerUuid, String guildName, ZoneId zoneId)
@@ -36,6 +42,13 @@ public class Guild
         guild.setOwnerUuid(ownerUuid);
         guild.addMember(new Member(ownerUuid, GuildRole.OWNER));
         return guild;
+    }
+
+    /** Sets the prefix text together with its parsed component, so listeners never read a stale pairing. */
+    public void setPrefix(String prefix, Component prefixComponent)
+    {
+        this.prefix = prefix;
+        this.prefixComponent = prefixComponent == null ? Component.empty() : prefixComponent;
     }
 
     public Member getMember(UUID uuid)
