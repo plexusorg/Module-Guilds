@@ -13,6 +13,8 @@ import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.List;
+
 public class PrefixSubCommand extends GuildSubCommand
 {
     // Count a head or sprite once, not by the length of its plain-text fallback.
@@ -21,11 +23,14 @@ public class PrefixSubCommand extends GuildSubCommand
                     .mapper(ObjectComponent.class, component -> "￼").build())
             .build();
 
+    private static final String SET = "set";
+    private static final String CLEAR = "clear";
+
     public PrefixSubCommand(Guilds module)
     {
         super(module, command("prefix")
-                .description("Set your guild prefix, or clear it with no text")
-                .usage("/guild <command> [text]")
+                .description("Set or clear your guild prefix")
+                .usage("/guild <command> <set <text>|clear>")
                 .permission("plex.guilds.prefix")
                 .source(RequiredCommandSource.IN_GAME)
                 .build());
@@ -39,9 +44,22 @@ public class PrefixSubCommand extends GuildSubCommand
     }
 
     @Override
+    public List<HelpEntry> helpEntries(@Nullable Player player)
+    {
+        return List.of(
+                new HelpEntry("/guild prefix set <text>", "Show a prefix before every member's tag", "/guild prefix set "),
+                new HelpEntry("/guild prefix clear", "Remove the guild prefix", "/guild prefix clear"));
+    }
+
+    @Override
     public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
     {
         assert player != null;
+        boolean set = SET.equalsIgnoreCase(first);
+        if (set ? remaining == null : !CLEAR.equalsIgnoreCase(first) || remaining != null)
+        {
+            return usage();
+        }
         Guild guild = guildOf(player);
         if (guild == null)
         {
@@ -51,7 +69,7 @@ public class PrefixSubCommand extends GuildSubCommand
         {
             return messageComponent("guildNotOwner");
         }
-        String prefix = first == null ? null : arguments(first, remaining);
+        String prefix = set ? remaining : null;
         Component renderedPrefix = prefix == null ? Component.empty() : module.api().messages().playerText(prefix);
         String displayedText = DISPLAY_TEXT.serialize(renderedPrefix);
         if (displayedText.codePointCount(0, displayedText.length()) > 64)
@@ -69,5 +87,11 @@ public class PrefixSubCommand extends GuildSubCommand
                     : messageComponent("guildPrefixSet", Placeholder.component("prefix", renderedPrefix)));
         });
         return null;
+    }
+
+    @Override
+    public @NotNull List<String> suggestSubCommand(@NotNull CommandSender sender, @Nullable String first)
+    {
+        return first == null ? List.of(SET, CLEAR) : List.of();
     }
 }
