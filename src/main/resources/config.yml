@@ -11,5 +11,7 @@ guilds:
     default-duration: 24h
     max-duration: 30d
   worlds:
+    # Border width in blocks for every terrain type. Use an even number from 16 to 59999968.
+    size: 500000
     # Keep backups for unfinished resets until staff finish the reset.
     backup-retention-days: 7

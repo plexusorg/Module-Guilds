@@ -35,7 +35,6 @@ import org.bukkit.entity.Player;
 /** Owns loaded worlds, coalesced loads, reset admission, and world-file I/O. */
 public final class AspGuildWorldService implements GuildWorldService
 {
-    private static final int WORLD_SIZE = 500_000;
     private final Guilds module;
     private final AdvancedSlimePaperAPI asp = AdvancedSlimePaperAPI.instance();
     private final Map<UUID, SlimeWorldInstance> loadedWorlds = new ConcurrentHashMap<>();
@@ -50,6 +49,7 @@ public final class AspGuildWorldService implements GuildWorldService
     private volatile boolean stopped;
     private SlimeFlatWorldProfile newWorldProfile;
     private Duration backupRetention;
+    private int worldSize;
 
     public AspGuildWorldService(Guilds module)
     {
@@ -59,13 +59,18 @@ public final class AspGuildWorldService implements GuildWorldService
     @Override
     public void enable()
     {
+        worldSize = module.getConfig().getInt("guilds.worlds.size", 500000);
+        if (worldSize < 16 || worldSize > 59999968 || worldSize % 2 != 0)
+        {
+            throw new IllegalArgumentException("Guild world size must be even and between 16 and 59999968");
+        }
         int retentionDays = module.getConfig().getInt("guilds.worlds.backup-retention-days", 7);
         if (retentionDays < 1)
         {
             throw new IllegalArgumentException("Guild world backup retention must be positive");
         }
         backupRetention = Duration.ofDays(retentionDays);
-        int half = WORLD_SIZE / 2;
+        int half = worldSize / 2;
         newWorldProfile = new SlimeFlatWorldProfile(1, -64, 320, 0, -half, -half, half, half, "minecraft:plains", List.of(
                 new SlimeFlatWorldProfile.Layer("minecraft:bedrock", 1),
                 new SlimeFlatWorldProfile.Layer("minecraft:stone", 16),
@@ -164,7 +169,7 @@ public final class AspGuildWorldService implements GuildWorldService
         return onGlobal(() ->
         {
             world.getWorldBorder().setCenter(0, 0);
-            world.getWorldBorder().setSize(WORLD_SIZE);
+            world.getWorldBorder().setSize(worldSize);
             return world;
         }).thenCompose(unused -> prepareSpawnIfNeeded(guild, world));
     }
