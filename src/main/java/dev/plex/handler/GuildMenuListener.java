@@ -8,6 +8,8 @@ import dev.plex.guild.Guild;
 import dev.plex.guild.GuildMutationService;
 import dev.plex.guild.data.Guest;
 import dev.plex.guild.data.GuildRole;
+import dev.plex.guild.data.GuildTimeMode;
+import dev.plex.guild.data.GuildWeatherMode;
 import dev.plex.guild.data.Member;
 import dev.plex.util.CustomLocation;
 import net.kyori.adventure.text.Component;
@@ -58,6 +60,7 @@ public class GuildMenuListener implements Listener
     private static final int WARPS_SLOT = 14;
     private static final int GUESTS_SLOT = 16;
     private static final int SPAWN_SLOT = 22;
+    private static final int WORLD_SETTINGS_SLOT = 24;
     private static final int HEAD_SLOT = 4;
     private static final int FIRST_ACTION_SLOT = 11;
     private static final int SECOND_ACTION_SLOT = 13;
@@ -84,6 +87,9 @@ public class GuildMenuListener implements Listener
         GUESTS,
         WARPS,
         SPAWN,
+        WORLD_SETTINGS,
+        TIME,
+        WEATHER,
         BACK,
         PREVIOUS,
         NEXT,
@@ -159,6 +165,11 @@ public class GuildMenuListener implements Listener
             case MEMBERS -> render(player, guild, Screen.MEMBERS, null, 0, source);
             case GUESTS -> render(player, guild, Screen.GUESTS, null, 0, source);
             case WARPS -> render(player, guild, Screen.WARPS, null, 0, source);
+            case WORLD_SETTINGS -> render(player, guild, Screen.WORLD_SETTINGS, null, 0, source);
+            case TIME -> mutate(player, guild, source, mutationService.cycleTimeMode(guild, player.getUniqueId()), null,
+                    name -> module.messageComponent("guildMenuWorldSettingsSet"), Screen.WORLD_SETTINGS, null, 0);
+            case WEATHER -> mutate(player, guild, source, mutationService.cycleWeatherMode(guild, player.getUniqueId()), null,
+                    name -> module.messageComponent("guildMenuWorldSettingsSet"), Screen.WORLD_SETTINGS, null, 0);
             case BACK ->
             {
                 Screen parent = parent(holder.screen());
@@ -405,7 +416,17 @@ public class GuildMenuListener implements Listener
                 player.sendMessage(module.messageComponent("guildNotFound"));
                 return;
             }
-            player.openInventory(build(player, guild, screen, target, page, names));
+            Inventory next = build(player, guild, screen, target, page, names);
+            if (((GuildMenuInventoryHolder) source.getHolder()).screen() == Screen.WORLD_SETTINGS
+                    && ((GuildMenuInventoryHolder) next.getHolder()).screen() == Screen.WORLD_SETTINGS)
+            {
+                // Keep the same view so each queued click can refresh it after its mutation completes.
+                source.setContents(next.getContents());
+            }
+            else
+            {
+                player.openInventory(next);
+            }
         }, null)));
     }
 
@@ -424,6 +445,7 @@ public class GuildMenuListener implements Listener
             case GUESTS -> buildGuests(guild, page, names);
             case GUEST -> buildGuest(guild, target, page, names);
             case WARPS -> buildWarps(guild, page);
+            case WORLD_SETTINGS -> buildWorldSettings(guild);
         };
     }
 
@@ -432,7 +454,7 @@ public class GuildMenuListener implements Listener
     {
         return switch (screen)
         {
-            case GUESTS -> guild.canManage(viewer) ? screen : Screen.MAIN;
+            case GUESTS, WORLD_SETTINGS -> guild.canManage(viewer) ? screen : Screen.MAIN;
             case GUEST ->
             {
                 if (!guild.canManage(viewer))
@@ -490,7 +512,25 @@ public class GuildMenuListener implements Listener
                     line("Manage who can visit the guild world", NamedTextColor.GRAY)
             ), Action.GUESTS));
             inventory.setItem(SPAWN_SLOT, spawnItem(inGuildWorld(player, guild)));
+            inventory.setItem(WORLD_SETTINGS_SLOT, item(Material.COMPARATOR, "World settings", NamedTextColor.YELLOW, List.of(
+                    line("Change the world time and weather", NamedTextColor.GRAY)
+            ), Action.WORLD_SETTINGS));
         }
+        return inventory;
+    }
+
+    private Inventory buildWorldSettings(Guild guild)
+    {
+        GuildTimeMode time = guild.getTimeMode();
+        GuildWeatherMode weather = guild.getWeatherMode();
+        Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, Screen.WORLD_SETTINGS, null, 0), SMALL_SIZE, title("World settings"));
+        inventory.setItem(FIRST_ACTION_SLOT, item(Material.CLOCK, "Time: " + time.name(), NamedTextColor.YELLOW, List.of(
+                line("Click to set " + time.next().name(), NamedTextColor.GRAY)
+        ), Action.TIME));
+        inventory.setItem(THIRD_ACTION_SLOT, item(Material.WATER_BUCKET, "Weather: " + weather.name(), NamedTextColor.AQUA, List.of(
+                line("Click to set " + weather.next().name(), NamedTextColor.GRAY)
+        ), Action.WEATHER));
+        inventory.setItem(SMALL_BACK_SLOT, backItem());
         return inventory;
     }
 

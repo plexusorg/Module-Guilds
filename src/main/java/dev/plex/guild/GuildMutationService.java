@@ -2,9 +2,10 @@ package dev.plex.guild;
 
 import dev.plex.Guilds;
 import dev.plex.guild.data.GuildRole;
+import dev.plex.guild.data.GuildTimeMode;
+import dev.plex.guild.data.GuildWeatherMode;
 import dev.plex.guild.data.Member;
 import dev.plex.guild.data.Guest;
-import net.kyori.adventure.text.Component;
 import java.time.Duration;
 import java.util.Locale;
 import java.util.UUID;
@@ -219,8 +220,7 @@ public final class GuildMutationService
         });
     }
 
-    /** Sets the prefix. Only the owner can do this. A null prefix clears it. */
-    public CompletableFuture<Void> updatePrefix(Guild guild, UUID actorId, String prefix)
+    public CompletableFuture<Void> updatePrefix(Guild guild, UUID actorId, GuildPrefix prefix)
     {
         return serialize(guild, () ->
         {
@@ -229,9 +229,8 @@ public final class GuildMutationService
             {
                 throw new SecurityException("Only the guild owner can set the prefix");
             }
-            Component parsedPrefix = prefix == null || prefix.isEmpty() ? Component.empty() : module.api().messages().playerText(prefix);
             return module.getGuildRepository().updatePrefix(guild.getGuildUuid(), prefix)
-                    .thenRun(() -> guild.setPrefix(prefix, parsedPrefix));
+                    .thenRun(() -> guild.setPrefix(prefix));
         });
     }
 
@@ -350,6 +349,36 @@ public final class GuildMutationService
             return null;
         });
         return result;
+    }
+
+    public CompletableFuture<Void> cycleTimeMode(Guild guild, UUID actorId)
+    {
+        return serialize(guild, () ->
+        {
+            requireManager(guild, actorId);
+            GuildTimeMode mode = guild.getTimeMode().next();
+            return module.getGuildRepository().updateTimeMode(guild.getGuildUuid(), mode)
+                    .thenRun(() -> guild.setTimeMode(mode))
+                    .thenCompose(unused -> applyWorldSettings(guild));
+        });
+    }
+
+    public CompletableFuture<Void> cycleWeatherMode(Guild guild, UUID actorId)
+    {
+        return serialize(guild, () ->
+        {
+            requireManager(guild, actorId);
+            GuildWeatherMode mode = guild.getWeatherMode().next();
+            return module.getGuildRepository().updateWeatherMode(guild.getGuildUuid(), mode)
+                    .thenRun(() -> guild.setWeatherMode(mode))
+                    .thenCompose(unused -> applyWorldSettings(guild));
+        });
+    }
+
+    private CompletableFuture<Void> applyWorldSettings(Guild guild)
+    {
+        return module.isGuildWorldsEnabled() ? module.getGuildWorldService().applySettings(guild)
+                : CompletableFuture.completedFuture(null);
     }
 
     private void requireGuild(Guild guild)

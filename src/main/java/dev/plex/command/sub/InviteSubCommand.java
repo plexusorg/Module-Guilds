@@ -1,14 +1,14 @@
 package dev.plex.command.sub;
 
 import dev.plex.Guilds;
+import dev.plex.command.PlexCommand;
+import dev.plex.command.exception.PlayerNotFoundException;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
 import java.util.List;
-import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
-import org.bukkit.Bukkit;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 import org.jetbrains.annotations.NotNull;
@@ -85,11 +85,11 @@ public class InviteSubCommand extends GuildSubCommand
     {
         try
         {
-            return Bukkit.getPlayer(UUID.fromString(target));
+            return PlexCommand.resolveOnlinePlayer(target);
         }
-        catch (IllegalArgumentException ignored)
+        catch (PlayerNotFoundException ignored)
         {
-            return Bukkit.getPlayerExact(target);
+            return null;
         }
     }
 

@@ -2,8 +2,11 @@ CREATE TABLE IF NOT EXISTS {{table:guilds}} (
     `guild_uuid` VARCHAR(46) NOT NULL,
     `name` VARCHAR(64) NOT NULL,
     `prefix` TEXT,
+    `prefix_key` VARCHAR(5),
     `owner_uuid` VARCHAR(46) NOT NULL,
     `created_at` BIGINT NOT NULL,
+    `time_mode` VARCHAR(6) NOT NULL DEFAULT 'CYCLE' CHECK (`time_mode` IN ('CYCLE', 'DAY', 'NOON', 'SUNSET', 'NIGHT')),
+    `weather_mode` VARCHAR(7) NOT NULL DEFAULT 'CYCLE' CHECK (`weather_mode` IN ('CYCLE', 'CLEAR', 'RAIN', 'THUNDER')),
     `spawn_world` VARCHAR(128),
     `spawn_x` DOUBLE,
     `spawn_y` DOUBLE,
@@ -11,7 +14,8 @@ CREATE TABLE IF NOT EXISTS {{table:guilds}} (
     `spawn_yaw` FLOAT,
     `spawn_pitch` FLOAT,
     PRIMARY KEY (`guild_uuid`),
-    UNIQUE KEY `uq_guilds_name` (`name`)
+    UNIQUE KEY `uq_guilds_name` (`name`),
+    UNIQUE KEY `uq_guilds_prefix_key` (`prefix_key`)
 );
 
 CREATE TABLE IF NOT EXISTS {{table:members}} (

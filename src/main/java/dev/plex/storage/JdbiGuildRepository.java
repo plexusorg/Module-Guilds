@@ -2,8 +2,12 @@ package dev.plex.storage;
 
 import dev.plex.api.storage.ModuleStorage;
 import dev.plex.guild.Guild;
+import dev.plex.guild.GuildPrefix;
+import dev.plex.guild.GuildPrefixTakenException;
 import dev.plex.guild.data.Guest;
 import dev.plex.guild.data.GuildRole;
+import dev.plex.guild.data.GuildTimeMode;
+import dev.plex.guild.data.GuildWeatherMode;
 import dev.plex.guild.data.Member;
 import dev.plex.storage.entity.GuildEntity;
 import dev.plex.storage.entity.GuildInviteEntity;
@@ -16,11 +20,13 @@ import org.jdbi.v3.core.Jdbi;
 import org.jdbi.v3.core.JdbiException;
 
 import java.time.Instant;
+import java.sql.SQLException;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -106,13 +112,14 @@ public class JdbiGuildRepository implements GuildRepository
                 GuildEntity e = toEntity(guild);
                 jdbi.useTransaction(h ->
                 {
-                    h.createUpdate("INSERT INTO " + guildsTable + " (guild_uuid, name, prefix, owner_uuid, created_at, " +
-                                    "spawn_world, spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch) " +
-                                    "VALUES (:guildUuid, :name, :prefix, :ownerUuid, :createdAt, :spawnWorld, :spawnX, :spawnY, :spawnZ, " +
-                                    ":spawnYaw, :spawnPitch)")
+                    h.createUpdate("INSERT INTO " + guildsTable + " (guild_uuid, name, prefix, prefix_key, owner_uuid, created_at, " +
+                                    "spawn_world, spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, time_mode, weather_mode) " +
+                                    "VALUES (:guildUuid, :name, :prefix, :prefixKey, :ownerUuid, :createdAt, :spawnWorld, :spawnX, :spawnY, :spawnZ, " +
+                                    ":spawnYaw, :spawnPitch, :timeMode, :weatherMode)")
                             .bind("guildUuid", e.getGuildUuid())
                             .bind("name", e.getName())
                             .bind("prefix", e.getPrefix())
+                            .bind("prefixKey", e.getPrefixKey())
                             .bind("ownerUuid", e.getOwnerUuid())
                             .bind("createdAt", e.getCreatedAt())
                             .bind("spawnWorld", e.getSpawnWorld())
@@ -121,6 +128,8 @@ public class JdbiGuildRepository implements GuildRepository
                             .bind("spawnZ", e.getSpawnZ())
                             .bind("spawnYaw", e.getSpawnYaw())
                             .bind("spawnPitch", e.getSpawnPitch())
+                            .bind("timeMode", e.getTimeMode())
+                            .bind("weatherMode", e.getWeatherMode())
                             .execute();
                     insertMember(h, guild.getGuildUuid(), guild.getOwnerUuid(), GuildRole.OWNER);
                 });
@@ -223,10 +232,58 @@ public class JdbiGuildRepository implements GuildRepository
     }
 
     @Override
-    public CompletableFuture<Void> updatePrefix(UUID guildUuid, String prefix)
+    public CompletableFuture<Void> updatePrefix(UUID guildUuid, GuildPrefix prefix)
     {
-        return runAsync(() -> jdbi.useHandle(h -> h.createUpdate("UPDATE " + guildsTable + " SET prefix = :p WHERE guild_uuid = :g")
-                .bind("p", prefix)
+        return runAsync(() ->
+        {
+            try
+            {
+                jdbi.useHandle(h -> h.createUpdate("UPDATE " + guildsTable + " SET prefix = :p, prefix_key = :key WHERE guild_uuid = :g")
+                        .bind("p", prefix.text())
+                        .bind("key", prefix.key())
+                        .bind("g", guildUuid.toString())
+                        .execute());
+            }
+            catch (JdbiException failure)
+            {
+                if (isUniqueViolation(failure))
+                {
+                    throw new GuildPrefixTakenException(failure);
+                }
+                throw failure;
+            }
+        });
+    }
+
+    private boolean isUniqueViolation(Throwable failure)
+    {
+        for (Throwable cause = failure; cause != null; cause = cause.getCause())
+        {
+            if (cause instanceof SQLException sql)
+            {
+                return "23505".equals(sql.getSQLState())
+                        || (sql.getErrorCode() == 1062 && "23000".equals(sql.getSQLState()))
+                        || (sql.getErrorCode() == 19 && sql.getMessage() != null
+                            && sql.getMessage().contains("UNIQUE constraint failed: " + guildsTable + ".prefix_key"));
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public CompletableFuture<Void> updateTimeMode(UUID guildUuid, GuildTimeMode mode)
+    {
+        return runAsync(() -> jdbi.useHandle(h -> h.createUpdate("UPDATE " + guildsTable + " SET time_mode = :mode WHERE guild_uuid = :g")
+                .bind("mode", mode.name())
+                .bind("g", guildUuid.toString())
+                .execute()));
+    }
+
+    @Override
+    public CompletableFuture<Void> updateWeatherMode(UUID guildUuid, GuildWeatherMode mode)
+    {
+        return runAsync(() -> jdbi.useHandle(h -> h.createUpdate("UPDATE " + guildsTable + " SET weather_mode = :mode WHERE guild_uuid = :g")
+                .bind("mode", mode.name())
                 .bind("g", guildUuid.toString())
                 .execute()));
     }
@@ -369,8 +426,11 @@ public class JdbiGuildRepository implements GuildRepository
         e.setGuildUuid(rs.getString("guild_uuid"));
         e.setName(rs.getString("name"));
         e.setPrefix(rs.getString("prefix"));
+        e.setPrefixKey(rs.getString("prefix_key"));
         e.setOwnerUuid(rs.getString("owner_uuid"));
         e.setCreatedAt(rs.getLong("created_at"));
+        e.setTimeMode(rs.getString("time_mode"));
+        e.setWeatherMode(rs.getString("weather_mode"));
         e.setSpawnWorld(rs.getString("spawn_world"));
         e.setSpawnX(rs.getObject("spawn_x", Double.class));
         e.setSpawnY(rs.getObject("spawn_y", Double.class));
@@ -422,8 +482,15 @@ public class JdbiGuildRepository implements GuildRepository
         Guild guild = new Guild(UUID.fromString(entity.getGuildUuid()), ZonedDateTime.ofInstant(Instant.ofEpochMilli(entity.getCreatedAt()), zoneId));
         guild.setName(entity.getName());
         guild.setOwnerUuid(UUID.fromString(entity.getOwnerUuid()));
-        guild.setPrefix(entity.getPrefix(), parsePrefix(entity.getPrefix()));
+        GuildPrefix prefix = GuildPrefix.parse(entity.getPrefix(), prefixParser);
+        if (!Objects.equals(prefix.key(), entity.getPrefixKey()))
+        {
+            throw new IllegalStateException("The stored prefix key does not match guild " + entity.getGuildUuid());
+        }
+        guild.setPrefix(prefix);
         guild.setSpawn(toLocation(entity));
+        guild.setTimeMode(GuildTimeMode.valueOf(entity.getTimeMode()));
+        guild.setWeatherMode(GuildWeatherMode.valueOf(entity.getWeatherMode()));
         return guild;
     }
 
@@ -435,6 +502,9 @@ public class JdbiGuildRepository implements GuildRepository
         entity.setOwnerUuid(guild.getOwnerUuid().toString());
         entity.setCreatedAt(guild.getCreatedAt().toInstant().toEpochMilli());
         entity.setPrefix(guild.getPrefix());
+        entity.setPrefixKey(guild.getPrefixKey());
+        entity.setTimeMode(guild.getTimeMode().name());
+        entity.setWeatherMode(guild.getWeatherMode().name());
         setSpawn(entity, guild.getSpawn());
         return entity;
     }
@@ -516,11 +586,6 @@ public class JdbiGuildRepository implements GuildRepository
         entity.setSpawnZ(spawn == null ? null : spawn.getZ());
         entity.setSpawnYaw(spawn == null ? null : spawn.getYaw());
         entity.setSpawnPitch(spawn == null ? null : spawn.getPitch());
-    }
-
-    private Component parsePrefix(String prefix)
-    {
-        return prefix == null || prefix.isEmpty() ? Component.empty() : prefixParser.apply(prefix);
     }
 
     private CustomLocation toLocation(GuildEntity entity)

@@ -1,8 +1,11 @@
 package dev.plex.storage;
 
 import dev.plex.guild.Guild;
+import dev.plex.guild.GuildPrefix;
 import dev.plex.guild.data.Guest;
 import dev.plex.guild.data.GuildRole;
+import dev.plex.guild.data.GuildTimeMode;
+import dev.plex.guild.data.GuildWeatherMode;
 import dev.plex.storage.entity.GuildInviteEntity;
 import dev.plex.util.CustomLocation;
 import java.time.Instant;
@@ -31,7 +34,11 @@ public interface GuildRepository
     /** Sets the new owner and makes the old owner an officer in one transaction. */
     CompletableFuture<Void> transferOwner(UUID guildUuid, UUID newOwnerUuid, UUID oldOwnerUuid);
 
-    CompletableFuture<Void> updatePrefix(UUID guildUuid, String prefix);
+    CompletableFuture<Void> updatePrefix(UUID guildUuid, GuildPrefix prefix);
+
+    CompletableFuture<Void> updateTimeMode(UUID guildUuid, GuildTimeMode mode);
+
+    CompletableFuture<Void> updateWeatherMode(UUID guildUuid, GuildWeatherMode mode);
 
     CompletableFuture<Void> updateSpawn(UUID guildUuid, CustomLocation spawn);
 

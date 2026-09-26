@@ -20,7 +20,8 @@ public record GuildMenuInventoryHolder(Guild guild, Screen screen, UUID target, 
         MEMBER,
         GUESTS,
         GUEST,
-        WARPS
+        WARPS,
+        WORLD_SETTINGS
     }
 
     @Override

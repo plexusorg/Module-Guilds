@@ -12,6 +12,8 @@ import com.infernalsuite.asp.api.world.properties.SlimeProperties;
 import com.infernalsuite.asp.api.world.properties.SlimePropertyMap;
 import dev.plex.Guilds;
 import dev.plex.guild.Guild;
+import dev.plex.guild.data.GuildTimeMode;
+import dev.plex.guild.data.GuildWeatherMode;
 import dev.plex.util.DurationParser;
 import java.io.IOException;
 import java.time.Duration;
@@ -30,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import org.bukkit.Bukkit;
+import org.bukkit.GameRules;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -528,7 +531,46 @@ public final class AspGuildWorldService implements GuildWorldService
     {
         SlimeWorldInstance loaded = asp.loadWorld(data, true);
         loadedWorlds.put(guild.getGuildUuid(), loaded);
+        applySettings(guild, loaded.getBukkitWorld());
         return loaded.getBukkitWorld();
+    }
+
+    @Override
+    public CompletableFuture<Void> applySettings(Guild guild)
+    {
+        return onGlobal(() ->
+        {
+            World world = Bukkit.getWorld(guild.getWorldName());
+            if (world != null)
+            {
+                applySettings(guild, world);
+            }
+            return null;
+        });
+    }
+
+    private void applySettings(Guild guild, World world)
+    {
+        GuildTimeMode time = guild.getTimeMode();
+        world.setGameRule(GameRules.ADVANCE_TIME, time == GuildTimeMode.CYCLE);
+        switch (time)
+        {
+            case CYCLE ->
+            {
+                // Keep the current time when the normal cycle resumes.
+            }
+            case DAY -> world.setTime(1000);
+            case NOON -> world.setTime(6000);
+            case SUNSET -> world.setTime(12000);
+            case NIGHT -> world.setTime(13000);
+        }
+        GuildWeatherMode weather = guild.getWeatherMode();
+        world.setGameRule(GameRules.ADVANCE_WEATHER, weather == GuildWeatherMode.CYCLE);
+        if (weather != GuildWeatherMode.CYCLE)
+        {
+            world.setStorm(weather != GuildWeatherMode.CLEAR);
+            world.setThundering(weather == GuildWeatherMode.THUNDER);
+        }
     }
 
     private void expireBackups()

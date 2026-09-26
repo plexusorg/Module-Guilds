@@ -10,8 +10,11 @@ public class GuildEntity
     private String guildUuid;
     private String name;
     private String prefix;
+    private String prefixKey;
     private String ownerUuid;
     private long createdAt;
+    private String timeMode;
+    private String weatherMode;
     private String spawnWorld;
     private Double spawnX;
     private Double spawnY;

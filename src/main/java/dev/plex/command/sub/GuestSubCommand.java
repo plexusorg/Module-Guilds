@@ -8,7 +8,6 @@ import dev.plex.util.DurationParser;
 import java.time.Duration;
 import java.util.List;
 import java.util.Objects;
-import java.util.UUID;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
@@ -91,7 +90,12 @@ public final class GuestSubCommand extends GuildSubCommand
     {
         resolvePlayer(target).whenComplete((targetId, lookupFailure) ->
         {
-            if (lookupFailure != null || targetId == null)
+            if (lookupFailure != null)
+            {
+                player.sendMessage(failureMessage(lookupFailure, null));
+                return;
+            }
+            if (targetId == null)
             {
                 player.sendMessage(messageComponent("guildPlayerNotFound", Placeholder.unparsed("player", target)));
                 return;
@@ -114,29 +118,23 @@ public final class GuestSubCommand extends GuildSubCommand
 
     private void remove(Player player, Guild guild, String target)
     {
-        UUID guestId = guestByName(guild, target);
-        if (guestId == null)
+        resolvePlayer(target).whenComplete((resolvedId, failure) ->
         {
-            player.sendMessage(messageComponent("guildGuestNotFound", Placeholder.unparsed("player", target)));
-            return;
-        }
-        module.getGuildMutationService().revokeGuest(guild, player.getUniqueId(), guestId).whenComplete((unused, throwable) ->
-                player.sendMessage(throwable == null
-                        ? messageComponent("guildGuestRevoked", Placeholder.unparsed("player", target))
-                        : failureMessage(throwable, null)));
-    }
-
-    /** Finds a guest of the guild by name or UUID. Expired guests count, so staff can clear them too. */
-    private UUID guestByName(Guild guild, String target)
-    {
-        for (UUID guestId : guild.getGuests().keySet())
-        {
-            if (guestId.toString().equalsIgnoreCase(target) || target.equalsIgnoreCase(Bukkit.getOfflinePlayer(guestId).getName()))
+            if (failure != null)
             {
-                return guestId;
+                player.sendMessage(failureMessage(failure, null));
+                return;
             }
-        }
-        return null;
+            if (resolvedId == null || !guild.getGuests().containsKey(resolvedId))
+            {
+                player.sendMessage(messageComponent("guildGuestNotFound", Placeholder.unparsed("player", target)));
+                return;
+            }
+            module.getGuildMutationService().revokeGuest(guild, player.getUniqueId(), resolvedId).whenComplete((unused, throwable) ->
+                    player.sendMessage(throwable == null
+                            ? messageComponent("guildGuestRevoked", Placeholder.unparsed("player", target))
+                            : failureMessage(throwable, null)));
+        });
     }
 
     private String mode(Guest guest)

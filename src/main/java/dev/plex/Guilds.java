@@ -13,6 +13,7 @@ import dev.plex.handler.GuildPrefixListener;
 import dev.plex.handler.GuildWorldAccessListener;
 import dev.plex.handler.GuildWorldProtectionListener;
 import dev.plex.handler.GuildWorldEntityProtectionListener;
+import dev.plex.hook.GuildWorldEditHook;
 import dev.plex.module.PlexModule;
 import dev.plex.api.storage.ModuleStorage;
 import dev.plex.storage.GuildRepository;
@@ -30,7 +31,10 @@ import org.bukkit.entity.Player;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.time.ZoneId;
+import java.util.List;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -51,6 +55,7 @@ public class Guilds extends PlexModule
     private final GuildWorldAccessListener guildWorldAccessListener = new GuildWorldAccessListener(this);
 
     private GuildWorldService guildWorldService;
+    private Runnable unregisterWorldEdit;
 
     private GuildRepository guildRepository;
     private ExecutorService executor;
@@ -114,12 +119,25 @@ public class Guilds extends PlexModule
         registerListener(new GuildWorldEntityProtectionListener(this));
         registerListener(guildWorldAccessListener);
         guildWorldAccessListener.startGuestExpiry();
+        if (Bukkit.getPluginManager().isPluginEnabled("FastAsyncWorldEdit"))
+        {
+            unregisterWorldEdit = new GuildWorldEditHook(this).register();
+        }
+        else
+        {
+            getLogger().info("FastAsyncWorldEdit is disabled; skip guild WorldEdit protection.");
+        }
     }
 
     @Override
     public void disable()
     {
         ready = false;
+        if (unregisterWorldEdit != null)
+        {
+            unregisterWorldEdit.run();
+            unregisterWorldEdit = null;
+        }
         if (guildWorldService != null)
         {
             guildWorldService.disable();
@@ -164,7 +182,10 @@ public class Guilds extends PlexModule
     {
         Component content = message.replaceText(CHAT_LINKS);
         broadcastToGuild(guild, messageComponent("guildChatMessage",
-                Placeholder.unparsed("player", senderName), Placeholder.component("content", content)));
+                Placeholder.unparsed("player", senderName), Placeholder.component("content", content)),
+                messageComponent("guildChatSpyMessage",
+                        Placeholder.unparsed("guild", guild.getName()),
+                        Placeholder.unparsed("player", senderName), Placeholder.component("content", content)));
         if (config.getBoolean("guilds.log-chat-message"))
         {
             Bukkit.getConsoleSender().sendMessage(messageComponent("guildChatConsoleLog",
@@ -174,15 +195,27 @@ public class Guilds extends PlexModule
         }
     }
 
-    public java.util.concurrent.CompletableFuture<Void> broadcastToGuild(Guild guild, Component message)
+    public CompletableFuture<Void> broadcastToGuild(Guild guild, Component message)
     {
-        java.util.concurrent.CompletableFuture<Void> completion = new java.util.concurrent.CompletableFuture<>();
-        Set<java.util.UUID> recipients = guild.getMembers().stream().map(member -> member.getUuid()).collect(Collectors.toSet());
+        return broadcastToGuild(guild, message, null);
+    }
+
+    private CompletableFuture<Void> broadcastToGuild(Guild guild, Component message, Component spyMessage)
+    {
+        CompletableFuture<Void> completion = new CompletableFuture<>();
+        Set<UUID> recipients = guild.getMembers().stream().map(member -> member.getUuid()).collect(Collectors.toSet());
         ownTask(Bukkit.getGlobalRegionScheduler().run(plugin(), task ->
         {
-            for (Player player : java.util.List.copyOf(Bukkit.getOnlinePlayers()))
+            for (Player player : List.copyOf(Bukkit.getOnlinePlayers()))
             {
-                if (recipients.contains(player.getUniqueId())) player.sendMessage(message);
+                if (recipients.contains(player.getUniqueId()))
+                {
+                    player.sendMessage(message);
+                }
+                else if (spyMessage != null && player.hasPermission("plex.guilds.chat.spy"))
+                {
+                    player.sendMessage(spyMessage);
+                }
             }
             completion.complete(null);
         }));

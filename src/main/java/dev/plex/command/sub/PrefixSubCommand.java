@@ -3,9 +3,8 @@ package dev.plex.command.sub;
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
+import dev.plex.guild.GuildPrefix;
 import net.kyori.adventure.text.Component;
-import net.kyori.adventure.text.ObjectComponent;
-import net.kyori.adventure.text.flattener.ComponentFlattener;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.command.CommandSender;
@@ -17,12 +16,6 @@ import java.util.List;
 
 public class PrefixSubCommand extends GuildSubCommand
 {
-    // Count a head or sprite once, not by the length of its plain-text fallback.
-    private static final PlainTextComponentSerializer DISPLAY_TEXT = PlainTextComponentSerializer.builder()
-            .flattener(ComponentFlattener.basic().toBuilder()
-                    .mapper(ObjectComponent.class, component -> "￼").build())
-            .build();
-
     private static final String SET = "set";
     private static final String CLEAR = "clear";
 
@@ -47,7 +40,8 @@ public class PrefixSubCommand extends GuildSubCommand
     public List<HelpEntry> helpEntries(@Nullable Player player)
     {
         return List.of(
-                new HelpEntry("/guild prefix set <text>", "Show a prefix before every member's tag", "/guild prefix set "),
+                new HelpEntry("/guild prefix set <text>", PlainTextComponentSerializer.plainText()
+                        .serialize(messageComponent("guildPrefixHelp")), "/guild prefix set "),
                 new HelpEntry("/guild prefix clear", "Remove the guild prefix", "/guild prefix clear"));
     }
 
@@ -69,12 +63,14 @@ public class PrefixSubCommand extends GuildSubCommand
         {
             return messageComponent("guildNotOwner");
         }
-        String prefix = set ? remaining : null;
-        Component renderedPrefix = prefix == null ? Component.empty() : module.api().messages().playerText(prefix);
-        String displayedText = DISPLAY_TEXT.serialize(renderedPrefix);
-        if (displayedText.codePointCount(0, displayedText.length()) > 64)
+        GuildPrefix prefix;
+        try
         {
-            return messageComponent("guildPrefixTooLong");
+            prefix = GuildPrefix.parse(set ? remaining : null, module.api().messages()::playerText);
+        }
+        catch (IllegalArgumentException exception)
+        {
+            return messageComponent("guildPrefixInvalid");
         }
         module.getGuildMutationService().updatePrefix(guild, player.getUniqueId(), prefix).whenComplete((unused, throwable) ->
         {
@@ -83,8 +79,8 @@ public class PrefixSubCommand extends GuildSubCommand
                 player.sendMessage(failureMessage(throwable, null));
                 return;
             }
-            player.sendMessage(prefix == null ? messageComponent("guildPrefixCleared")
-                    : messageComponent("guildPrefixSet", Placeholder.component("prefix", renderedPrefix)));
+            player.sendMessage(prefix.text() == null ? messageComponent("guildPrefixCleared")
+                    : messageComponent("guildPrefixSet", Placeholder.component("prefix", prefix.component())));
         });
         return null;
     }

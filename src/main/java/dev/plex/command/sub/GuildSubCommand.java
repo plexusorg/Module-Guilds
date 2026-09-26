@@ -2,8 +2,10 @@ package dev.plex.command.sub;
 
 import dev.plex.Guilds;
 import dev.plex.command.CommandSpec;
+import dev.plex.command.exception.AmbiguousPlayerException;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
+import dev.plex.guild.GuildPrefixTakenException;
 import dev.plex.util.CustomLocation;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import java.time.Duration;
@@ -14,6 +16,7 @@ import java.util.concurrent.CompletionException;
 import java.util.function.Function;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.minimessage.tag.resolver.TagResolver;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
@@ -119,7 +122,7 @@ public abstract class GuildSubCommand
             {
                 return CompletableFuture.completedFuture(online.getUniqueId());
             }
-            return module.api().players().byName(target).thenApply(result -> result.map(view -> view.uuid()).orElse(null));
+            return module.api().players().resolveCommandPlayer(target).thenApply(result -> result.map(view -> view.uuid()).orElse(null));
         }
     }
 
@@ -134,9 +137,17 @@ public abstract class GuildSubCommand
         {
             cause = cause.getCause();
         }
+        if (cause instanceof AmbiguousPlayerException ambiguous)
+        {
+            return messageComponent("playerAmbiguous", Placeholder.unparsed("players", String.join(", ", ambiguous.getMatchingNames())));
+        }
         if (cause instanceof SecurityException)
         {
             return messageComponent("guildNotAllowed");
+        }
+        if (cause instanceof GuildPrefixTakenException)
+        {
+            return messageComponent("guildPrefixTaken");
         }
         if (cause instanceof IllegalArgumentException && invalidKey != null)
         {

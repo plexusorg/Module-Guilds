@@ -3,10 +3,13 @@ package dev.plex.guild;
 import dev.plex.guild.data.Guest;
 import dev.plex.guild.data.GuildPermission;
 import dev.plex.guild.data.GuildRole;
+import dev.plex.guild.data.GuildTimeMode;
+import dev.plex.guild.data.GuildWeatherMode;
 import dev.plex.guild.data.Member;
 import dev.plex.util.CustomLocation;
 import lombok.AccessLevel;
 import lombok.Data;
+import lombok.Getter;
 import lombok.Setter;
 import net.kyori.adventure.text.Component;
 
@@ -30,10 +33,11 @@ public class Guild
     private String name;
     private volatile UUID ownerUuid;
     @Setter(AccessLevel.NONE)
-    private volatile String prefix;
-    @Setter(AccessLevel.NONE)
-    private volatile Component prefixComponent = Component.empty();
+    @Getter(AccessLevel.NONE)
+    private volatile GuildPrefix prefixValue = GuildPrefix.empty();
     private volatile CustomLocation spawn;
+    private volatile GuildTimeMode timeMode = GuildTimeMode.CYCLE;
+    private volatile GuildWeatherMode weatherMode = GuildWeatherMode.CYCLE;
 
     public static Guild create(UUID ownerUuid, String guildName, ZoneId zoneId)
     {
@@ -44,11 +48,24 @@ public class Guild
         return guild;
     }
 
-    /** Sets the prefix text together with its parsed component, so listeners never read a stale pairing. */
-    public void setPrefix(String prefix, Component prefixComponent)
+    public void setPrefix(GuildPrefix prefix)
     {
-        this.prefix = prefix;
-        this.prefixComponent = prefixComponent == null ? Component.empty() : prefixComponent;
+        this.prefixValue = prefix;
+    }
+
+    public String getPrefix()
+    {
+        return prefixValue.text();
+    }
+
+    public Component getPrefixComponent()
+    {
+        return prefixValue.component();
+    }
+
+    public String getPrefixKey()
+    {
+        return prefixValue.key();
     }
 
     public Member getMember(UUID uuid)

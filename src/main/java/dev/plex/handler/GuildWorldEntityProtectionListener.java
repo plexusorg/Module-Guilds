@@ -81,7 +81,7 @@ public final class GuildWorldEntityProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onArmorStand(PlayerArmorStandManipulateEvent event)
     {
-        if (denied(event.getPlayer(), event.getRightClicked().getWorld(), GuildPermission.INTERACT))
+        if (denied(event.getPlayer(), event.getRightClicked().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
         }
@@ -90,7 +90,7 @@ public final class GuildWorldEntityProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onShear(PlayerShearEntityEvent event)
     {
-        if (denied(event.getPlayer(), event.getEntity().getWorld(), GuildPermission.INTERACT))
+        if (denied(event.getPlayer(), event.getEntity().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
         }
@@ -99,7 +99,7 @@ public final class GuildWorldEntityProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onLeash(PlayerLeashEntityEvent event)
     {
-        if (denied(event.getPlayer(), event.getEntity().getWorld(), GuildPermission.INTERACT))
+        if (denied(event.getPlayer(), event.getEntity().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
         }
@@ -108,7 +108,7 @@ public final class GuildWorldEntityProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onUnleash(PlayerUnleashEntityEvent event)
     {
-        if (denied(event.getPlayer(), event.getEntity().getWorld(), GuildPermission.INTERACT))
+        if (denied(event.getPlayer(), event.getEntity().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
         }
@@ -117,7 +117,7 @@ public final class GuildWorldEntityProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onTame(EntityTameEvent event)
     {
-        if (denied(event.getOwner().getUniqueId(), event.getEntity().getWorld(), GuildPermission.INTERACT))
+        if (denied(event.getOwner() instanceof Player player ? player : null, event.getEntity().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
         }
@@ -126,7 +126,7 @@ public final class GuildWorldEntityProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onDye(EntityDyeEvent event)
     {
-        if (denied(event.getPlayer(), event.getEntity().getWorld(), GuildPermission.INTERACT))
+        if (denied(event.getPlayer(), event.getEntity().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
         }
@@ -135,7 +135,7 @@ public final class GuildWorldEntityProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onBreed(EntityEnterLoveModeEvent event)
     {
-        if (denied(event.getHumanEntity(), event.getEntity().getWorld(), GuildPermission.INTERACT))
+        if (denied(event.getHumanEntity(), event.getEntity().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
         }
@@ -144,7 +144,7 @@ public final class GuildWorldEntityProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onName(PlayerNameEntityEvent event)
     {
-        if (denied(event.getPlayer(), event.getEntity().getWorld(), GuildPermission.INTERACT))
+        if (denied(event.getPlayer(), event.getEntity().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
         }
@@ -153,7 +153,7 @@ public final class GuildWorldEntityProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onAgeLock(PlayerToggleEntityAgeLockEvent event)
     {
-        if (denied(event.getPlayer(), event.getEntity().getWorld(), GuildPermission.INTERACT))
+        if (denied(event.getPlayer(), event.getEntity().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
         }
@@ -162,7 +162,7 @@ public final class GuildWorldEntityProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onItemFrame(PlayerItemFrameChangeEvent event)
     {
-        if (denied(event.getPlayer(), event.getItemFrame().getWorld(), GuildPermission.INTERACT))
+        if (denied(event.getPlayer(), event.getItemFrame().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
         }
@@ -171,7 +171,7 @@ public final class GuildWorldEntityProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onPlace(EntityPlaceEvent event)
     {
-        if (denied(event.getPlayer(), event.getEntity().getWorld(), GuildPermission.BUILD))
+        if (denied(event.getPlayer(), event.getBlock().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
         }
@@ -180,7 +180,7 @@ public final class GuildWorldEntityProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onHangingPlace(HangingPlaceEvent event)
     {
-        if (denied(event.getPlayer(), event.getEntity().getWorld(), GuildPermission.BUILD))
+        if (denied(event.getPlayer(), event.getBlock().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
         }
@@ -207,7 +207,7 @@ public final class GuildWorldEntityProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onProjectileLaunch(ProjectileLaunchEvent event)
     {
-        if (denied(event.getEntity(), event.getEntity().getWorld(), GuildPermission.INTERACT))
+        if (denied(event.getEntity(), event.getEntity().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
         }
@@ -314,7 +314,7 @@ public final class GuildWorldEntityProtectionListener implements Listener
     {
         if ((event.getEntity() instanceof Mob
                 && module.getGuildWorldProtectionListener().isGuildWorld(event.getBlock().getWorld()))
-                || denied(event.getEntity(), event.getBlock().getWorld(), GuildPermission.INTERACT))
+                || denied(event.getEntity(), event.getBlock().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
         }
@@ -323,7 +323,7 @@ public final class GuildWorldEntityProtectionListener implements Listener
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onCauldron(CauldronLevelChangeEvent event)
     {
-        if (denied(event.getEntity(), event.getBlock().getWorld(), GuildPermission.INTERACT))
+        if (denied(event.getEntity(), event.getBlock().getWorld(), GuildPermission.BUILD))
         {
             event.setCancelled(true);
         }
@@ -397,6 +397,10 @@ public final class GuildWorldEntityProtectionListener implements Listener
 
     private UUID actor(Entity source)
     {
+        if (source == null)
+        {
+            return null;
+        }
         if (source instanceof Player player)
         {
             return player.getUniqueId();
@@ -414,6 +418,14 @@ public final class GuildWorldEntityProtectionListener implements Listener
         if (source instanceof TNTPrimed tnt)
         {
             return actor(tnt.getSource());
+        }
+        for (Entity passenger : source.getPassengers())
+        {
+            UUID player = actor(passenger);
+            if (player != null)
+            {
+                return player;
+            }
         }
         if (source instanceof Tameable tameable)
         {
