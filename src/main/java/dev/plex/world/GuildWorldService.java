@@ -1,6 +1,7 @@
 package dev.plex.world;
 
 import dev.plex.guild.Guild;
+import org.bukkit.Location;
 import org.bukkit.World;
 
 import java.util.concurrent.CompletableFuture;
@@ -27,6 +28,12 @@ public interface GuildWorldService
     CompletableFuture<Void> resetWorld(Guild guild, java.util.UUID actor);
 
     boolean isResetting(String worldName);
+
+    /**
+     * Finds a safe place to stand at the x and z of the location. Moves up out of blocks, then down onto the ground.
+     * Returns the location unchanged when it is already safe.
+     */
+    CompletableFuture<Location> safeLocation(Location location);
 
     /**
      * Permanently deletes the guild world with no backup. Evacuates its players, unloads it without a save,

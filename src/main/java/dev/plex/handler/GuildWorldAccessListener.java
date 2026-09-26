@@ -103,13 +103,13 @@ public final class GuildWorldAccessListener implements Listener
         rejectResident(event.getPlayer());
     }
 
+    // Holds the player in place only. Whatever removed access (reset, deletion, or revoke) teleports the player out.
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
     public void onMove(PlayerMoveEvent event)
     {
         if (!module.getGuildWorldProtectionListener().canEnter(event.getPlayer().getUniqueId(), event.getPlayer().getWorld()))
         {
             event.setCancelled(true);
-            event.getPlayer().kick(module.messageComponent("guildWorldNoAccess"));
         }
     }
 

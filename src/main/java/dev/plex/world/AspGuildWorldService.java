@@ -29,7 +29,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Supplier;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 
 /** Owns loaded worlds, coalesced loads, reset admission, and world-file I/O. */
@@ -196,8 +198,7 @@ public final class AspGuildWorldService implements GuildWorldService
         // Generate before placing a small safe landing area. Never place players inside terrain or over the void.
         return world.getChunkAtAsync(0, 0).thenCompose(chunk -> onGlobal(() ->
         {
-            int y = type == GuildWorldType.SUPERFLAT ? 50 : type == GuildWorldType.NETHER ? 64
-                    : world.getHighestBlockYAt(0, 0) + 1;
+            int y = type == GuildWorldType.NETHER ? 64 : world.getHighestBlockYAt(0, 0) + 1;
             y = Math.max(world.getMinHeight() + 1, Math.min(y, world.getMaxHeight() - 4));
             for (int x = 0; type != GuildWorldType.SUPERFLAT && x <= 4; x++)
             {
@@ -541,6 +542,62 @@ public final class AspGuildWorldService implements GuildWorldService
                 return operation.call();
             }
         });
+    }
+
+    @Override
+    public CompletableFuture<Location> safeLocation(Location location)
+    {
+        return location.getWorld().getChunkAtAsync(location).thenCompose(chunk -> onRegion(location, () ->
+        {
+            World world = location.getWorld();
+            int x = location.getBlockX();
+            int z = location.getBlockZ();
+            int min = world.getMinHeight();
+            int max = world.getMaxHeight() - 2;
+            int y = Math.max(min + 1, Math.min(location.getBlockY(), max));
+            while (y < max && !(open(world.getBlockAt(x, y, z)) && open(world.getBlockAt(x, y + 1, z))))
+            {
+                y++;
+            }
+            while (y > min && open(world.getBlockAt(x, y - 1, z)))
+            {
+                y--;
+            }
+            if (y == location.getBlockY())
+            {
+                return location;
+            }
+            Location safe = location.clone();
+            safe.setY(y);
+            return safe;
+        }));
+    }
+
+    /** A player can stand in a passable block, but never in lava. */
+    private static boolean open(Block block)
+    {
+        return block.isPassable() && block.getType() != Material.LAVA;
+    }
+
+    private <T> CompletableFuture<T> onRegion(Location location, Supplier<T> operation)
+    {
+        CompletableFuture<T> result = new CompletableFuture<>();
+        module.ownTask(Bukkit.getRegionScheduler().run(module.plugin(), location, task ->
+        {
+            try
+            {
+                if (stopped)
+                {
+                    throw new IllegalStateException("Guild worlds stopped");
+                }
+                result.complete(operation.get());
+            }
+            catch (RuntimeException exception)
+            {
+                result.completeExceptionally(exception);
+            }
+        }));
+        return result;
     }
 
     private <T> CompletableFuture<T> onGlobal(Supplier<T> operation)

@@ -352,7 +352,9 @@ public class GuildMenuListener implements Listener
             return;
         }
         player.sendMessage(module.messageComponent("guildWorldLoading"));
-        module.getGuildWorldService().ensureWorld(guild).whenComplete((world, throwable) ->
+        module.getGuildWorldService().ensureWorld(guild)
+                .thenCompose(world -> module.getGuildWorldService().safeLocation(destination(world, location == null ? guild.getSpawn() : location)))
+                .whenComplete((destination, throwable) ->
         {
             if (throwable != null)
             {
@@ -371,7 +373,7 @@ public class GuildMenuListener implements Listener
                 return;
             }
             module.ownTask(player.getScheduler().run(module.plugin(), task ->
-                    player.teleportAsync(destination(world, location == null ? guild.getSpawn() : location)), null));
+                    player.teleportAsync(destination), null));
         });
     }
 

@@ -161,11 +161,13 @@ public abstract class GuildSubCommand
         return new Location(world, spawn.getX(), spawn.getY(), spawn.getZ(), spawn.getYaw(), spawn.getPitch());
     }
 
-    /** Loads the guild world, then teleports the player on the player's scheduler. The caller checks that guild worlds are enabled. */
+    /** Loads the guild world, then teleports the player to a safe spot on the player's scheduler. The caller checks that guild worlds are enabled. */
     protected void teleportInGuildWorld(Player player, Guild guild, Function<World, Location> destination)
     {
         player.sendMessage(messageComponent("guildWorldLoading"));
-        module.getGuildWorldService().ensureWorld(guild).whenComplete((world, failure) ->
+        module.getGuildWorldService().ensureWorld(guild)
+                .thenCompose(world -> module.getGuildWorldService().safeLocation(destination.apply(world)))
+                .whenComplete((location, failure) ->
         {
             if (failure != null)
             {
@@ -185,12 +187,12 @@ public abstract class GuildSubCommand
             }
             ScheduledTask scheduled = player.getScheduler().run(module.plugin(), task ->
             {
-                if (!module.getGuildWorldProtectionListener().canEnter(player.getUniqueId(), world))
+                if (!module.getGuildWorldProtectionListener().canEnter(player.getUniqueId(), location.getWorld()))
                 {
                     player.sendMessage(messageComponent("guildWorldNoAccess"));
                     return;
                 }
-                player.teleportAsync(destination.apply(world)).whenComplete((teleported, teleportFailure) ->
+                player.teleportAsync(location).whenComplete((teleported, teleportFailure) ->
                 {
                     if (teleportFailure != null)
                     {
