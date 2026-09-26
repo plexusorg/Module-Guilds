@@ -13,6 +13,8 @@ import dev.plex.command.sub.CreateSubCommand;
 import dev.plex.command.sub.GuestSubCommand;
 import dev.plex.command.sub.GuildSubCommand;
 import dev.plex.command.sub.InviteSubCommand;
+import dev.plex.command.sub.ListSubCommand;
+import dev.plex.command.sub.InfoSubCommand;
 import dev.plex.command.sub.LeaveSubCommand;
 import dev.plex.command.sub.PrefixSubCommand;
 import dev.plex.command.sub.ResetWorldSubCommand;
@@ -47,6 +49,8 @@ public class GuildCommand extends SimplePlexCommand
                 .build());
         this.module = module;
         subCommands.add(new CreateSubCommand(module));
+        subCommands.add(new ListSubCommand(module));
+        subCommands.add(new InfoSubCommand(module));
         subCommands.add(new AcceptSubCommand(module));
         subCommands.add(new VisitSubCommand(module));
         subCommands.add(new WorldSubCommand(module));
@@ -67,15 +71,22 @@ public class GuildCommand extends SimplePlexCommand
                 .suggests((context, builder) -> suggestMatching(builder, subcommandNames(context.getSource().getSender())))
                 .executes(context -> executeCommand(context, (sender, player) ->
                         dispatch(sender, player, string(context, "subcommand"), null, null)));
-        var first = word("first")
-                .suggests((context, builder) -> suggestArguments(context, builder, null))
+        subcommand.then(greedyString("arguments")
+                .suggests((context, builder) ->
+                {
+                    String input = builder.getRemaining();
+                    int space = input.indexOf(' ');
+                    return space < 0 ? suggestArguments(context, builder, null)
+                            : suggestArguments(context, builder.createOffset(builder.getStart() + space + 1), input.substring(0, space));
+                })
                 .executes(context -> executeCommand(context, (sender, player) ->
-                        dispatch(sender, player, string(context, "subcommand"), string(context, "first"), null)));
-        first.then(greedyString("remaining")
-                .suggests((context, builder) -> suggestArguments(context, builder, string(context, "first")))
-                .executes(context -> executeCommand(context, (sender, player) ->
-                        dispatch(sender, player, string(context, "subcommand"), string(context, "first"), normalize(string(context, "remaining"))))));
-        subcommand.then(first);
+                {
+                    String input = string(context, "arguments");
+                    int space = input.indexOf(' ');
+                    return dispatch(sender, player, string(context, "subcommand"),
+                            space < 0 ? input : input.substring(0, space),
+                            space < 0 ? null : normalize(input.substring(space + 1)));
+                })));
         command.then(subcommand);
     }
 

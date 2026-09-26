@@ -76,10 +76,10 @@ guildGuestReceived: "<green><guild> added you as a <mode> guest for <duration>.<
 
 # World reset
 guildResetTargetNotFound: "<red>No guild matches '<target>'. Enter the guild UUID or full name."
-guildWorldResetConfirm: "<red>Reset the world for <guild>?<newline><yellow>This replaces all blocks and entities in <world>. Players leave the world first. The guild and its members stay the same. The world spawn goes back to the default, and warps in this world are removed.<newline>A backup is kept for <days> days. Backups needed by an incomplete reset are kept until recovery.<newline><gold>To confirm, enter <command>"
+guildWorldResetConfirm: "<red>Reset the world for <guild>?<newline><yellow>This removes all blocks and entities in <world>. Players leave the world first. The guild and its members stay the same. The world spawn and warps in this world are removed. Generate a new world after the reset.<newline>A backup is kept for <days> days. Backups needed by an incomplete reset are kept until recovery.<newline><gold>To confirm, enter <command>"
 guildWorldResetStarted: "<yellow>Resetting the world for <guild>..."
 guildWorldResetFailed: "<red>Could not finish the world reset for <guild>. Check the server log. If the reset is incomplete, world access stays blocked."
-guildWorldResetComplete: "<green>Reset the world for <guild>. The guild and its members are unchanged."
+guildWorldResetComplete: "<green>Reset the world for <guild>. The guild and its members are unchanged. Enter /guild world generate <type> to create a new world."
 
 # Menu
 guildMenuActionDenied: "<red>You cannot do that."
@@ -91,3 +91,17 @@ guildMenuGuestModeSet: "<green><player> is now a <mode> guest."
 guildMenuGuestExtended: "<green>Guest access for <player> now ends in <time>."
 guildMenuSpawnSet: "<green>Set the guild world spawn to your location."
 guildMenuSpawnNotInWorld: "<red>Go to your guild world to set the spawn."
+
+# World generation and owner reset
+guildWorldNotGenerated: "<yellow>This guild has no world. Ask the owner to enter /guild world generate <overworld|nether|end|superflat>."
+guildWorldAlreadyGenerated: "<red>Your guild already has a world. Enter /guild world to visit, or /guild world reset to replace it."
+guildWorldGenerating: "<yellow>Generating your guild world..."
+guildWorldGenerated: "<green>Your guild world is ready. Enter /guild world to visit."
+guildWorldResetExpired: "<red>Enter /guild world reset first. Then confirm within 60 seconds."
+
+# Public guild directory
+guildInfoNotFound: "<red>No guild has that name or UUID."
+guildListHeader: "<gold>Guilds: <count> (page <page>/<pages>)"
+guildListEntry: "<yellow><guild><gray> — <members> members"
+guildListNext: "<yellow>To see more guilds, enter <command>"
+guildInfo: "<gold><guild><newline><gray>ID: <id><newline>Owner: <owner><newline>Members: <members><newline>Created: <created><newline>Prefix: <prefix>"

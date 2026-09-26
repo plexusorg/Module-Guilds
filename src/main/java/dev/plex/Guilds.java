@@ -149,10 +149,11 @@ public class Guilds extends PlexModule
         {
             ClassLoader classLoader = Guilds.class.getClassLoader();
             Class.forName(ASP_API_CLASS, false, classLoader);
+            Class.forName("com.infernalsuite.asp.api.world.SlimeVanillaWorldProfile", false, classLoader);
         }
         catch (ClassNotFoundException exception)
         {
-            getLogger().warn("Advanced Slime Paper is unavailable; guild worlds are disabled.");
+            getLogger().warn("Scissors-ASP with vanilla world profiles is required; guild worlds are disabled.");
             return;
         }
         guildWorldService = new AspGuildWorldService(this);

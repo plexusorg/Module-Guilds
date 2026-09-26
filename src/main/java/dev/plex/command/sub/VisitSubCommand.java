@@ -26,7 +26,7 @@ public final class VisitSubCommand extends GuildSubCommand
     @Override
     public boolean isAvailable(@Nullable Player player)
     {
-        return player != null && (guildOf(player) == null || !guestGuilds(player.getUniqueId()).isEmpty());
+        return player != null && (player.hasPermission("plex.guilds.world.bypass") || guildOf(player) == null || !guestGuilds(player.getUniqueId()).isEmpty());
     }
 
     @Override
@@ -43,7 +43,7 @@ public final class VisitSubCommand extends GuildSubCommand
             return messageComponent("guildWorldsUnavailable");
         }
         Guild guild = findGuild(arguments(first, remaining));
-        if (guild == null || !guild.canEnterWorld(player.getUniqueId()))
+        if (guild == null || !guild.canEnterWorld(player.getUniqueId()) && !player.hasPermission("plex.guilds.world.bypass"))
         {
             return messageComponent("guildWorldNoAccess");
         }
@@ -55,7 +55,7 @@ public final class VisitSubCommand extends GuildSubCommand
     public @NotNull List<String> suggestSubCommand(@NotNull CommandSender sender, @Nullable String first)
     {
         return first == null && sender instanceof Player player
-                ? guestGuilds(player.getUniqueId()).stream().map(Guild::getName).toList()
+                ? (player.hasPermission("plex.guilds.world.bypass") ? module.getGuildHolder().guilds() : guestGuilds(player.getUniqueId())).stream().map(Guild::getName).toList()
                 : List.of();
     }
 

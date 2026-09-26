@@ -3,7 +3,6 @@ package dev.plex.command.sub;
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
-import java.util.concurrent.CompletableFuture;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
@@ -53,9 +52,6 @@ public class CreateSubCommand extends GuildSubCommand
         }
         Guild guildToCreate = Guild.create(player.getUniqueId(), name, module.getZoneId());
         module.getGuildRepository().createGuild(guildToCreate)
-                .thenCompose(guild -> module.isGuildWorldsEnabled()
-                        ? module.getGuildWorldService().ensureWorld(guild).thenApply(world -> guild)
-                        : CompletableFuture.completedFuture(guild))
                 .whenComplete((guild, throwable) ->
         {
             if (throwable != null)

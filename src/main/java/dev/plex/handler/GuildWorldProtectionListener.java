@@ -63,7 +63,8 @@ public class GuildWorldProtectionListener implements Listener
             return true;
         }
         Guild guild = accessibleGuild(world);
-        return guild != null && guild.canEnterWorld(playerId);
+        Player player = org.bukkit.Bukkit.getPlayer(playerId);
+        return guild != null && (guild.canEnterWorld(playerId) || player != null && player.hasPermission("plex.guilds.world.bypass"));
     }
 
     public boolean canUse(UUID playerId, World world, GuildPermission permission)

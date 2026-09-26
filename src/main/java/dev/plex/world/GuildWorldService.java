@@ -17,7 +17,14 @@ public interface GuildWorldService
 
     CompletableFuture<World> ensureWorld(Guild guild);
 
-    CompletableFuture<Void> resetWorld(Guild guild);
+    CompletableFuture<World> generateWorld(Guild guild, GuildWorldType type, java.util.UUID actor);
+
+    default CompletableFuture<Void> resetWorld(Guild guild)
+    {
+        return resetWorld(guild, null);
+    }
+
+    CompletableFuture<Void> resetWorld(Guild guild, java.util.UUID actor);
 
     boolean isResetting(String worldName);
 

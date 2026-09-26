@@ -356,6 +356,16 @@ public class GuildMenuListener implements Listener
         {
             if (throwable != null)
             {
+                Throwable cause = throwable;
+                while (cause instanceof java.util.concurrent.CompletionException && cause.getCause() != null)
+                {
+                    cause = cause.getCause();
+                }
+                if (cause instanceof dev.plex.world.GuildWorldNotGeneratedException)
+                {
+                    player.sendMessage(module.messageComponent("guildWorldNotGenerated"));
+                    return;
+                }
                 module.getLogger().error("Failed to load guild world", throwable);
                 player.sendMessage(module.messageComponent("guildWorldLoadFailed"));
                 return;

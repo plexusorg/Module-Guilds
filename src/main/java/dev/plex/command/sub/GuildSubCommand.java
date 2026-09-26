@@ -169,6 +169,16 @@ public abstract class GuildSubCommand
         {
             if (failure != null)
             {
+                Throwable cause = failure;
+                while (cause instanceof java.util.concurrent.CompletionException && cause.getCause() != null)
+                {
+                    cause = cause.getCause();
+                }
+                if (cause instanceof dev.plex.world.GuildWorldNotGeneratedException)
+                {
+                    player.sendMessage(module.messageComponent("guildWorldNotGenerated"));
+                    return;
+                }
                 module.getLogger().error("Failed to load guild world {}", guild.getWorldName(), failure);
                 player.sendMessage(messageComponent("guildWorldLoadFailed"));
                 return;

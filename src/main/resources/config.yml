@@ -11,7 +11,5 @@ guilds:
     default-duration: 24h
     max-duration: 30d
   worlds:
-    # Apply this border and terrain size to new worlds and confirmed resets.
-    size: 500000
     # Keep backups for unfinished resets until staff finish the reset.
     backup-retention-days: 7

@@ -279,7 +279,28 @@ public final class GuildMutationService
         });
     }
 
-    public CompletableFuture<Void> resetWorld(Guild guild, Supplier<CompletableFuture<Void>> prepare,
+    public <T> CompletableFuture<T> generateWorld(Guild guild, UUID actor, Supplier<CompletableFuture<T>> generate)
+    {
+        CompletableFuture<T> result = new CompletableFuture<>();
+        serialize(guild, () ->
+        {
+            requireGuild(guild);
+            if (!guild.isOwner(actor))
+            {
+                throw new SecurityException("Only the owner can generate this world");
+            }
+            return generate.get().thenAccept(result::complete);
+        }).whenComplete((unused, failure) ->
+        {
+            if (failure != null)
+            {
+                result.completeExceptionally(failure);
+            }
+        });
+        return result;
+    }
+
+    public CompletableFuture<Void> resetWorld(Guild guild, UUID actor, Supplier<CompletableFuture<Void>> prepare,
                                             Supplier<CompletableFuture<Void>> replace)
     {
         return serialize(guild, () ->
@@ -287,6 +308,10 @@ public final class GuildMutationService
             if (module.getGuildHolder().guildById(guild.getGuildUuid()).orElse(null) != guild)
             {
                 return CompletableFuture.failedFuture(new IllegalStateException("The guild no longer exists"));
+            }
+            if (actor != null && !guild.isOwner(actor))
+            {
+                throw new SecurityException("Only the owner can reset this world");
             }
             String worldName = guild.getWorldName();
             return prepare.get()

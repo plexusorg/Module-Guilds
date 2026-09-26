@@ -7,6 +7,18 @@ plugins {
 
 repositories {
 
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "scissors"
+                url = uri("https://nexus.telesphoreo.me/repository/scissors-snapshots/")
+            }
+        }
+        filter {
+            includeGroup("io.github.scissorsmc")
+        }
+    }
+
     maven {
         url = uri("https://repo.papermc.io/repository/maven-public/")
     }

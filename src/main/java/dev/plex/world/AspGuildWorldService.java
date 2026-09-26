@@ -5,6 +5,7 @@ import com.infernalsuite.asp.api.exceptions.CorruptedWorldException;
 import com.infernalsuite.asp.api.exceptions.NewerFormatException;
 import com.infernalsuite.asp.api.exceptions.UnknownWorldException;
 import com.infernalsuite.asp.api.world.SlimeFlatWorldProfile;
+import com.infernalsuite.asp.api.world.SlimeVanillaWorldProfile;
 import com.infernalsuite.asp.api.world.SlimeWorld;
 import com.infernalsuite.asp.api.world.SlimeWorldInstance;
 import com.infernalsuite.asp.api.world.properties.SlimeProperties;
@@ -34,6 +35,7 @@ import org.bukkit.entity.Player;
 /** Owns loaded worlds, coalesced loads, reset admission, and world-file I/O. */
 public final class AspGuildWorldService implements GuildWorldService
 {
+    private static final int WORLD_SIZE = 500_000;
     private final Guilds module;
     private final AdvancedSlimePaperAPI asp = AdvancedSlimePaperAPI.instance();
     private final Map<UUID, SlimeWorldInstance> loadedWorlds = new ConcurrentHashMap<>();
@@ -57,14 +59,13 @@ public final class AspGuildWorldService implements GuildWorldService
     @Override
     public void enable()
     {
-        int worldSize = module.getConfig().getInt("guilds.worlds.size", 500000);
         int retentionDays = module.getConfig().getInt("guilds.worlds.backup-retention-days", 7);
-        if (worldSize < 16 || worldSize > 59999968 || worldSize % 2 != 0 || retentionDays < 1)
+        if (retentionDays < 1)
         {
-            throw new IllegalArgumentException("Guild world size must be even and between 16 and 59999968; backup retention must be positive");
+            throw new IllegalArgumentException("Guild world backup retention must be positive");
         }
         backupRetention = Duration.ofDays(retentionDays);
-        int half = worldSize / 2;
+        int half = WORLD_SIZE / 2;
         newWorldProfile = new SlimeFlatWorldProfile(1, -64, 320, 0, -half, -half, half, half, "minecraft:plains", List.of(
                 new SlimeFlatWorldProfile.Layer("minecraft:bedrock", 1),
                 new SlimeFlatWorldProfile.Layer("minecraft:stone", 16),
@@ -90,11 +91,16 @@ public final class AspGuildWorldService implements GuildWorldService
     @Override
     public synchronized CompletableFuture<World> ensureWorld(Guild guild)
     {
-        if (stopped || isResetting(guild.getWorldName()) || deletedWorlds.contains(guild.getWorldName()))
+        if (stopped || resets.containsKey(guild.getGuildUuid()) || isResetting(guild.getWorldName()) || deletedWorlds.contains(guild.getWorldName()))
         {
             return CompletableFuture.failedFuture(new IllegalStateException("Guild worlds are stopped or this world has a pending reset or deletion"));
         }
         UUID id = guild.getGuildUuid();
+        CompletableFuture<World> loading = loads.get(id);
+        if (loading != null)
+        {
+            return loading;
+        }
         SlimeWorldInstance loaded = loadedWorlds.get(id);
         if (loaded == null)
         {
@@ -106,18 +112,112 @@ public final class AspGuildWorldService implements GuildWorldService
         }
         if (loaded != null)
         {
-            return CompletableFuture.completedFuture(loaded.getBukkitWorld());
+            CompletableFuture<World> result = finishLoad(guild, loaded.getBukkitWorld());
+            loads.put(id, result);
+            result.whenComplete((world, failure) -> loads.remove(id, result));
+            return result;
         }
-        CompletableFuture<World> loading = loads.get(id);
-        if (loading != null)
-        {
-            return loading;
-        }
-        CompletableFuture<World> result = onStorage(() -> readOrCreateWorld(guild))
-                .thenCompose(world -> onGlobal(() -> loadWorld(guild, world)));
+        CompletableFuture<World> result = onStorage(() -> readWorld(guild))
+                .thenCompose(world -> onGlobal(() -> loadWorld(guild, world)))
+                .thenCompose(world -> finishLoad(guild, world));
         loads.put(id, result);
         result.whenComplete((world, failure) -> loads.remove(id, result));
         return result;
+    }
+
+    @Override
+    public CompletableFuture<World> generateWorld(Guild guild, GuildWorldType type, UUID actor)
+    {
+        return module.getGuildMutationService().generateWorld(guild, actor, () -> generateWorld(guild, type));
+    }
+
+    private synchronized CompletableFuture<World> generateWorld(Guild guild, GuildWorldType type)
+    {
+        UUID id = guild.getGuildUuid();
+        if (stopped || resets.containsKey(id) || isResetting(guild.getWorldName()) || deletedWorlds.contains(guild.getWorldName())
+                || loads.containsKey(id))
+        {
+            return CompletableFuture.failedFuture(new IllegalStateException("The world exists or is busy"));
+        }
+        if (asp.getLoadedWorld(guild.getWorldName()) != null)
+        {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("The guild already has a world"));
+        }
+        CompletableFuture<World> result = onStorage(() ->
+                {
+                    if (files.worldExists(guild.getWorldName()))
+                    {
+                        throw new IllegalArgumentException("Reset the existing world before generating another");
+                    }
+                    SlimeWorld world = createWorld(guild, type);
+                    asp.saveWorld(world);
+                    return world;
+                }).thenCompose(world -> onGlobal(() -> loadWorld(guild, world)))
+                        .thenCompose(world -> finishLoad(guild, world));
+        loads.put(id, result);
+        result.whenComplete((world, failure) -> loads.remove(id, result));
+        return result;
+    }
+
+    private CompletableFuture<World> finishLoad(Guild guild, World world)
+    {
+        return onGlobal(() ->
+        {
+            world.getWorldBorder().setCenter(0, 0);
+            world.getWorldBorder().setSize(WORLD_SIZE);
+            return world;
+        }).thenCompose(unused -> prepareSpawnIfNeeded(guild, world));
+    }
+
+    private CompletableFuture<World> prepareSpawnIfNeeded(Guild guild, World world)
+    {
+        SlimeWorldInstance instance = loadedWorlds.get(guild.getGuildUuid());
+        if (!instance.getExtraData().containsKey("guild:spawn_pending"))
+        {
+            return CompletableFuture.completedFuture(world);
+        }
+        SlimeVanillaWorldProfile profile = SlimeVanillaWorldProfile.fromWorld(instance);
+        GuildWorldType type = profile == null ? GuildWorldType.SUPERFLAT : switch (profile.environment())
+        {
+            case "nether" -> GuildWorldType.NETHER;
+            case "the_end" -> GuildWorldType.END;
+            default -> GuildWorldType.OVERWORLD;
+        };
+        return prepareSpawn(guild, world, type);
+    }
+
+    private CompletableFuture<World> prepareSpawn(Guild guild, World world, GuildWorldType type)
+    {
+        // Generate before placing a small safe landing area. Never place players inside terrain or over the void.
+        return world.getChunkAtAsync(0, 0).thenCompose(chunk -> onGlobal(() ->
+        {
+            int y = type == GuildWorldType.SUPERFLAT ? 50 : type == GuildWorldType.NETHER ? 64
+                    : world.getHighestBlockYAt(0, 0) + 1;
+            y = Math.max(world.getMinHeight() + 1, Math.min(y, world.getMaxHeight() - 4));
+            for (int x = 0; type != GuildWorldType.SUPERFLAT && x <= 4; x++)
+            {
+                for (int z = 0; z <= 4; z++)
+                {
+                    world.getBlockAt(x, y - 1, z).setType(org.bukkit.Material.OBSIDIAN, false);
+                    for (int height = 0; height <= 3; height++)
+                    {
+                        boolean wall = type == GuildWorldType.NETHER && (x == 0 || x == 4 || z == 0 || z == 4 || height == 3);
+                        world.getBlockAt(x, y + height, z).setType(wall ? org.bukkit.Material.OBSIDIAN : org.bukkit.Material.AIR, false);
+                    }
+                }
+            }
+            world.setSpawnLocation(2, y, 2);
+            SlimeWorldInstance instance = loadedWorlds.get(guild.getGuildUuid());
+            instance.getPropertyMap().setValue(SlimeProperties.SPAWN_X, 2);
+            instance.getPropertyMap().setValue(SlimeProperties.SPAWN_Y, y);
+            instance.getPropertyMap().setValue(SlimeProperties.SPAWN_Z, 2);
+            instance.getExtraData().remove("guild:spawn_pending");
+            return instance;
+        })).thenCompose(instance -> onIo(() ->
+        {
+            asp.saveWorld(instance);
+            return world;
+        }));
     }
 
     @Override
@@ -127,20 +227,26 @@ public final class AspGuildWorldService implements GuildWorldService
     }
 
     @Override
-    public synchronized CompletableFuture<Void> resetWorld(Guild guild)
+    public synchronized CompletableFuture<Void> resetWorld(Guild guild, UUID actor)
     {
         UUID id = guild.getGuildUuid();
         if (stopped || resets.containsKey(id) || deletedWorlds.contains(guild.getWorldName()))
         {
             return CompletableFuture.failedFuture(new IllegalStateException("Guild worlds are stopped, a reset is already running, or the world is deleted"));
         }
-        pendingResets.add(guild.getWorldName());
         CompletableFuture<World> loading = loads.getOrDefault(id, CompletableFuture.completedFuture(null));
-        CompletableFuture<Void> result = module.getGuildMutationService().resetWorld(guild,
-                () -> loading.handle((world, failure) -> null).thenCompose(unused -> prepareReset(guild)),
+        CompletableFuture<Void> result = module.getGuildMutationService().resetWorld(guild, actor,
+                () ->
+                {
+                    pendingResets.add(guild.getWorldName());
+                    return loading.handle((world, failure) -> null).thenCompose(unused -> prepareReset(guild));
+                },
                 () -> onStorage(() ->
                 {
-                    asp.saveWorld(createWorld(guild));
+                    if (files.worldExists(guild.getWorldName()))
+                    {
+                        files.deleteWorld(guild.getWorldName());
+                    }
                     files.completeReset(guild.getWorldName());
                     pendingResets.remove(guild.getWorldName());
                     return null;
@@ -188,7 +294,7 @@ public final class AspGuildWorldService implements GuildWorldService
                         return null;
                     })).thenCompose(unused -> onGlobal(() ->
                     {
-                        if (!Bukkit.unloadWorld(loaded.getBukkitWorld(), false))
+                        if (!Bukkit.unloadWorld(loaded.getBukkitWorld(), true))
                         {
                             throw new IllegalStateException("Could not unload guild world " + guild.getWorldName());
                         }
@@ -302,7 +408,7 @@ public final class AspGuildWorldService implements GuildWorldService
             try
             {
                 asp.saveWorld(world);
-                if (!Bukkit.unloadWorld(world.getBukkitWorld(), false))
+                if (!Bukkit.unloadWorld(world.getBukkitWorld(), true))
                 {
                     module.getLogger().warn("Guild world {} remains loaded; ASP will continue to own its saves", world.getName());
                     world.getBukkitWorld().setAutoSave(true);
@@ -324,7 +430,7 @@ public final class AspGuildWorldService implements GuildWorldService
         }
     }
 
-    private SlimeWorld readOrCreateWorld(Guild guild) throws IOException, CorruptedWorldException, NewerFormatException
+    private SlimeWorld readWorld(Guild guild) throws IOException, CorruptedWorldException, NewerFormatException
     {
         try
         {
@@ -332,13 +438,11 @@ public final class AspGuildWorldService implements GuildWorldService
         }
         catch (UnknownWorldException ignored)
         {
-            SlimeWorld world = createWorld(guild);
-            asp.saveWorld(world);
-            return world;
+            throw new GuildWorldNotGeneratedException();
         }
     }
 
-    private SlimeWorld createWorld(Guild guild)
+    private SlimeWorld createWorld(Guild guild, GuildWorldType type)
     {
         SlimePropertyMap properties = new SlimePropertyMap();
         properties.setValue(SlimeProperties.DIFFICULTY, "peaceful");
@@ -356,7 +460,16 @@ public final class AspGuildWorldService implements GuildWorldService
         properties.setValue(SlimeProperties.SAVE_FLUID_TICKS, true);
         properties.setValue(SlimeProperties.SAVE_POI, true);
         SlimeWorld world = asp.createEmptyWorld(guild.getWorldName(), false, properties, files);
-        newWorldProfile.install(world);
+        world.getExtraData().put("guild:spawn_pending", net.kyori.adventure.nbt.ByteBinaryTag.byteBinaryTag((byte) 1));
+        if (type == GuildWorldType.SUPERFLAT)
+        {
+            newWorldProfile.install(world);
+        }
+        else
+        {
+            new SlimeVanillaWorldProfile(1, java.util.concurrent.ThreadLocalRandom.current().nextLong(), type.environment()).install(world);
+            properties.setValue(SlimeProperties.SEA_LEVEL, type == GuildWorldType.NETHER ? 32 : 63);
+        }
         return world;
     }
 
@@ -364,14 +477,7 @@ public final class AspGuildWorldService implements GuildWorldService
     {
         SlimeWorldInstance loaded = asp.loadWorld(data, true);
         loadedWorlds.put(guild.getGuildUuid(), loaded);
-        World world = loaded.getBukkitWorld();
-        SlimeFlatWorldProfile profile = SlimeFlatWorldProfile.fromWorld(data);
-        if (profile != null)
-        {
-            world.getWorldBorder().setCenter((profile.minX() + profile.maxX()) / 2.0, (profile.minZ() + profile.maxZ()) / 2.0);
-            world.getWorldBorder().setSize(profile.maxX() - profile.minX());
-        }
-        return world;
+        return loaded.getBukkitWorld();
     }
 
     private void expireBackups()
