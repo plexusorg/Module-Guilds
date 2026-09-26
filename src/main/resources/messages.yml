@@ -102,6 +102,6 @@ guildWorldResetExpired: "<red>Enter /guild world reset first. Then confirm withi
 # Public guild directory
 guildInfoNotFound: "<red>No guild has that name or UUID."
 guildListHeader: "<gold>Guilds: <count> (page <page>/<pages>)"
-guildListEntry: "<yellow><guild><gray> — <members> members"
+guildListEntry: "<yellow><guild><gray> - <members> members"
 guildListNext: "<yellow>To see more guilds, enter <command>"
 guildInfo: "<gold><guild><newline><gray>ID: <id><newline>Owner: <owner><newline>Members: <members><newline>Created: <created><newline>Prefix: <prefix>"
