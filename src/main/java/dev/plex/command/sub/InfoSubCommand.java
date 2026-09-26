@@ -75,7 +75,6 @@ public final class InfoSubCommand extends GuildSubCommand
                     Placeholder.component("prefix", selected.getPrefix() == null || selected.getPrefix().isBlank()
                             ? messageComponent("guildInfoNone") : selected.getPrefixComponent()),
                     Placeholder.unparsed("created", selected.getCreatedAt().format(CREATED_FORMAT)),
-                    Placeholder.unparsed("count", Integer.toString(members.size())),
                     Placeholder.component("owner", nameList(byRole.get(GuildRole.OWNER), online)),
                     Placeholder.component("officers", nameList(byRole.get(GuildRole.OFFICER), online)),
                     Placeholder.component("members", nameList(byRole.get(GuildRole.MEMBER), online))));

@@ -12,8 +12,10 @@ import com.infernalsuite.asp.api.world.properties.SlimeProperties;
 import com.infernalsuite.asp.api.world.properties.SlimePropertyMap;
 import dev.plex.Guilds;
 import dev.plex.guild.Guild;
+import dev.plex.util.DurationParser;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -42,6 +44,8 @@ public final class AspGuildWorldService implements GuildWorldService
     private final Map<UUID, SlimeWorldInstance> loadedWorlds = new ConcurrentHashMap<>();
     private final Map<UUID, CompletableFuture<World>> loads = new ConcurrentHashMap<>();
     private final Map<UUID, CompletableFuture<Void>> resets = new ConcurrentHashMap<>();
+    private final Map<UUID, CompletableFuture<Void>> unloads = new HashMap<>();
+    private final Map<UUID, Long> emptySince = new HashMap<>();
     private final Set<String> pendingResets = ConcurrentHashMap.newKeySet();
     private final Set<String> deletedWorlds = ConcurrentHashMap.newKeySet();
     private final AtomicBoolean cleanupQueued = new AtomicBoolean();
@@ -51,6 +55,7 @@ public final class AspGuildWorldService implements GuildWorldService
     private volatile boolean stopped;
     private SlimeFlatWorldProfile newWorldProfile;
     private Duration backupRetention;
+    private Duration unloadAfter;
     private int worldSize;
 
     public AspGuildWorldService(Guilds module)
@@ -72,6 +77,11 @@ public final class AspGuildWorldService implements GuildWorldService
             throw new IllegalArgumentException("Guild world backup retention must be positive");
         }
         backupRetention = Duration.ofDays(retentionDays);
+        unloadAfter = DurationParser.parse(module.getConfig().getString("guilds.worlds.unload-after", "5m"));
+        if (unloadAfter == null)
+        {
+            throw new IllegalArgumentException("Guild world unload-after must be a positive duration in m, h, or d");
+        }
         int half = worldSize / 2;
         newWorldProfile = new SlimeFlatWorldProfile(1, -64, 320, 0, -half, -half, half, half, "minecraft:plains", List.of(
                 new SlimeFlatWorldProfile.Layer("minecraft:bedrock", 1),
@@ -89,6 +99,19 @@ public final class AspGuildWorldService implements GuildWorldService
         }
         io = Executors.newSingleThreadExecutor(Thread.ofPlatform().daemon().name("Plex-Guild-Worlds").factory());
         module.ownTask(Bukkit.getAsyncScheduler().runAtFixedRate(module.plugin(), task -> expireBackups(), 1, 3600, TimeUnit.SECONDS));
+        module.ownTask(Bukkit.getAsyncScheduler().runAtFixedRate(module.plugin(), task ->
+                onGlobal(() ->
+                {
+                    checkIdleWorlds();
+                    return null;
+                }).exceptionally(failure ->
+                {
+                    if (!stopped)
+                    {
+                        module.getLogger().error("Failed to check idle guild worlds", failure);
+                    }
+                    return null;
+                }), 30, 30, TimeUnit.SECONDS));
         if (!pendingResets.isEmpty())
         {
             module.getLogger().warn("Guild worlds have unfinished resets and remain closed: {}. Run the confirmed reset command again to finish them.", pendingResets);
@@ -103,6 +126,12 @@ public final class AspGuildWorldService implements GuildWorldService
             return CompletableFuture.failedFuture(new IllegalStateException("Guild worlds are stopped or this world has a pending reset or deletion"));
         }
         UUID id = guild.getGuildUuid();
+        emptySince.remove(id);
+        CompletableFuture<Void> unloading = unloads.get(id);
+        if (unloading != null)
+        {
+            return unloading.thenCompose(unused -> ensureWorld(guild));
+        }
         CompletableFuture<World> loading = loads.get(id);
         if (loading != null)
         {
@@ -142,7 +171,7 @@ public final class AspGuildWorldService implements GuildWorldService
     {
         UUID id = guild.getGuildUuid();
         if (stopped || resets.containsKey(id) || isResetting(guild.getWorldName()) || deletedWorlds.contains(guild.getWorldName())
-                || loads.containsKey(id))
+                || loads.containsKey(id) || unloads.containsKey(id))
         {
             return CompletableFuture.failedFuture(new IllegalStateException("The world exists or is busy"));
         }
@@ -241,11 +270,14 @@ public final class AspGuildWorldService implements GuildWorldService
             return CompletableFuture.failedFuture(new IllegalStateException("Guild worlds are stopped, a reset is already running, or the world is deleted"));
         }
         CompletableFuture<World> loading = loads.getOrDefault(id, CompletableFuture.completedFuture(null));
+        CompletableFuture<Void> unloading = unloads.getOrDefault(id, CompletableFuture.completedFuture(null));
+        emptySince.remove(id);
         CompletableFuture<Void> result = module.getGuildMutationService().resetWorld(guild, actor,
                 () ->
                 {
                     pendingResets.add(guild.getWorldName());
-                    return loading.handle((world, failure) -> null).thenCompose(unused -> prepareReset(guild));
+                    return unloading.thenCompose(unused -> loading.handle((world, failure) -> null))
+                            .thenCompose(unused -> prepareReset(guild));
                 },
                 () -> onStorage(() ->
                 {
@@ -326,7 +358,9 @@ public final class AspGuildWorldService implements GuildWorldService
             return CompletableFuture.completedFuture(null);
         }
         CompletableFuture<World> loading = loads.getOrDefault(id, CompletableFuture.completedFuture(null));
-        return loading.handle((world, failure) -> null).thenCompose(unused -> onGlobal(() ->
+        CompletableFuture<Void> unloading = unloads.getOrDefault(id, CompletableFuture.completedFuture(null));
+        emptySince.remove(id);
+        return unloading.thenCompose(unused -> loading.handle((world, failure) -> null)).thenCompose(unused -> onGlobal(() ->
         {
             loadedWorlds.remove(id);
             return asp.getLoadedWorld(worldName);
@@ -409,8 +443,17 @@ public final class AspGuildWorldService implements GuildWorldService
         IllegalStateException failure = new IllegalStateException("Guild worlds stopped");
         loads.values().forEach(future -> future.completeExceptionally(failure));
         resets.values().forEach(future -> future.completeExceptionally(failure));
-        for (SlimeWorldInstance world : loadedWorlds.values())
+        emptySince.clear();
+        for (Map.Entry<UUID, SlimeWorldInstance> entry : loadedWorlds.entrySet())
         {
+            SlimeWorldInstance world = entry.getValue();
+            if (unloads.containsKey(entry.getKey()))
+            {
+                // ASP saves can wait for this thread. Leave ownership with ASP instead of waiting or saving twice.
+                world.getBukkitWorld().setAutoSave(true);
+                module.getLogger().warn("Guild world {} has an idle unload in progress; ASP will continue to own its saves", world.getName());
+                continue;
+            }
             try
             {
                 asp.saveWorld(world);
@@ -430,6 +473,8 @@ public final class AspGuildWorldService implements GuildWorldService
             }
         }
         loadedWorlds.clear();
+        List.copyOf(unloads.values()).forEach(future -> future.completeExceptionally(failure));
+        unloads.clear();
         if (io != null)
         {
             io.shutdown();
@@ -504,6 +549,100 @@ public final class AspGuildWorldService implements GuildWorldService
                 module.getLogger().error("Failed to expire guild world backups", failure);
             }
         });
+    }
+
+    private synchronized void checkIdleWorlds()
+    {
+        if (stopped)
+        {
+            return;
+        }
+        long now = System.nanoTime();
+        for (Map.Entry<UUID, SlimeWorldInstance> entry : loadedWorlds.entrySet())
+        {
+            UUID id = entry.getKey();
+            SlimeWorldInstance loaded = entry.getValue();
+            if (unloads.containsKey(id))
+            {
+                continue;
+            }
+            if (loads.containsKey(id) || resets.containsKey(id) || pendingResets.contains(loaded.getName())
+                    || deletedWorlds.contains(loaded.getName()) || !loaded.getBukkitWorld().getPlayers().isEmpty())
+            {
+                emptySince.remove(id);
+                continue;
+            }
+            Long since = emptySince.putIfAbsent(id, now);
+            if (since != null && Duration.ofNanos(now - since).compareTo(unloadAfter) >= 0)
+            {
+                unloadIdleWorld(id, loaded);
+            }
+        }
+    }
+
+    private void unloadIdleWorld(UUID id, SlimeWorldInstance loaded)
+    {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+        unloads.put(id, result);
+        onIo(() ->
+        {
+            asp.saveWorld(loaded);
+            return null;
+        }).handle((unused, failure) ->
+        {
+            if (failure != null)
+            {
+                module.getLogger().error("Failed to save idle guild world {}", loaded.getName(), failure);
+            }
+            return failure == null;
+        }).thenCompose(saved -> onGlobal(() ->
+        {
+            finishIdleUnload(id, loaded, saved);
+            return null;
+        })).whenComplete((unused, failure) ->
+        {
+            synchronized (this)
+            {
+                if (failure != null && !stopped)
+                {
+                    module.getLogger().error("Failed to unload idle guild world {}", loaded.getName(), failure);
+                }
+                unloads.remove(id, result);
+                emptySince.remove(id);
+                result.complete(null);
+            }
+        });
+    }
+
+    // Runs without the service lock so region threads never wait on this save. The unloads entry keeps
+    // ensureWorld, resetWorld, deleteWorld, and generateWorld waiting until the unload completes.
+    private void finishIdleUnload(UUID id, SlimeWorldInstance loaded, boolean saved)
+    {
+        if (stopped)
+        {
+            return;
+        }
+        World world = loaded.getBukkitWorld();
+        // A player can arrive without ensureWorld while the save runs. Never evacuate an idle world.
+        if (!saved || resets.containsKey(id) || pendingResets.contains(loaded.getName())
+                || deletedWorlds.contains(loaded.getName()) || !world.getPlayers().isEmpty())
+        {
+            world.setAutoSave(true);
+            return;
+        }
+        try
+        {
+            if (!Bukkit.unloadWorld(world, true))
+            {
+                throw new IllegalStateException("Could not unload idle guild world " + loaded.getName());
+            }
+            loadedWorlds.remove(id, loaded);
+        }
+        catch (RuntimeException exception)
+        {
+            world.setAutoSave(true);
+            module.getLogger().error("Failed to unload idle guild world {}", loaded.getName(), exception);
+        }
     }
 
     private <T> CompletableFuture<T> onIo(Callable<T> operation)

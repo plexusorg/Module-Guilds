@@ -11,6 +11,8 @@ guilds:
     default-duration: 24h
     max-duration: 30d
   worlds:
+    # Unload worlds after this time with no players; use a positive duration in m, h, or d.
+    unload-after: 5m
     # Border width in blocks for every terrain type. Use an even number from 16 to 59999968.
     size: 500000
     # Keep backups for unfinished resets until staff finish the reset.
