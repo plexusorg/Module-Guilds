@@ -48,8 +48,8 @@ guildChatToggled: "<green>Guild chat is now <status>."
 # Prefix
 guildPrefixSet: "<green>Set the guild prefix to '<prefix><green>'."
 guildPrefixCleared: "<green>Cleared the guild prefix."
-guildPrefixHelp: "Use 1-5 letters (A-Z, a-z), digits (0-9), sprites or heads, with no spaces and at least one letter or digit. Add both square brackets or neither. Letters and digits must be unique across guilds, regardless of case. Styling does not count."
-guildPrefixInvalid: "<red>Use 1-5 letters (A-Z, a-z), digits (0-9), sprites or heads, with no spaces and at least one letter or digit. Add both square brackets or neither. Letters and digits must be unique across guilds, regardless of case. Colors and decorations do not count."
+guildPrefixHelp: "Use 1-5 letters (A-Z, a-z), digits (0-9), colons, sprites or heads, with no spaces and at least one letter or digit. Add both square brackets or neither. Letters and digits must be unique across guilds, regardless of case. Styling does not count."
+guildPrefixInvalid: "<red>Use 1-5 letters (A-Z, a-z), digits (0-9), colons, sprites or heads, with no spaces and at least one letter or digit. Add both square brackets or neither. Letters and digits must be unique across guilds, regardless of case. Colors and decorations do not count."
 guildPrefixTaken: "<red>That prefix is already taken. Choose different letters or digits. Brackets, styling, sprites, heads and letter case do not make a prefix unique."
 
 # World
