@@ -17,6 +17,7 @@ public final class GuildPrefix
 {
     private static final Pattern TEXT = Pattern.compile("[A-Za-z0-9:\\[\\]]*");
     private static final Pattern SHAPE = Pattern.compile("(?:[A-Za-z0-9:\uFFFC]{1,5}|\\[[A-Za-z0-9:\uFFFC]{1,5}\\])");
+    private static final Pattern LETTER_OR_DIGIT = Pattern.compile("[A-Z0-9]");
     private static final GuildPrefix EMPTY = new GuildPrefix(null, Component.empty(), null);
 
     private final String text;
@@ -47,8 +48,8 @@ public final class GuildPrefix
         {
             throw new IllegalArgumentException("Use 1-5 letters, digits, colons, sprites or heads, with optional paired brackets");
         }
-        String key = visible.toString().replaceAll("[^A-Za-z0-9]", "").toUpperCase(Locale.ROOT);
-        if (key.isEmpty())
+        String key = visible.toString().replaceAll("[^A-Za-z0-9:]", "").toUpperCase(Locale.ROOT);
+        if (!LETTER_OR_DIGIT.matcher(key).find())
         {
             throw new IllegalArgumentException("A guild prefix must contain a letter or digit");
         }
