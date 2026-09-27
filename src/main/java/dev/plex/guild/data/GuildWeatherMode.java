@@ -2,10 +2,22 @@ package dev.plex.guild.data;
 
 public enum GuildWeatherMode
 {
-    CYCLE,
-    CLEAR,
-    RAIN,
-    THUNDER;
+    CYCLE("Cycle"),
+    CLEAR("Clear"),
+    RAIN("Rain"),
+    THUNDER("Thunder");
+
+    private final String label;
+
+    GuildWeatherMode(String label)
+    {
+        this.label = label;
+    }
+
+    public String label()
+    {
+        return label;
+    }
 
     public GuildWeatherMode next()
     {

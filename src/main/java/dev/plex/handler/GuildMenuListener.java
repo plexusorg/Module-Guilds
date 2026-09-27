@@ -12,6 +12,8 @@ import dev.plex.guild.data.GuildTimeMode;
 import dev.plex.guild.data.GuildWeatherMode;
 import dev.plex.guild.data.Member;
 import dev.plex.util.CustomLocation;
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.TooltipDisplay;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
@@ -524,11 +526,11 @@ public class GuildMenuListener implements Listener
         GuildTimeMode time = guild.getTimeMode();
         GuildWeatherMode weather = guild.getWeatherMode();
         Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, Screen.WORLD_SETTINGS, null, 0), SMALL_SIZE, title("World settings"));
-        inventory.setItem(FIRST_ACTION_SLOT, item(Material.CLOCK, "Time: " + time.name(), NamedTextColor.YELLOW, List.of(
-                line("Click to set " + time.next().name(), NamedTextColor.GRAY)
+        inventory.setItem(FIRST_ACTION_SLOT, item(Material.CLOCK, "Time: " + time.label(), NamedTextColor.YELLOW, List.of(
+                line("Click to set " + time.next().label(), NamedTextColor.GRAY)
         ), Action.TIME));
-        inventory.setItem(THIRD_ACTION_SLOT, item(Material.WATER_BUCKET, "Weather: " + weather.name(), NamedTextColor.AQUA, List.of(
-                line("Click to set " + weather.next().name(), NamedTextColor.GRAY)
+        inventory.setItem(THIRD_ACTION_SLOT, item(Material.WATER_BUCKET, "Weather: " + weather.label(), NamedTextColor.AQUA, List.of(
+                line("Click to set " + weather.next().label(), NamedTextColor.GRAY)
         ), Action.WEATHER));
         inventory.setItem(SMALL_BACK_SLOT, backItem());
         return inventory;
@@ -872,6 +874,8 @@ public class GuildMenuListener implements Listener
             meta.setPlayerProfile(Bukkit.createProfile(uuid));
             meta.getPersistentDataContainer().set(TARGET_KEY, PersistentDataType.STRING, uuid.toString());
         });
+        // A UUID-only profile is dynamic, and the client labels it "Dynamic" under the name.
+        itemStack.setData(DataComponentTypes.TOOLTIP_DISPLAY, TooltipDisplay.tooltipDisplay().addHiddenComponents(DataComponentTypes.PROFILE).build());
         return itemStack;
     }
 
