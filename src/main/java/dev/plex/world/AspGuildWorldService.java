@@ -342,7 +342,8 @@ public final class AspGuildWorldService implements GuildWorldService
                         loadedWorlds.remove(guild.getGuildUuid(), loaded);
                         return null;
                     }));
-            return unload.thenCompose(unused -> onStorage(() ->
+            // An unload returns before ASP writes its final save. Never back up or replace the file under that write.
+            return unload.thenCompose(unused -> asp.pendingSaves(guild.getWorldName())).thenCompose(unused -> onStorage(() ->
             {
                 files.prepareReset(guild.getWorldName());
                 return null;
@@ -375,7 +376,7 @@ public final class AspGuildWorldService implements GuildWorldService
                         throw new IllegalStateException("Could not unload guild world " + worldName);
                     }
                     return null;
-                }))).thenCompose(unused -> onStorage(() ->
+                }))).thenCompose(unused -> asp.pendingSaves(worldName)).thenCompose(unused -> onStorage(() ->
                 {
                     try
                     {
@@ -624,6 +625,7 @@ public final class AspGuildWorldService implements GuildWorldService
 
     private void unloadIdleWorld(UUID id, SlimeWorldInstance loaded)
     {
+        // Wait for the queued ASP save on the IO thread. The completion takes the service lock, and an ASP save thread must never wait for it.
         CompletableFuture<Void> result = new CompletableFuture<>();
         unloads.put(id, result);
         onIo(() ->
@@ -641,7 +643,7 @@ public final class AspGuildWorldService implements GuildWorldService
         {
             finishIdleUnload(id, loaded, saved);
             return null;
-        })).whenComplete((unused, failure) ->
+        })).thenCompose(unused -> onIo(() -> asp.pendingSaves(loaded.getName()).join())).whenComplete((unused, failure) ->
         {
             synchronized (this)
             {
