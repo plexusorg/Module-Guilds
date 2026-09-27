@@ -16,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import dev.plex.util.CustomLocation;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Owns durable guild mutations and their in-memory projection.
@@ -85,12 +86,35 @@ public final class GuildMutationService
         return serialize(guild, () ->
         {
             requireManager(guild, actorId);
-            if (guild.isMember(inviteeUuid))
+            if (module.getGuildHolder().guild(inviteeUuid).isPresent())
             {
-                throw new IllegalArgumentException("The player is already a member of this guild");
+                throw new IllegalArgumentException("The player is already in a guild");
+            }
+            Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
+            Instant cutoff = now.minus(Guild.INVITE_WINDOW);
+            long count = 0;
+            Instant oldest = now;
+            for (Instant createdAt : guild.getInviteHistory())
+            {
+                if (createdAt.isAfter(cutoff))
+                {
+                    count++;
+                    if (createdAt.isBefore(oldest))
+                    {
+                        oldest = createdAt;
+                    }
+                }
+            }
+            if (count >= module.getInviteDailyLimit())
+            {
+                throw new GuildInviteLimitException(Duration.between(now, oldest.plus(Guild.INVITE_WINDOW)));
             }
             return module.getGuildRepository().createInvite(guild.getGuildUuid(), actorId, inviteeUuid,
-                    Instant.now().plus(INVITE_DURATION));
+                    now, now.plus(INVITE_DURATION)).thenRun(() ->
+            {
+                guild.getInviteHistory().removeIf(createdAt -> !createdAt.isAfter(cutoff));
+                guild.getInviteHistory().add(now);
+            });
         });
     }
 
@@ -181,17 +205,19 @@ public final class GuildMutationService
     }
 
     /**
-     * Adds a view-only guest, or resets the expiry of an active guest and keeps the mode.
+     * Adds a guest or resets the expiry with the requested mode.
+     * A null mode keeps an active guest's mode; a new guest gets view mode.
      * The duration must be positive and not more than the configured maximum.
      */
-    public CompletableFuture<Guest> addGuest(Guild guild, UUID actorId, UUID playerId, Duration duration)
+    public CompletableFuture<Guest> addGuest(Guild guild, UUID actorId, UUID playerId, @Nullable Boolean editing, Duration duration)
     {
         if (duration.isNegative() || duration.isZero() || duration.compareTo(module.getGuestMaxDuration()) > 0)
         {
             return CompletableFuture.failedFuture(new IllegalArgumentException("The guest duration is not valid"));
         }
         return upsertGuest(guild, actorId, playerId, existing -> new Guest(playerId,
-                existing != null && existing.editing(), Instant.now().plus(duration).truncatedTo(ChronoUnit.MILLIS)));
+                editing != null ? editing : existing != null && existing.editing(),
+                Instant.now().plus(duration).truncatedTo(ChronoUnit.MILLIS)));
     }
 
     /** Switches an active guest between build (editing) and view mode. The expiry does not change. */

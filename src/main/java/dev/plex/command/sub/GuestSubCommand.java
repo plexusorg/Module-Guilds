@@ -7,6 +7,7 @@ import dev.plex.guild.data.Guest;
 import dev.plex.util.DurationParser;
 import java.time.Duration;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -26,7 +27,7 @@ public final class GuestSubCommand extends GuildSubCommand
     {
         super(module, command("guest")
                 .description("Add or remove a guest in your guild world")
-                .usage("/guild <command> <add|remove> <player> [time]")
+                .usage("/guild <command> <add|remove> <player> [view|build] [time]")
                 .permission("plex.guilds.guests")
                 .source(RequiredCommandSource.IN_GAME)
                 .build());
@@ -43,7 +44,7 @@ public final class GuestSubCommand extends GuildSubCommand
     public List<HelpEntry> helpEntries(@Nullable Player player)
     {
         return List.of(
-                new HelpEntry("/guild guest add <player> [time]", "Let a player view your guild world (time: 30m, 12h, 7d)", "/guild guest add "),
+                new HelpEntry("/guild guest add <player> [view|build] [time]", "Let a player view or build in your guild world (time: 30m, 12h, 7d)", "/guild guest add "),
                 new HelpEntry("/guild guest remove <player>", "Remove a guest", "/guild guest remove "));
     }
 
@@ -67,26 +68,45 @@ public final class GuestSubCommand extends GuildSubCommand
             return messageComponent("guildNotManager");
         }
         String[] options = remaining.split(" ");
-        if (options.length > (add ? 2 : 1))
-        {
-            return usage();
-        }
         if (!add)
         {
+            if (options.length != 1)
+            {
+                return usage();
+            }
             remove(player, guild, options[0]);
             return null;
         }
-        Duration duration = options.length == 2 ? DurationParser.parse(options[1]) : module.getGuestDefaultDuration();
+        Boolean editing = null;
+        int timeIndex = 1;
+        if (options.length > 1)
+        {
+            editing = switch (options[1].toLowerCase(Locale.ROOT))
+            {
+                case "view" -> false;
+                case "build" -> true;
+                default -> null;
+            };
+            if (editing != null)
+            {
+                timeIndex = 2;
+            }
+        }
+        if (options.length > timeIndex + 1)
+        {
+            return usage();
+        }
+        Duration duration = options.length > timeIndex ? DurationParser.parse(options[timeIndex]) : module.getGuestDefaultDuration();
         if (duration == null || duration.compareTo(module.getGuestMaxDuration()) > 0)
         {
             return messageComponent("guildGuestDurationInvalid",
                     Placeholder.unparsed("max", formatDuration(module.getGuestMaxDuration())));
         }
-        add(player, guild, options[0], duration);
+        add(player, guild, options[0], editing, duration);
         return null;
     }
 
-    private void add(Player player, Guild guild, String target, Duration duration)
+    private void add(Player player, Guild guild, String target, @Nullable Boolean editing, Duration duration)
     {
         resolvePlayer(target).whenComplete((targetId, lookupFailure) ->
         {
@@ -100,7 +120,7 @@ public final class GuestSubCommand extends GuildSubCommand
                 player.sendMessage(messageComponent("guildPlayerNotFound", Placeholder.unparsed("player", target)));
                 return;
             }
-            module.getGuildMutationService().addGuest(guild, player.getUniqueId(), targetId, duration).whenComplete((guest, throwable) ->
+            module.getGuildMutationService().addGuest(guild, player.getUniqueId(), targetId, editing, duration).whenComplete((guest, throwable) ->
             {
                 if (throwable != null)
                 {
@@ -173,6 +193,11 @@ public final class GuestSubCommand extends GuildSubCommand
         if (ADD.equalsIgnoreCase(first))
         {
             return module.api().players().onlineNames();
+        }
+        String[] arguments = first.split(" ");
+        if (arguments.length == 2 && ADD.equalsIgnoreCase(arguments[0]))
+        {
+            return List.of("view", "build");
         }
         Guild guild = sender instanceof Player player ? guildOf(player) : null;
         if (!REMOVE.equalsIgnoreCase(first) || guild == null)

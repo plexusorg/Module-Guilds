@@ -43,6 +43,7 @@ public class JdbiGuildRepository implements GuildRepository
     private final String membersTable;
     private final String warpsTable;
     private final String invitesTable;
+    private final String inviteHistoryTable;
     private final String guestsTable;
 
     public JdbiGuildRepository(ModuleStorage storage, Executor executor, ZoneId zoneId, Function<String, Component> prefixParser)
@@ -55,6 +56,7 @@ public class JdbiGuildRepository implements GuildRepository
         this.membersTable = storage.table("members");
         this.warpsTable = storage.table("warps");
         this.invitesTable = storage.table("invites");
+        this.inviteHistoryTable = storage.table("invite_history");
         this.guestsTable = storage.table("guests");
     }
 
@@ -81,9 +83,14 @@ public class JdbiGuildRepository implements GuildRepository
                                     UUID.fromString(rs.getString("player_uuid")), rs.getBoolean("editing"),
                                     Instant.ofEpochMilli(rs.getLong("expires_at")))))
                             .collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
+                    Map<String, List<Instant>> inviteHistoryByGuild = h.createQuery("SELECT guild_uuid, created_at FROM " + inviteHistoryTable + " WHERE created_at > :cutoff")
+                            .bind("cutoff", Instant.now().minus(Guild.INVITE_WINDOW).toEpochMilli())
+                            .map((rs, ctx) -> Map.entry(rs.getString("guild_uuid"), Instant.ofEpochMilli(rs.getLong("created_at"))))
+                            .collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
                     return guilds.stream().map(entity ->
                     {
                         Guild guild = toGuildBase(entity);
+                        guild.getInviteHistory().addAll(inviteHistoryByGuild.getOrDefault(entity.getGuildUuid(), List.of()));
                         membersByGuild.getOrDefault(entity.getGuildUuid(), List.of())
                                 .forEach(member -> guild.addMember(toMember(member)));
                         warpsByGuild.getOrDefault(entity.getGuildUuid(), List.of())
@@ -377,7 +384,7 @@ public class JdbiGuildRepository implements GuildRepository
     }
 
     @Override
-    public CompletableFuture<Void> createInvite(UUID guildUuid, UUID inviterUuid, UUID inviteeUuid, Instant expiresAt)
+    public CompletableFuture<Void> createInvite(UUID guildUuid, UUID inviterUuid, UUID inviteeUuid, Instant createdAt, Instant expiresAt)
     {
         return runAsync(() -> jdbi.useTransaction(h ->
         {
@@ -388,6 +395,14 @@ public class JdbiGuildRepository implements GuildRepository
                     .bind("inviter", inviterUuid.toString())
                     .bind("invitee", inviteeUuid.toString())
                     .bind("expires", expiresAt.toEpochMilli())
+                    .execute();
+            h.createUpdate("INSERT INTO " + inviteHistoryTable + " (guild_uuid, created_at) VALUES (:g, :created)")
+                    .bind("g", guildUuid.toString())
+                    .bind("created", createdAt.toEpochMilli())
+                    .execute();
+            h.createUpdate("DELETE FROM " + inviteHistoryTable + " WHERE guild_uuid = :g AND created_at <= :cutoff")
+                    .bind("g", guildUuid.toString())
+                    .bind("cutoff", createdAt.minus(Guild.INVITE_WINDOW).toEpochMilli())
                     .execute();
         }));
     }

@@ -14,6 +14,7 @@ import lombok.Setter;
 import net.kyori.adventure.text.Component;
 
 import java.time.Instant;
+import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -25,11 +26,15 @@ import java.util.UUID;
 @Data
 public class Guild
 {
+    public static final Duration INVITE_WINDOW = Duration.ofHours(24);
+
     private final UUID guildUuid;
     private final ZonedDateTime createdAt;
     private final List<Member> members = new CopyOnWriteArrayList<>();
     private final Map<String, CustomLocation> warps = new ConcurrentHashMap<>();
     private final Map<UUID, Guest> guests = new ConcurrentHashMap<>();
+    // Loaded before publication; subsequent access belongs to the guild mutation queue.
+    private final List<Instant> inviteHistory = new CopyOnWriteArrayList<>();
     private String name;
     private volatile UUID ownerUuid;
     @Setter(AccessLevel.NONE)

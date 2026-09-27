@@ -75,7 +75,7 @@ public class GuildCommand extends SimplePlexCommand
                 .suggests((context, builder) ->
                 {
                     String input = builder.getRemaining();
-                    int space = input.indexOf(' ');
+                    int space = input.lastIndexOf(' ');
                     return space < 0 ? suggestArguments(context, builder, null)
                             : suggestArguments(context, builder.createOffset(builder.getStart() + space + 1), input.substring(0, space));
                 })

@@ -6,6 +6,7 @@ import dev.plex.command.exception.AmbiguousPlayerException;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
 import dev.plex.guild.GuildPrefixTakenException;
+import dev.plex.guild.GuildInviteLimitException;
 import dev.plex.util.CustomLocation;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import java.time.Duration;
@@ -148,6 +149,11 @@ public abstract class GuildSubCommand
         if (cause instanceof GuildPrefixTakenException)
         {
             return messageComponent("guildPrefixTaken");
+        }
+        if (cause instanceof GuildInviteLimitException limit)
+        {
+            Duration wait = Duration.ofMinutes((limit.getRetryAfter().toMillis() + 59_999) / 60_000);
+            return messageComponent("guildInviteLimitReached", Placeholder.unparsed("duration", formatDuration(wait)));
         }
         if (cause instanceof IllegalArgumentException && invalidKey != null)
         {

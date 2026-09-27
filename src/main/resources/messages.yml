@@ -24,6 +24,7 @@ alreadyInGuild: "<red>You are already in a guild. Enter <gold>/guild leave</gold
 
 # Invites
 guildInviteSent: "<green>Sent an invite to <dark_green><player><green>."
+guildInviteLimitReached: "<red>Your guild has reached its daily invite limit. Try again in <duration>."
 guildInviteReceived: "<gold><yellow><player></yellow> invited you to the guild <yellow><guild></yellow>.<newline><green><bold><accept_invite>[ACCEPT]</accept_invite><newline><!bold><gold>You can also enter <yellow>/guild accept <guild></yellow>. The invite ends in 5 minutes."
 guildCannotInviteSelf: "<red>You cannot invite yourself."
 guildTargetAlreadyInGuild: "<red>That player is already in a guild."

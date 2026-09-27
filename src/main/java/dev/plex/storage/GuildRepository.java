@@ -48,7 +48,7 @@ public interface GuildRepository
 
     CompletableFuture<Void> deleteWarp(UUID guildUuid, String name);
 
-    CompletableFuture<Void> createInvite(UUID guildUuid, UUID inviterUuid, UUID inviteeUuid, Instant expiresAt);
+    CompletableFuture<Void> createInvite(UUID guildUuid, UUID inviterUuid, UUID inviteeUuid, Instant createdAt, Instant expiresAt);
 
     CompletableFuture<Void> deleteInvite(UUID guildUuid, UUID inviteeUuid);
 

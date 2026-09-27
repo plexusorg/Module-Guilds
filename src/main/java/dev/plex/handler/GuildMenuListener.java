@@ -301,7 +301,7 @@ public class GuildMenuListener implements Listener
             return;
         }
         Duration duration = module.getGuestDefaultDuration();
-        CompletableFuture<Void> mutation = mutationService.addGuest(guild, player.getUniqueId(), target, duration).thenApply(unused -> null);
+        CompletableFuture<Void> mutation = mutationService.addGuest(guild, player.getUniqueId(), target, null, duration).thenApply(unused -> null);
         mutate(player, guild, source, mutation, target, name -> module.messageComponent("guildMenuGuestExtended",
                 Placeholder.unparsed("player", name), Placeholder.unparsed("time", formatDuration(duration))), Screen.GUEST, target, holder.page());
     }

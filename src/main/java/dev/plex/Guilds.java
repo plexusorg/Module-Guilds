@@ -64,6 +64,7 @@ public class Guilds extends PlexModule
     private ZoneId zoneId;
     private Duration guestDefaultDuration;
     private Duration guestMaxDuration;
+    private int inviteDailyLimit;
     private volatile boolean ready;
     private volatile boolean loadFailed;
 
@@ -72,6 +73,11 @@ public class Guilds extends PlexModule
     {
         config = api().moduleConfigs().create(this, "config.yml");
         config.load();
+        if (!config.isInt("guilds.invites.daily-limit") || config.getInt("guilds.invites.daily-limit") <= 0)
+        {
+            throw new IllegalArgumentException("guilds.invites.daily-limit must be a positive whole number");
+        }
+        inviteDailyLimit = config.getInt("guilds.invites.daily-limit");
         zoneId = ZoneId.of(api().configuration().mainConfig().getString("server.timezone", "Etc/UTC"));
         guestDefaultDuration = DurationParser.parse(config.getString("guilds.guests.default-duration", "24h"));
         guestMaxDuration = DurationParser.parse(config.getString("guilds.guests.max-duration", "30d"));

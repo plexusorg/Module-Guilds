@@ -56,3 +56,11 @@ CREATE TABLE IF NOT EXISTS {{table:guests}} (
     PRIMARY KEY (guild_uuid, player_uuid),
     FOREIGN KEY (guild_uuid) REFERENCES {{table:guilds}} (guild_uuid) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS {{table:invite_history}} (
+    guild_uuid VARCHAR(46) NOT NULL,
+    created_at BIGINT NOT NULL,
+    FOREIGN KEY (guild_uuid) REFERENCES {{table:guilds}} (guild_uuid) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_invite_history_guild_created ON {{table:invite_history}} (guild_uuid, created_at);
