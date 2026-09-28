@@ -16,7 +16,7 @@ public final class VisitSubCommand extends GuildSubCommand
     public VisitSubCommand(Guilds module)
     {
         super(module, command("visit")
-                .description("Visit a guild world where you are a guest")
+                .description("Visit an accessible guild world")
                 .usage("/guild <command> <guild>")
                 .permission("plex.guilds.world")
                 .source(RequiredCommandSource.IN_GAME)
@@ -26,7 +26,7 @@ public final class VisitSubCommand extends GuildSubCommand
     @Override
     public boolean isAvailable(@Nullable Player player)
     {
-        return player != null && (player.hasPermission("plex.guilds.world.bypass") || guildOf(player) == null || !guestGuilds(player.getUniqueId()).isEmpty());
+        return player != null && (player.hasPermission("plex.guilds.world.bypass") || guildOf(player) == null || !accessibleGuilds(player.getUniqueId()).isEmpty());
     }
 
     @Override
@@ -55,14 +55,14 @@ public final class VisitSubCommand extends GuildSubCommand
     public @NotNull List<String> suggestSubCommand(@NotNull CommandSender sender, @Nullable String first)
     {
         return first == null && sender instanceof Player player
-                ? (player.hasPermission("plex.guilds.world.bypass") ? module.getGuildHolder().guilds() : guestGuilds(player.getUniqueId())).stream().map(Guild::getName).toList()
+                ? (player.hasPermission("plex.guilds.world.bypass") ? module.getGuildHolder().guilds() : accessibleGuilds(player.getUniqueId())).stream().map(Guild::getName).toList()
                 : List.of();
     }
 
-    private List<Guild> guestGuilds(UUID playerId)
+    private List<Guild> accessibleGuilds(UUID playerId)
     {
         return module.getGuildHolder().guilds().stream()
-                .filter(guild -> guild.getActiveGuest(playerId) != null)
+                .filter(guild -> guild.canEnterWorld(playerId))
                 .toList();
     }
 

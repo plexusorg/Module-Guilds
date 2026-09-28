@@ -3,8 +3,6 @@ package dev.plex.handler;
 import com.destroystokyo.paper.event.player.PlayerPostRespawnEvent;
 import dev.plex.Guilds;
 import dev.plex.guild.Guild;
-import dev.plex.guild.data.Guest;
-import java.time.Instant;
 import dev.plex.guild.data.GuildPermission;
 import io.papermc.paper.event.player.AsyncPlayerSpawnLocationEvent;
 import java.util.UUID;
@@ -113,31 +111,23 @@ public final class GuildWorldAccessListener implements Listener
         }
     }
 
-    public void startGuestExpiry()
+    public void applyAccess(Guild guild)
     {
-        module.ownTask(Bukkit.getAsyncScheduler().runAtFixedRate(module.plugin(), task ->
+        module.ownTask(Bukkit.getGlobalRegionScheduler().run(module.plugin(), task ->
         {
-            Instant now = Instant.now();
-            for (Guild guild : module.getGuildHolder().guilds())
+            for (Player player : Bukkit.getOnlinePlayers())
             {
-                for (Guest guest : guild.getGuests().values())
-                {
-                    // Authorization checks the timestamp on every action. This timer removes idle visitors too.
-                    if (!guest.isActive(now) && guild.getGuests().remove(guest.playerUuid(), guest))
-                    {
-                        revoke(guest.playerUuid());
-                    }
-                }
+                revokeOnline(player.getUniqueId(), guild.getWorldName());
             }
-        }, 1, 1, TimeUnit.SECONDS));
+        }));
     }
 
     public void revoke(UUID playerId)
     {
-        module.ownTask(Bukkit.getGlobalRegionScheduler().run(module.plugin(), task -> revokeOnline(playerId)));
+        module.ownTask(Bukkit.getGlobalRegionScheduler().run(module.plugin(), task -> revokeOnline(playerId, null)));
     }
 
-    private void revokeOnline(UUID playerId)
+    private void revokeOnline(UUID playerId, String worldName)
     {
         Player player = Bukkit.getPlayer(playerId);
         if (player == null)
@@ -147,6 +137,15 @@ public final class GuildWorldAccessListener implements Listener
         Location fallback = fallback();
         module.ownTask(player.getScheduler().run(module.plugin(), task ->
         {
+            if (worldName != null && !worldName.equals(player.getWorld().getName()))
+            {
+                return;
+            }
+            if (!module.getGuildWorldProtectionListener().canUse(playerId, player.getWorld(), GuildPermission.INTERACT))
+            {
+                player.closeInventory();
+                player.leaveVehicle();
+            }
             if (module.getGuildWorldProtectionListener().canEnter(playerId, player.getWorld()))
             {
                 return;

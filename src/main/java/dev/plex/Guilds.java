@@ -18,7 +18,6 @@ import dev.plex.module.PlexModule;
 import dev.plex.api.storage.ModuleStorage;
 import dev.plex.storage.GuildRepository;
 import dev.plex.storage.JdbiGuildRepository;
-import dev.plex.util.DurationParser;
 import dev.plex.world.GuildWorldService;
 import dev.plex.world.AspGuildWorldService;
 import lombok.Getter;
@@ -29,7 +28,6 @@ import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.entity.Player;
 
 import java.sql.SQLException;
-import java.time.Duration;
 import java.time.ZoneId;
 import java.util.List;
 import java.util.Set;
@@ -62,8 +60,6 @@ public class Guilds extends PlexModule
 
     private ModuleConfiguration config;
     private ZoneId zoneId;
-    private Duration guestDefaultDuration;
-    private Duration guestMaxDuration;
     private int inviteDailyLimit;
     private volatile boolean ready;
     private volatile boolean loadFailed;
@@ -79,12 +75,6 @@ public class Guilds extends PlexModule
         }
         inviteDailyLimit = config.getInt("guilds.invites.daily-limit");
         zoneId = ZoneId.of(api().configuration().mainConfig().getString("server.timezone", "Etc/UTC"));
-        guestDefaultDuration = DurationParser.parse(config.getString("guilds.guests.default-duration", "24h"));
-        guestMaxDuration = DurationParser.parse(config.getString("guilds.guests.max-duration", "30d"));
-        if (guestDefaultDuration == null || guestMaxDuration == null || guestDefaultDuration.compareTo(guestMaxDuration) > 0)
-        {
-            throw new IllegalArgumentException("Guest durations must use <number>m, <number>h, or <number>d, and the default must not exceed the maximum");
-        }
         loadMessages("messages.yml");
         this.registerCommand(new GuildCommand(this));
     }
@@ -124,7 +114,6 @@ public class Guilds extends PlexModule
         registerListener(guildWorldProtectionListener);
         registerListener(new GuildWorldEntityProtectionListener(this));
         registerListener(guildWorldAccessListener);
-        guildWorldAccessListener.startGuestExpiry();
         if (Bukkit.getPluginManager().isPluginEnabled("FastAsyncWorldEdit"))
         {
             unregisterWorldEdit = new GuildWorldEditHook(this).register();

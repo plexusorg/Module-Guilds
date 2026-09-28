@@ -13,6 +13,7 @@ public class GuildEntity
     private String prefixKey;
     private String ownerUuid;
     private long createdAt;
+    private String worldAccess;
     private String timeMode;
     private String weatherMode;
     private String spawnWorld;

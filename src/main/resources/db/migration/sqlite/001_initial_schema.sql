@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS {{table:guilds}} (
     prefix_key VARCHAR(5) UNIQUE COLLATE NOCASE,
     owner_uuid VARCHAR(46) NOT NULL,
     created_at BIGINT NOT NULL,
+    world_access VARCHAR(12) NOT NULL DEFAULT 'PRIVATE' CHECK (world_access IN ('PRIVATE', 'PUBLIC_VIEW', 'PUBLIC_BUILD')),
     time_mode VARCHAR(6) NOT NULL DEFAULT 'CYCLE' CHECK (time_mode IN ('CYCLE', 'DAY', 'NOON', 'SUNSET', 'NIGHT')),
     weather_mode VARCHAR(7) NOT NULL DEFAULT 'CYCLE' CHECK (weather_mode IN ('CYCLE', 'CLEAR', 'RAIN', 'THUNDER')),
     spawn_world VARCHAR(128),
@@ -44,15 +45,6 @@ CREATE TABLE IF NOT EXISTS {{table:invites}} (
     invitee_uuid VARCHAR(46) NOT NULL,
     expires_at BIGINT NOT NULL,
     UNIQUE (guild_uuid, invitee_uuid)
-);
-
-CREATE TABLE IF NOT EXISTS {{table:guests}} (
-    guild_uuid VARCHAR(46) NOT NULL,
-    player_uuid VARCHAR(46) NOT NULL,
-    editing BOOLEAN NOT NULL,
-    expires_at BIGINT NOT NULL,
-    PRIMARY KEY (guild_uuid, player_uuid),
-    FOREIGN KEY (guild_uuid) REFERENCES {{table:guilds}} (guild_uuid) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS {{table:invite_history}} (

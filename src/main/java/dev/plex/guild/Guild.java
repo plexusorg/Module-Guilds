@@ -1,6 +1,6 @@
 package dev.plex.guild;
 
-import dev.plex.guild.data.Guest;
+import dev.plex.guild.data.GuildWorldAccess;
 import dev.plex.guild.data.GuildPermission;
 import dev.plex.guild.data.GuildRole;
 import dev.plex.guild.data.GuildTimeMode;
@@ -32,7 +32,6 @@ public class Guild
     private final ZonedDateTime createdAt;
     private final List<Member> members = new CopyOnWriteArrayList<>();
     private final Map<String, CustomLocation> warps = new ConcurrentHashMap<>();
-    private final Map<UUID, Guest> guests = new ConcurrentHashMap<>();
     // Loaded before publication; subsequent access belongs to the guild mutation queue.
     private final List<Instant> inviteHistory = new CopyOnWriteArrayList<>();
     private String name;
@@ -43,6 +42,8 @@ public class Guild
     private volatile CustomLocation spawn;
     private volatile GuildTimeMode timeMode = GuildTimeMode.CYCLE;
     private volatile GuildWeatherMode weatherMode = GuildWeatherMode.CYCLE;
+
+    private volatile GuildWorldAccess worldAccess = GuildWorldAccess.PRIVATE;
 
     public static Guild create(UUID ownerUuid, String guildName, ZoneId zoneId)
     {
@@ -106,15 +107,9 @@ public class Guild
         return member == null ? null : member.getRole();
     }
 
-    public Guest getActiveGuest(UUID uuid)
-    {
-        Guest guest = guests.get(uuid);
-        return guest != null && guest.isActive(Instant.now()) ? guest : null;
-    }
-
     public boolean canEnterWorld(UUID uuid)
     {
-        return isOwner(uuid) || isMember(uuid) || getActiveGuest(uuid) != null;
+        return isOwner(uuid) || isMember(uuid) || worldAccess != GuildWorldAccess.PRIVATE;
     }
 
     public void removeMember(UUID uuid)
@@ -134,8 +129,7 @@ public class Guild
         {
             return permission != GuildPermission.MANAGE || role != GuildRole.MEMBER;
         }
-        Guest guest = getActiveGuest(uuid);
-        return permission != GuildPermission.MANAGE && guest != null && guest.editing();
+        return permission != GuildPermission.MANAGE && worldAccess == GuildWorldAccess.PUBLIC_BUILD;
     }
 
     public boolean canManage(UUID actor)

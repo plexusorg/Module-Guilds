@@ -10,7 +10,7 @@ import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.command.sub.AcceptSubCommand;
 import dev.plex.command.sub.ChatSubCommand;
 import dev.plex.command.sub.CreateSubCommand;
-import dev.plex.command.sub.GuestSubCommand;
+import dev.plex.command.sub.AccessSubCommand;
 import dev.plex.command.sub.GuildSubCommand;
 import dev.plex.command.sub.InviteSubCommand;
 import dev.plex.command.sub.ListSubCommand;
@@ -58,7 +58,7 @@ public class GuildCommand extends SimplePlexCommand
         subCommands.add(new ChatSubCommand(module));
         subCommands.add(new LeaveSubCommand(module));
         subCommands.add(new InviteSubCommand(module));
-        subCommands.add(new GuestSubCommand(module));
+        subCommands.add(new AccessSubCommand(module));
         subCommands.add(new PrefixSubCommand(module));
         subCommands.add(new ResetWorldSubCommand(module));
     }

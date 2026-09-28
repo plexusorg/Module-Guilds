@@ -4,7 +4,7 @@ import dev.plex.api.storage.ModuleStorage;
 import dev.plex.guild.Guild;
 import dev.plex.guild.GuildPrefix;
 import dev.plex.guild.GuildPrefixTakenException;
-import dev.plex.guild.data.Guest;
+import dev.plex.guild.data.GuildWorldAccess;
 import dev.plex.guild.data.GuildRole;
 import dev.plex.guild.data.GuildTimeMode;
 import dev.plex.guild.data.GuildWeatherMode;
@@ -44,7 +44,6 @@ public class JdbiGuildRepository implements GuildRepository
     private final String warpsTable;
     private final String invitesTable;
     private final String inviteHistoryTable;
-    private final String guestsTable;
 
     public JdbiGuildRepository(ModuleStorage storage, Executor executor, ZoneId zoneId, Function<String, Component> prefixParser)
     {
@@ -57,7 +56,6 @@ public class JdbiGuildRepository implements GuildRepository
         this.warpsTable = storage.table("warps");
         this.invitesTable = storage.table("invites");
         this.inviteHistoryTable = storage.table("invite_history");
-        this.guestsTable = storage.table("guests");
     }
 
     @Override
@@ -77,12 +75,6 @@ public class JdbiGuildRepository implements GuildRepository
                     Map<String, List<GuildWarpEntity>> warpsByGuild = h.createQuery("SELECT * FROM " + warpsTable)
                             .map((rs, ctx) -> warpMapRow(rs)).list().stream()
                             .collect(Collectors.groupingBy(GuildWarpEntity::getGuildUuid));
-                    Map<String, List<Guest>> guestsByGuild = h.createQuery("SELECT * FROM " + guestsTable + " WHERE expires_at > :now")
-                            .bind("now", Instant.now().toEpochMilli())
-                            .map((rs, ctx) -> Map.entry(rs.getString("guild_uuid"), new Guest(
-                                    UUID.fromString(rs.getString("player_uuid")), rs.getBoolean("editing"),
-                                    Instant.ofEpochMilli(rs.getLong("expires_at")))))
-                            .collect(Collectors.groupingBy(Map.Entry::getKey, Collectors.mapping(Map.Entry::getValue, Collectors.toList())));
                     Map<String, List<Instant>> inviteHistoryByGuild = h.createQuery("SELECT guild_uuid, created_at FROM " + inviteHistoryTable + " WHERE created_at > :cutoff")
                             .bind("cutoff", Instant.now().minus(Guild.INVITE_WINDOW).toEpochMilli())
                             .map((rs, ctx) -> Map.entry(rs.getString("guild_uuid"), Instant.ofEpochMilli(rs.getLong("created_at"))))
@@ -95,9 +87,6 @@ public class JdbiGuildRepository implements GuildRepository
                                 .forEach(member -> guild.addMember(toMember(member)));
                         warpsByGuild.getOrDefault(entity.getGuildUuid(), List.of())
                                 .forEach(warp -> guild.getWarps().put(warp.getName(), toLocation(warp)));
-                        guestsByGuild.getOrDefault(entity.getGuildUuid(), List.of()).stream()
-                                .filter(guest -> !guild.isOwner(guest.playerUuid()) && !guild.isMember(guest.playerUuid()))
-                                .forEach(guest -> guild.getGuests().put(guest.playerUuid(), guest));
                         return guild;
                     }).toList();
                 });
@@ -120,9 +109,9 @@ public class JdbiGuildRepository implements GuildRepository
                 jdbi.useTransaction(h ->
                 {
                     h.createUpdate("INSERT INTO " + guildsTable + " (guild_uuid, name, prefix, prefix_key, owner_uuid, created_at, " +
-                                    "spawn_world, spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, time_mode, weather_mode) " +
+                                    "spawn_world, spawn_x, spawn_y, spawn_z, spawn_yaw, spawn_pitch, time_mode, weather_mode, world_access) " +
                                     "VALUES (:guildUuid, :name, :prefix, :prefixKey, :ownerUuid, :createdAt, :spawnWorld, :spawnX, :spawnY, :spawnZ, " +
-                                    ":spawnYaw, :spawnPitch, :timeMode, :weatherMode)")
+                                    ":spawnYaw, :spawnPitch, :timeMode, :weatherMode, :worldAccess)")
                             .bind("guildUuid", e.getGuildUuid())
                             .bind("name", e.getName())
                             .bind("prefix", e.getPrefix())
@@ -137,6 +126,7 @@ public class JdbiGuildRepository implements GuildRepository
                             .bind("spawnPitch", e.getSpawnPitch())
                             .bind("timeMode", e.getTimeMode())
                             .bind("weatherMode", e.getWeatherMode())
+                            .bind("worldAccess", e.getWorldAccess())
                             .execute();
                     insertMember(h, guild.getGuildUuid(), guild.getOwnerUuid(), GuildRole.OWNER);
                 });
@@ -157,7 +147,6 @@ public class JdbiGuildRepository implements GuildRepository
             h.createUpdate("DELETE FROM " + membersTable + " WHERE guild_uuid = :g").bind("g", guildUuid.toString()).execute();
             h.createUpdate("DELETE FROM " + warpsTable + " WHERE guild_uuid = :g").bind("g", guildUuid.toString()).execute();
             h.createUpdate("DELETE FROM " + invitesTable + " WHERE guild_uuid = :g").bind("g", guildUuid.toString()).execute();
-            h.createUpdate("DELETE FROM " + guestsTable + " WHERE guild_uuid = :g").bind("g", guildUuid.toString()).execute();
             h.createUpdate("DELETE FROM " + guildsTable + " WHERE guild_uuid = :g").bind("g", guildUuid.toString()).execute();
         }));
     }
@@ -168,10 +157,6 @@ public class JdbiGuildRepository implements GuildRepository
         return runAsync(() -> jdbi.useTransaction(h ->
         {
             upsertMember(h, guildUuid, playerUuid, role);
-            h.createUpdate("DELETE FROM " + guestsTable + " WHERE guild_uuid = :g AND player_uuid = :p")
-                    .bind("g", guildUuid.toString())
-                    .bind("p", playerUuid.toString())
-                    .execute();
         }));
     }
 
@@ -184,38 +169,7 @@ public class JdbiGuildRepository implements GuildRepository
                     .bind("g", guildUuid.toString())
                     .bind("p", playerUuid.toString())
                     .execute();
-            h.createUpdate("DELETE FROM " + guestsTable + " WHERE guild_uuid = :g AND player_uuid = :p")
-                    .bind("g", guildUuid.toString())
-                    .bind("p", playerUuid.toString())
-                    .execute();
         }));
-    }
-
-    @Override
-    public CompletableFuture<Void> upsertGuest(UUID guildUuid, Guest guest)
-    {
-        return runAsync(() -> jdbi.useTransaction(h ->
-        {
-            h.createUpdate("DELETE FROM " + guestsTable + " WHERE guild_uuid = :g AND player_uuid = :p")
-                    .bind("g", guildUuid.toString())
-                    .bind("p", guest.playerUuid().toString())
-                    .execute();
-            h.createUpdate("INSERT INTO " + guestsTable + " (guild_uuid, player_uuid, editing, expires_at) VALUES (:g, :p, :editing, :expires)")
-                    .bind("g", guildUuid.toString())
-                    .bind("p", guest.playerUuid().toString())
-                    .bind("editing", guest.editing())
-                    .bind("expires", guest.expiresAt().toEpochMilli())
-                    .execute();
-        }));
-    }
-
-    @Override
-    public CompletableFuture<Void> removeGuest(UUID guildUuid, UUID playerUuid)
-    {
-        return runAsync(() -> jdbi.useHandle(h -> h.createUpdate("DELETE FROM " + guestsTable + " WHERE guild_uuid = :g AND player_uuid = :p")
-                .bind("g", guildUuid.toString())
-                .bind("p", playerUuid.toString())
-                .execute()));
     }
 
     @Override
@@ -275,6 +229,15 @@ public class JdbiGuildRepository implements GuildRepository
             }
         }
         return false;
+    }
+
+    @Override
+    public CompletableFuture<Void> updateWorldAccess(UUID guildUuid, GuildWorldAccess mode)
+    {
+        return runAsync(() -> jdbi.useHandle(h -> h.createUpdate("UPDATE " + guildsTable + " SET world_access = :mode WHERE guild_uuid = :g")
+                .bind("mode", mode.name())
+                .bind("g", guildUuid.toString())
+                .execute()));
     }
 
     @Override
@@ -384,7 +347,7 @@ public class JdbiGuildRepository implements GuildRepository
     }
 
     @Override
-    public CompletableFuture<Void> createInvite(UUID guildUuid, UUID inviterUuid, UUID inviteeUuid, Instant createdAt, Instant expiresAt)
+    public CompletableFuture<Void> createInvite(UUID guildUuid, UUID inviterUuid, UUID inviteeUuid, Instant expiresAt)
     {
         return runAsync(() -> jdbi.useTransaction(h ->
         {
@@ -396,6 +359,14 @@ public class JdbiGuildRepository implements GuildRepository
                     .bind("invitee", inviteeUuid.toString())
                     .bind("expires", expiresAt.toEpochMilli())
                     .execute();
+        }));
+    }
+
+    @Override
+    public CompletableFuture<Void> recordInviteAttempt(UUID guildUuid, Instant createdAt)
+    {
+        return runAsync(() -> jdbi.useTransaction(h ->
+        {
             h.createUpdate("INSERT INTO " + inviteHistoryTable + " (guild_uuid, created_at) VALUES (:g, :created)")
                     .bind("g", guildUuid.toString())
                     .bind("created", createdAt.toEpochMilli())
@@ -444,6 +415,7 @@ public class JdbiGuildRepository implements GuildRepository
         e.setPrefixKey(rs.getString("prefix_key"));
         e.setOwnerUuid(rs.getString("owner_uuid"));
         e.setCreatedAt(rs.getLong("created_at"));
+        e.setWorldAccess(rs.getString("world_access"));
         e.setTimeMode(rs.getString("time_mode"));
         e.setWeatherMode(rs.getString("weather_mode"));
         e.setSpawnWorld(rs.getString("spawn_world"));
@@ -504,6 +476,7 @@ public class JdbiGuildRepository implements GuildRepository
         }
         guild.setPrefix(prefix);
         guild.setSpawn(toLocation(entity));
+        guild.setWorldAccess(GuildWorldAccess.valueOf(entity.getWorldAccess()));
         guild.setTimeMode(GuildTimeMode.valueOf(entity.getTimeMode()));
         guild.setWeatherMode(GuildWeatherMode.valueOf(entity.getWeatherMode()));
         return guild;
@@ -518,6 +491,7 @@ public class JdbiGuildRepository implements GuildRepository
         entity.setCreatedAt(guild.getCreatedAt().toInstant().toEpochMilli());
         entity.setPrefix(guild.getPrefix());
         entity.setPrefixKey(guild.getPrefixKey());
+        entity.setWorldAccess(guild.getWorldAccess().name());
         entity.setTimeMode(guild.getTimeMode().name());
         entity.setWeatherMode(guild.getWeatherMode().name());
         setSpawn(entity, guild.getSpawn());
