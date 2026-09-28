@@ -53,7 +53,6 @@ guildPrefixInvalid: "<red>Use 1-5 letters (A-Z, a-z), digits (0-9), colons, spri
 guildPrefixTaken: "<red>That prefix is already taken. Choose different letters, digits or colons. Brackets, styling, sprites, heads and letter case do not make a prefix unique."
 
 # World
-guildWorldAccessSet: "<green>Set world access to <access>."
 guildWorldsUnavailable: "<red>Guild worlds are not available on this server."
 guildWorldLoading: "<green>Loading the guild world..."
 guildWorldLoadFailed: "<red>The guild world could not be loaded."
@@ -71,6 +70,14 @@ guildWarpWrongWorld: "<red>Go to your guild world to set a warp."
 guildWarpSet: "<green>Set the warp <dark_green><warp><green> at your location."
 guildWarpDeleted: "<green>Deleted the warp <dark_green><warp><green>."
 
+# Guests
+guildGuestDurationInvalid: "<red>Enter a time like 30m, 12h, or 7d. The maximum is <max>."
+guildGuestTargetInvalid: "<red>Guild members cannot be guests."
+guildGuestAdded: "<green>Added <player> as a <mode> guest for <duration>."
+guildGuestNotFound: "<red><player> is not a guest of your guild."
+guildGuestRevoked: "<green>Removed <player> as a guest."
+guildGuestReceived: "<green><guild> added you as a <mode> guest for <duration>.<newline><yellow>Click to visit the guild world."
+
 # World reset
 guildResetTargetNotFound: "<red>No guild matches '<target>'. Enter the guild UUID or full name."
 guildWorldResetConfirm: "<red>Reset the world for <guild>?<newline><yellow>This removes all blocks and entities in <world>. Players leave the world first. The guild and its members stay the same. The world spawn and warps in this world are removed. Generate a new world after the reset.<newline>A backup is kept for <days> days. Backups needed by an incomplete reset are kept until recovery.<newline><gold>To confirm, enter <command>"
@@ -84,6 +91,8 @@ guildMenuActionUnavailable: "<red>That action is no longer available."
 guildMenuPromoted: "<green>Promoted <dark_green><player><green> to officer."
 guildMenuOwnerTransferred: "<green><dark_green><player><green> is now the guild owner. You are now an officer."
 guildMenuDemoted: "<green>Demoted <dark_green><player><green> to member."
+guildMenuGuestModeSet: "<green><player> is now a <mode> guest."
+guildMenuGuestExtended: "<green>Guest access for <player> now ends in <time>."
 guildMenuSpawnSet: "<green>Set the guild world spawn to your location."
 guildMenuWorldSettingsSet: "<green>Updated the guild world settings."
 guildMenuSpawnNotInWorld: "<red>Go to your guild world to set the spawn."

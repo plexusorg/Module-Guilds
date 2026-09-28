@@ -5,7 +5,7 @@ import dev.plex.guild.data.GuildRole;
 import dev.plex.guild.data.GuildTimeMode;
 import dev.plex.guild.data.GuildWeatherMode;
 import dev.plex.guild.data.Member;
-import dev.plex.guild.data.GuildWorldAccess;
+import dev.plex.guild.data.Guest;
 import java.time.Duration;
 import java.util.Locale;
 import java.util.UUID;
@@ -13,8 +13,10 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import dev.plex.util.CustomLocation;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Owns durable guild mutations and their in-memory projection.
@@ -51,6 +53,7 @@ public final class GuildMutationService
             }
             return module.getGuildRepository().removeMember(guild.getGuildUuid(), memberUuid).thenRun(() ->
             {
+                guild.getGuests().remove(memberUuid);
                 guild.removeMember(memberUuid);
                 module.getGuildHolder().unindexMember(memberUuid);
                 module.getGuildWorldAccessListener().revoke(memberUuid);
@@ -70,6 +73,7 @@ public final class GuildMutationService
                             : CompletableFuture.completedFuture(null))
                     .thenRun(() ->
                     {
+                        guild.getGuests().remove(memberUuid);
                         guild.addMember(memberUuid);
                         module.getGuildHolder().indexMember(guild.getGuildUuid(), memberUuid);
                     });
@@ -82,6 +86,10 @@ public final class GuildMutationService
         return serialize(guild, () ->
         {
             requireManager(guild, actorId);
+            if (module.getGuildHolder().guild(inviteeUuid).isPresent())
+            {
+                throw new IllegalArgumentException("The player is already in a guild");
+            }
             Instant now = Instant.now().truncatedTo(ChronoUnit.MILLIS);
             Instant cutoff = now.minus(Guild.INVITE_WINDOW);
             long count = 0;
@@ -101,15 +109,11 @@ public final class GuildMutationService
             {
                 throw new GuildInviteLimitException(Duration.between(now, oldest.plus(Guild.INVITE_WINDOW)));
             }
-            return module.getGuildRepository().recordInviteAttempt(guild.getGuildUuid(), now).thenCompose(unused ->
+            return module.getGuildRepository().createInvite(guild.getGuildUuid(), actorId, inviteeUuid,
+                    now, now.plus(INVITE_DURATION)).thenRun(() ->
             {
                 guild.getInviteHistory().removeIf(createdAt -> !createdAt.isAfter(cutoff));
                 guild.getInviteHistory().add(now);
-                if (module.getGuildHolder().guild(inviteeUuid).isPresent())
-                {
-                    throw new IllegalArgumentException("The player is already in a guild");
-                }
-                return module.getGuildRepository().createInvite(guild.getGuildUuid(), actorId, inviteeUuid, now.plus(INVITE_DURATION));
             });
         });
     }
@@ -137,7 +141,10 @@ public final class GuildMutationService
                         {
                             module.getGuildWorldAccessListener().revoke(member.getUuid());
                         }
-                        module.getGuildWorldAccessListener().applyAccess(guild);
+                        for (UUID guestId : guild.getGuests().keySet())
+                        {
+                            module.getGuildWorldAccessListener().revoke(guestId);
+                        }
                     })
                     .thenCompose(unused -> deleteWorld(guild));
         });
@@ -193,6 +200,48 @@ public final class GuildMutationService
                 {
                     oldOwner.setRole(GuildRole.OFFICER);
                 }
+            });
+        });
+    }
+
+    /**
+     * Adds a guest or resets the expiry with the requested mode.
+     * A null mode keeps an active guest's mode; a new guest gets view mode.
+     * The duration must be positive and not more than the configured maximum.
+     */
+    public CompletableFuture<Guest> addGuest(Guild guild, UUID actorId, UUID playerId, @Nullable Boolean editing, Duration duration)
+    {
+        if (duration.isNegative() || duration.isZero() || duration.compareTo(module.getGuestMaxDuration()) > 0)
+        {
+            return CompletableFuture.failedFuture(new IllegalArgumentException("The guest duration is not valid"));
+        }
+        return upsertGuest(guild, actorId, playerId, existing -> new Guest(playerId,
+                editing != null ? editing : existing != null && existing.editing(),
+                Instant.now().plus(duration).truncatedTo(ChronoUnit.MILLIS)));
+    }
+
+    /** Switches an active guest between build (editing) and view mode. The expiry does not change. */
+    public CompletableFuture<Guest> setGuestMode(Guild guild, UUID actorId, UUID playerId, boolean editing)
+    {
+        return upsertGuest(guild, actorId, playerId, existing ->
+        {
+            if (existing == null)
+            {
+                throw new IllegalArgumentException("The player is not an active guest");
+            }
+            return new Guest(playerId, editing, existing.expiresAt());
+        });
+    }
+
+    public CompletableFuture<Void> revokeGuest(Guild guild, UUID actorId, UUID guestId)
+    {
+        return serialize(guild, () ->
+        {
+            requireManager(guild, actorId);
+            return module.getGuildRepository().removeGuest(guild.getGuildUuid(), guestId).thenRun(() ->
+            {
+                guild.getGuests().remove(guestId);
+                module.getGuildWorldAccessListener().revoke(guestId);
             });
         });
     }
@@ -305,26 +354,27 @@ public final class GuildMutationService
         });
     }
 
-    public CompletableFuture<Void> cycleWorldAccess(Guild guild, UUID actorId)
+    private CompletableFuture<Guest> upsertGuest(Guild guild, UUID actorId, UUID playerId,
+                                                 Function<Guest, Guest> update)
     {
-        return changeWorldAccess(guild, actorId, () -> guild.getWorldAccess().next());
-    }
-
-    public CompletableFuture<Void> setWorldAccess(Guild guild, UUID actorId, GuildWorldAccess access)
-    {
-        return changeWorldAccess(guild, actorId, () -> access);
-    }
-
-    private CompletableFuture<Void> changeWorldAccess(Guild guild, UUID actorId, Supplier<GuildWorldAccess> update)
-    {
-        return serialize(guild, () ->
+        CompletableFuture<Guest> result = new CompletableFuture<>();
+        serialize(guild, () ->
         {
             requireManager(guild, actorId);
-            GuildWorldAccess access = update.get();
-            return module.getGuildRepository().updateWorldAccess(guild.getGuildUuid(), access)
-                    .thenRun(() -> guild.setWorldAccess(access))
-                    .thenRun(() -> module.getGuildWorldAccessListener().applyAccess(guild));
+            if (guild.isMember(playerId))
+            {
+                throw new IllegalArgumentException("Guild members cannot be guests");
+            }
+            Guest guest = update.apply(guild.getActiveGuest(playerId));
+            return module.getGuildRepository().upsertGuest(guild.getGuildUuid(), guest)
+                    .thenRun(() -> guild.getGuests().put(playerId, guest))
+                    .thenRun(() -> result.complete(guest));
+        }).exceptionally(failure ->
+        {
+            result.completeExceptionally(failure);
+            return null;
         });
+        return result;
     }
 
     public CompletableFuture<Void> cycleTimeMode(Guild guild, UUID actorId)

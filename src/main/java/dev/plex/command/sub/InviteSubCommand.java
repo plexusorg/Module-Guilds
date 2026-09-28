@@ -59,6 +59,10 @@ public class InviteSubCommand extends GuildSubCommand
         {
             return messageComponent("guildCannotInviteSelf");
         }
+        if (module.getGuildHolder().guild(target.getUniqueId()).isPresent())
+        {
+            return messageComponent("guildTargetAlreadyInGuild");
+        }
         String inviterName = player.getName();
         String targetName = target.getName();
         module.getGuildMutationService().createInvite(guild, player.getUniqueId(), target.getUniqueId()).whenComplete((unused, throwable) ->

@@ -7,8 +7,12 @@
 guilds:
   log-chat-message: true
   invites:
-    # Maximum invite attempts per guild in a rolling 24-hour window.
+    # Maximum invites per guild in a rolling 24-hour window.
     daily-limit: 5
+  guests:
+    # Use a positive whole number followed by m, h, or d (for example 30m, 12h, 7d).
+    default-duration: 24h
+    max-duration: 30d
   worlds:
     # Unload worlds after this time with no players; use a positive duration in m, h, or d.
     unload-after: 5m

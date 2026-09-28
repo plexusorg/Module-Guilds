@@ -2,7 +2,7 @@ package dev.plex.storage;
 
 import dev.plex.guild.Guild;
 import dev.plex.guild.GuildPrefix;
-import dev.plex.guild.data.GuildWorldAccess;
+import dev.plex.guild.data.Guest;
 import dev.plex.guild.data.GuildRole;
 import dev.plex.guild.data.GuildTimeMode;
 import dev.plex.guild.data.GuildWeatherMode;
@@ -25,16 +25,16 @@ public interface GuildRepository
 
     CompletableFuture<Void> removeMember(UUID guildUuid, UUID playerUuid);
 
+    CompletableFuture<Void> upsertGuest(UUID guildUuid, Guest guest);
+
+    CompletableFuture<Void> removeGuest(UUID guildUuid, UUID playerUuid);
+
     CompletableFuture<Void> updateRole(UUID guildUuid, UUID playerUuid, GuildRole role);
 
     /** Sets the new owner and makes the old owner an officer in one transaction. */
     CompletableFuture<Void> transferOwner(UUID guildUuid, UUID newOwnerUuid, UUID oldOwnerUuid);
 
     CompletableFuture<Void> updatePrefix(UUID guildUuid, GuildPrefix prefix);
-
-    CompletableFuture<Void> updateWorldAccess(UUID guildUuid, GuildWorldAccess access);
-
-    CompletableFuture<Void> recordInviteAttempt(UUID guildUuid, Instant createdAt);
 
     CompletableFuture<Void> updateTimeMode(UUID guildUuid, GuildTimeMode mode);
 
@@ -48,7 +48,7 @@ public interface GuildRepository
 
     CompletableFuture<Void> deleteWarp(UUID guildUuid, String name);
 
-    CompletableFuture<Void> createInvite(UUID guildUuid, UUID inviterUuid, UUID inviteeUuid, Instant expiresAt);
+    CompletableFuture<Void> createInvite(UUID guildUuid, UUID inviterUuid, UUID inviteeUuid, Instant createdAt, Instant expiresAt);
 
     CompletableFuture<Void> deleteInvite(UUID guildUuid, UUID inviteeUuid);
 
