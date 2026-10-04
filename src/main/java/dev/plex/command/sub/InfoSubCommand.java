@@ -12,6 +12,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
@@ -30,35 +31,64 @@ public final class InfoSubCommand extends GuildSubCommand
 
     public InfoSubCommand(Guilds module)
     {
-        super(module, command("info").description("Show guild information").usage("/guild <command> [guild name or UUID]")
+        super(module, command("info").description("Show guild information").usage("/guild <command> [guild, world, or player]")
                 .permission("plex.guilds.info").build());
     }
 
     @Override
     public Component executeSubCommand(@NotNull CommandSender sender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
     {
-        Guild guild = guildOf(player);
-        if (first != null)
+        if (first == null)
         {
-            String target = arguments(first, remaining);
-            guild = module.getGuildHolder().guildByName(target).orElse(null);
+            Guild guild = guildOf(player);
             if (guild == null)
             {
-                try
-                {
-                    guild = module.getGuildHolder().guildById(UUID.fromString(target)).orElse(null);
-                }
-                catch (IllegalArgumentException ignored)
-                {
-                    return messageComponent("guildInfoNotFound");
-                }
+                return player == null ? usage() : messageComponent("guildNotFound");
             }
+            show(sender, guild);
+            return null;
         }
-        if (guild == null)
+        String target = arguments(first, remaining);
+        Guild guild = module.getGuildHolder().guildByName(target)
+                .or(() -> module.getGuildHolder().guildByWorld(target))
+                .or(() -> guildById(target))
+                .orElse(null);
+        if (guild != null)
         {
-            return first == null && player == null ? usage() : messageComponent(first == null ? "guildNotFound" : "guildInfoNotFound");
+            show(sender, guild);
+            return null;
         }
-        Guild selected = guild;
+        module.api().players().byName(target).whenComplete((view, failure) ->
+        {
+            if (failure != null)
+            {
+                module.getLogger().error("Failed to look up player {}", target, failure);
+            }
+            Guild memberGuild = view == null ? null : view.flatMap(found -> module.getGuildHolder().guild(found.uuid())).orElse(null);
+            if (memberGuild == null)
+            {
+                sender.sendMessage(messageComponent("guildInfoNotFound"));
+                return;
+            }
+            show(sender, memberGuild);
+        });
+        return null;
+    }
+
+    private Optional<Guild> guildById(String target)
+    {
+        try
+        {
+            return module.getGuildHolder().guildById(UUID.fromString(target));
+        }
+        catch (IllegalArgumentException ignored)
+        {
+            return Optional.empty();
+        }
+    }
+
+    private void show(CommandSender sender, Guild selected)
+    {
         List<Member> members = List.copyOf(selected.getMembers());
         List<CompletableFuture<String>> names = members.stream().map(member -> name(member.getUuid())).toList();
         CompletableFuture.allOf(names.toArray(CompletableFuture[]::new)).thenRun(() ->
@@ -79,7 +109,6 @@ public final class InfoSubCommand extends GuildSubCommand
                     Placeholder.component("officers", nameList(byRole.get(GuildRole.OFFICER), online)),
                     Placeholder.component("members", nameList(byRole.get(GuildRole.MEMBER), online))));
         });
-        return null;
     }
 
     private CompletableFuture<String> name(UUID uuid)
