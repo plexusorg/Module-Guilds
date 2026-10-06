@@ -37,10 +37,10 @@ repositories {
 dependencies {
     compileOnly(platform("com.intellectualsites.bom:bom-newest:1.56"))
     compileOnly("com.fastasyncworldedit:FastAsyncWorldEdit-Core")
-    compileOnly("org.projectlombok:lombok:1.18.46")
-    annotationProcessor("org.projectlombok:lombok:1.18.46")
+    compileOnly("org.projectlombok:lombok:1.18.48")
+    annotationProcessor("org.projectlombok:lombok:1.18.48")
     compileOnly("io.github.scissorsmc:scissors-asp-api:${providers.gradleProperty("scissorsAspApiVersion").getOrElse("26.2")}")
-    implementation("org.apache.commons:commons-lang3:3.20.0")
+    implementation("org.apache.commons:commons-lang3:3.21.0")
     compileOnly("dev.plex:api:2.0-SNAPSHOT") {
         exclude(group = "io.papermc.paper", module = "paper-api")
     }
@@ -56,7 +56,7 @@ java {
 }
 
 checkstyle {
-    toolVersion = "14.1.0"
+    toolVersion = "14.3.0"
     configFile = rootProject.file("config/checkstyle/checkstyle.xml")
 }
 
