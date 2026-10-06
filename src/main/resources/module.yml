@@ -1,6 +1,6 @@
 name: Module-Guilds
 main: dev.plex.Guilds
 description: The guilds module for Plex
-version: 2.0
+version: 2.0.1-SNAPSHOT
 apiCompatibility: 1
 softdepend: [FastAsyncWorldEdit]
