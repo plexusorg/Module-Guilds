@@ -41,14 +41,14 @@ dependencies {
     annotationProcessor("org.projectlombok:lombok:1.18.48")
     compileOnly("io.github.scissorsmc:scissors-asp-api:${providers.gradleProperty("scissorsAspApiVersion").getOrElse("26.2")}")
     implementation("org.apache.commons:commons-lang3:3.21.0")
-    compileOnly("dev.plex:api:2.0-SNAPSHOT") {
+    compileOnly("dev.plex:api:2.0") {
         exclude(group = "io.papermc.paper", module = "paper-api")
     }
     implementation("org.jetbrains:annotations:26.1.0")
 }
 
 group = "dev.plex"
-version = "2.0-SNAPSHOT"
+version = "2.0"
 description = "The Guilds module for Plex"
 
 java {
