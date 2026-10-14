@@ -22,7 +22,7 @@ public final class ListSubCommand extends GuildSubCommand
     }
 
     @Override
-    public Component executeSubCommand(@NotNull CommandSender sender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
+    public Component executeSubCommand(@NotNull CommandSender sender, @Nullable Player player, @Nullable String first, @Nullable String remaining, GuildContext context)
     {
         int page = 1;
         try

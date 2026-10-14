@@ -19,7 +19,7 @@ guildInviteEntry: "<gray>Invite from <yellow><guild></yellow> <green><bold><join
 guildNoInvites: "<gray>You have no invites."
 guildCreateHint: "<gray>Start your own guild with <yellow><command>"
 guildCreated: "<green>Created the guild <dark_green><guild><green>."
-guildNameTaken: "<red>A guild named <gold><guild></gold> already exists."
+guildNameTaken: "<red>A guild named <gold><guild></gold> exists or waits for deletion."
 alreadyInGuild: "<red>You are already in a guild. Enter <gold>/guild leave</gold> to leave it first."
 
 # Invites
@@ -36,7 +36,7 @@ guildMemberKicked: "<green>Removed <dark_green><player><green> from the guild."
 # Leave
 guildLeft: "<green>You left the guild."
 guildMemberLeft: "<yellow><player> left the guild."
-guildLeaveOwnerWarning: "<red><bold>WARNING: You are the owner. Leaving disbands the guild for every member.</bold><newline><red><bold>It also permanently deletes the guild world and everything built in it. There is no backup.</bold><newline><gray>To keep the guild, make another member the owner in the <yellow>/guild</yellow> menu first.<newline><gold>To disband the guild and delete the world, enter <yellow><command>"
+guildLeaveOwnerWarning: "<red><bold>Disband this guild?</bold><newline><red>All members leave the guild. Staff can restore it for <days> days. Then the module deletes the guild, its world, and its block history.<newline><gray>To keep the guild, make another member the owner in the /guild menu.<newline><gold>To disband the guild, enter <yellow><command>"
 guildDisbanded: "<red><player> disbanded the guild <guild>."
 
 # Chat
@@ -80,7 +80,7 @@ guildGuestReceived: "<green><guild> added you as a <mode> guest for <duration>.<
 
 # World reset
 guildResetTargetNotFound: "<red>No guild matches '<target>'. Enter the guild UUID or full name."
-guildWorldResetConfirm: "<red>Reset the world for <guild>?<newline><yellow>This removes all blocks and entities in <world>. Players leave the world first. The guild and its members stay the same. The world spawn and warps in this world are removed. Generate a new world after the reset.<newline>A backup is kept for <days> days. Backups needed by an incomplete reset are kept until recovery.<newline><gold>To confirm, enter <command>"
+guildWorldResetConfirm: "<red>Reset the world for <guild>?<newline><yellow>This removes all blocks and entities in <world>. Players leave the world first. The guild and its members stay the same. The world spawn and warps in this world are removed. Generate a new world after the reset.<newline>A backup is kept for <days> days. Backups needed by an incomplete reset are kept until recovery.<newline>With Oasis, the reset also deletes the block history of the old world.<newline><gold>To confirm, enter <command>"
 guildWorldResetStarted: "<yellow>Resetting the world for <guild>..."
 guildWorldResetFailed: "<red>Could not finish the world reset for <guild>. Check the server log. If the reset is incomplete, world access stays blocked."
 guildWorldResetComplete: "<green>Reset the world for <guild>. The guild and its members are unchanged. Enter /guild world generate <type> to create a new world."
@@ -113,3 +113,35 @@ guildInfo: "<dark_gray><st>        </st> <gold><bold><guild></bold> <dark_gray><
 guildInfoOnline: "<green><player>"
 guildInfoOffline: "<gray><player>"
 guildInfoNone: "<dark_gray>None"
+
+# Recovery and staff override
+guildOverrideHelp: "<yellow>/guild -o <guild name or UUID> [subcommand] [arguments]"
+guildOverrideRefused: "<red>You cannot use -o with this command."
+guildRecoveryEmpty: "<gray>No recovery entries match."
+guildRecoveryOnline: "<green>Online"
+guildRecoveryConsole: "<gray>Console"
+guildRecoverySession: "<yellow>Session <id>: <start> to <end>. Actions: <count>. Click to preview."
+guildRecoveryAction: "<yellow>Action <id>: <guild> - <type>"
+guildRecoverySessionWarning: "<yellow>This reverses guild actions only. Block changes stay in the world."
+guildRecoveryDeleted: "<yellow><guild> (<uuid>)<newline><gray>Owner: <owner>. Disband time: <time>. Actor: <actor>. Deletion time: <due>. Click to preview."
+guildRecoveryConfirm: "<yellow>To confirm, enter <command>"
+guildRecoveryClick: "<yellow>Click to fill in the restore command"
+guildRecoveryMembers: "<yellow>Members to restore: <count>"
+guildRecoveryMemberConflict: "<yellow>The restore skips <player>, who belongs to <guild>."
+guildRecoveryNoMembers: "<red>No member remains. The restore cannot continue."
+guildRecoveryNewOwner: "<yellow>The restore makes <player> the owner."
+guildRecoveryWorldUnavailable: "<yellow>Guild world storage is unavailable."
+guildRecoveryStepDone: "<green>Action <id> (<type>) is reversed."
+guildRecoveryStepFailed: "<red>Action <id> (<type>) fails. Check the server log."
+guildRecoveryStepSkipped: "<yellow>Action <id> (<type>) stays unchanged: "
+guildRecoveryAlreadyUndone: "<yellow>The entry is already undone or outside the retention period."
+guildRecoveryGuildMissing: "<yellow>The guild does not exist."
+guildRecoveryGenerated: "<yellow>A generated world is not an undoable loss."
+guildRecoveryStateChanged: "<yellow>The current state differs from the recorded result."
+guildRecoveryRestoreConflict: "<yellow>The guild is not pending deletion, or no member remains."
+guildRecoveryPlayerInGuild: "<yellow>The player belongs to another guild."
+guildRecoveryGuestExpired: "<yellow>The guest access is no longer active, or the player is a member."
+guildRecoveryBackupMissing: "<yellow>The world backup is missing."
+guildRecoveryPrefixTaken: "<yellow>Another guild uses the old prefix."
+guildMenuOwnerTransferredOverride: "<green><player> is now the guild owner."
+guildMenuOwnerOverrideHint: "<gray>The current owner becomes an officer."

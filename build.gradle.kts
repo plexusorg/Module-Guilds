@@ -19,6 +19,18 @@ repositories {
         }
     }
 
+    exclusiveContent {
+        forRepository {
+            maven {
+                name = "oasis"
+                url = uri("https://nexus.telesphoreo.me/repository/oasis-snapshots/")
+            }
+        }
+        filter {
+            includeGroup("com.oasis")
+        }
+    }
+
     maven {
         url = uri("https://repo.papermc.io/repository/maven-public/")
     }
@@ -39,6 +51,7 @@ dependencies {
     compileOnly("com.fastasyncworldedit:FastAsyncWorldEdit-Core")
     compileOnly("org.projectlombok:lombok:1.18.48")
     annotationProcessor("org.projectlombok:lombok:1.18.48")
+    compileOnly("com.oasis:oasis-api:3.0-SNAPSHOT")
     compileOnly("io.github.scissorsmc:scissors-asp-api:${providers.gradleProperty("scissorsAspApiVersion").getOrElse("26.2")}")
     implementation("org.apache.commons:commons-lang3:3.21.0")
     compileOnly("dev.plex:api:2.0") {

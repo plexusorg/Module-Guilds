@@ -1,5 +1,6 @@
 package dev.plex.command.sub;
 
+import dev.plex.guild.Actor;
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
@@ -25,7 +26,7 @@ public final class ResetWorldSubCommand extends GuildSubCommand
 
     @Override
     public Component executeSubCommand(@NotNull CommandSender sender, @Nullable Player player,
-                                       @Nullable String first, @Nullable String remaining)
+                                       @Nullable String first, @Nullable String remaining, GuildContext context)
     {
         if (first == null)
         {
@@ -58,7 +59,7 @@ public final class ResetWorldSubCommand extends GuildSubCommand
         }
         Guild selected = guild;
         sender.sendMessage(messageComponent("guildWorldResetStarted", Placeholder.unparsed("guild", selected.getName())));
-        module.getGuildWorldService().resetWorld(selected).whenComplete((unused, failure) ->
+        module.getGuildWorldService().resetWorld(selected, new Actor(player == null ? null : player.getUniqueId(), true)).whenComplete((unused, failure) ->
         {
             if (failure != null)
             {

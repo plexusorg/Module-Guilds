@@ -13,13 +13,14 @@ public class GuildHolder
     private final Map<UUID, Guild> guildsById = new ConcurrentHashMap<>();
     private final Map<String, Guild> guildsByWorld = new ConcurrentHashMap<>();
     private final Map<UUID, UUID> guildByPlayer = new ConcurrentHashMap<>();
+    // Pending guilds stay out of the active maps, so active lookups never return one.
+    private final Map<UUID, PendingGuild> pendingById = new ConcurrentHashMap<>();
 
-    public void replaceAll(Collection<Guild> guilds)
+    public void replaceAll(Collection<Guild> guilds, Collection<PendingGuild> pending)
     {
-        guildsById.clear();
-        guildsByWorld.clear();
-        guildByPlayer.clear();
+        clear();
         guilds.forEach(this::addGuild);
+        pending.forEach(this::addPending);
     }
 
     public Optional<Guild> guild(UUID playerUuid)
@@ -65,6 +66,37 @@ public class GuildHolder
         }
     }
 
+    public void addPending(PendingGuild pending)
+    {
+        pendingById.put(pending.guild().getGuildUuid(), pending);
+    }
+
+    public void removePending(UUID guildUuid)
+    {
+        pendingById.remove(guildUuid);
+    }
+
+    public Collection<PendingGuild> pending()
+    {
+        return pendingById.values();
+    }
+
+    public Optional<PendingGuild> pendingById(UUID guildUuid)
+    {
+        return Optional.ofNullable(pendingById.get(guildUuid));
+    }
+
+    public Optional<PendingGuild> pendingByName(String name)
+    {
+        return pendingById.values().stream().filter(pending -> pending.guild().getName().equalsIgnoreCase(name)).findFirst();
+    }
+
+    /** A pending guild keeps its name until finalization. */
+    public boolean isNameTaken(String name)
+    {
+        return guildByName(name).isPresent() || pendingByName(name).isPresent();
+    }
+
     public void indexMember(UUID guildUuid, UUID playerUuid)
     {
         guildByPlayer.put(playerUuid, guildUuid);
@@ -80,6 +112,7 @@ public class GuildHolder
         guildsById.clear();
         guildsByWorld.clear();
         guildByPlayer.clear();
+        pendingById.clear();
     }
 
 }

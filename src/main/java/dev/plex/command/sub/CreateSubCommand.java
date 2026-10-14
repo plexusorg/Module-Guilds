@@ -30,14 +30,14 @@ public class CreateSubCommand extends GuildSubCommand
     }
 
     @Override
-    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining, GuildContext context)
     {
         if (first == null)
         {
             return usage();
         }
         assert player != null;
-        if (guildOf(player) != null)
+        if (context.guild() != null)
         {
             return messageComponent("alreadyInGuild");
         }
@@ -46,12 +46,12 @@ public class CreateSubCommand extends GuildSubCommand
         {
             return usage();
         }
-        if (module.getGuildHolder().guildByName(name).isPresent())
+        if (module.getGuildHolder().isNameTaken(name))
         {
             return messageComponent("guildNameTaken", Placeholder.unparsed("guild", name));
         }
         Guild guildToCreate = Guild.create(player.getUniqueId(), name, module.getZoneId());
-        module.getGuildRepository().createGuild(guildToCreate)
+        module.getGuildMutationService().createGuild(guildToCreate, context.actor())
                 .whenComplete((guild, throwable) ->
         {
             if (throwable != null)
@@ -60,7 +60,6 @@ public class CreateSubCommand extends GuildSubCommand
                 player.sendMessage(messageComponent("guildStorageFailed"));
                 return;
             }
-            module.getGuildHolder().addGuild(guild);
             player.sendMessage(messageComponent("guildCreated", Placeholder.unparsed("guild", guild.getName())));
         });
         return null;

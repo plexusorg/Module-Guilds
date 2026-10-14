@@ -3,6 +3,7 @@ package dev.plex.command.sub;
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
+import dev.plex.guild.Actor;
 import dev.plex.util.CustomLocation;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,30 +56,30 @@ public class WarpSubCommand extends GuildSubCommand
     }
 
     @Override
-    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining, GuildContext context)
     {
         assert player != null;
-        Guild guild = guildOf(player);
+        Guild guild = context.guild();
         if (guild == null)
         {
             return messageComponent("guildNotFound");
         }
         if (first == null)
         {
-            return list(guild);
+            return list(guild, context.actor());
         }
         if (first.equalsIgnoreCase(SET) || first.equalsIgnoreCase(DELETE))
         {
-            return change(player, guild, first.equalsIgnoreCase(SET), remaining);
+            return change(player, guild, first.equalsIgnoreCase(SET), remaining, context.actor());
         }
         if (remaining != null)
         {
             return usage();
         }
-        return teleport(player, guild, first);
+        return teleport(player, guild, first, context.actor());
     }
 
-    private Component list(Guild guild)
+    private Component list(Guild guild, Actor actor)
     {
         if (guild.getWarps().isEmpty())
         {
@@ -86,14 +87,14 @@ public class WarpSubCommand extends GuildSubCommand
         }
         List<Component> entries = guild.getWarps().keySet().stream().sorted()
                 .map(name -> messageComponent("guildWarpEntry", Placeholder.unparsed("warp", name))
-                        .clickEvent(ClickEvent.runCommand("/guild warp " + name))
+                        .clickEvent(ClickEvent.runCommand((actor.staffOverride() ? "/guild -o " + guild.getGuildUuid() + " warp " : "/guild warp ") + name))
                         .hoverEvent(Component.text("Click to go to " + name)))
                 .toList();
         return messageComponent("guildWarpList",
                 Placeholder.component("warps", Component.join(JoinConfiguration.commas(true), entries)));
     }
 
-    private Component teleport(Player player, Guild guild, String name)
+    private Component teleport(Player player, Guild guild, String name, Actor actor)
     {
         CustomLocation warp = guild.getWarps().get(name.toLowerCase(Locale.ROOT));
         if (warp == null)
@@ -104,23 +105,23 @@ public class WarpSubCommand extends GuildSubCommand
         {
             return messageComponent("guildWorldsUnavailable");
         }
-        teleportInGuildWorld(player, guild, world -> new Location(world, warp.getX(), warp.getY(), warp.getZ(), warp.getYaw(), warp.getPitch()));
+        teleportInGuildWorld(player, guild, world -> new Location(world, warp.getX(), warp.getY(), warp.getZ(), warp.getYaw(), warp.getPitch()), actor);
         return null;
     }
 
-    private Component change(Player player, Guild guild, boolean set, @Nullable String name)
+    private Component change(Player player, Guild guild, boolean set, @Nullable String name, Actor actor)
     {
         if (name == null || name.contains(" "))
         {
             return messageComponent("correctUsagePrefix").append(Component.text(set ? "/guild warp set <name>" : "/guild warp delete <name>", NamedTextColor.GRAY));
         }
-        if (!guild.canManage(player.getUniqueId()))
+        if (!actor.staffOverride() && !guild.canManage(actor.uuid()))
         {
             return messageComponent("guildNotManager");
         }
         if (!set)
         {
-            delete(player, guild, name);
+            delete(player, guild, name, actor);
             return null;
         }
         if (!WARP_NAME.matcher(name).matches() || name.equalsIgnoreCase(SET) || name.equalsIgnoreCase(DELETE))
@@ -132,17 +133,17 @@ public class WarpSubCommand extends GuildSubCommand
             return messageComponent("guildWarpWrongWorld");
         }
         String key = name.toLowerCase(Locale.ROOT);
-        module.getGuildMutationService().upsertWarp(guild, player.getUniqueId(), key, CustomLocation.fromLocation(player.getLocation()))
+        module.getGuildMutationService().upsertWarp(guild, actor, key, CustomLocation.fromLocation(player.getLocation()))
                 .whenComplete((unused, throwable) -> player.sendMessage(throwable == null
                         ? messageComponent("guildWarpSet", Placeholder.unparsed("warp", key))
                         : failureMessage(throwable, "guildWarpWrongWorld")));
         return null;
     }
 
-    private void delete(Player player, Guild guild, String name)
+    private void delete(Player player, Guild guild, String name, Actor actor)
     {
         String key = name.toLowerCase(Locale.ROOT);
-        module.getGuildMutationService().deleteWarp(guild, player.getUniqueId(), key)
+        module.getGuildMutationService().deleteWarp(guild, actor, key)
                 .whenComplete((unused, throwable) -> player.sendMessage(throwable == null
                         ? messageComponent("guildWarpDeleted", Placeholder.unparsed("warp", key))
                         : failureMessage(throwable, "guildWarpNotFound", Placeholder.unparsed("warp", name))));

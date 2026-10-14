@@ -1,5 +1,6 @@
 package dev.plex.command.sub;
 
+import dev.plex.guild.Actor;
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
@@ -33,14 +34,14 @@ public class AcceptSubCommand extends GuildSubCommand
     }
 
     @Override
-    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining, GuildContext context)
     {
         if (first == null)
         {
             return usage();
         }
         assert player != null;
-        if (guildOf(player) != null)
+        if (context.guild() != null)
         {
             return messageComponent("alreadyInGuild");
         }
@@ -62,7 +63,7 @@ public class AcceptSubCommand extends GuildSubCommand
             Guild guild = module.getGuildHolder().guildById(UUID.fromString(invite.getGuildUuid())).orElse(null);
             if (invite.getExpiresAt() < Instant.now().toEpochMilli() || guild == null)
             {
-                module.getGuildRepository().deleteInvite(UUID.fromString(invite.getGuildUuid()), playerUuid);
+                module.getGuildRepository().deleteInvite(UUID.fromString(invite.getGuildUuid()), playerUuid, null);
                 player.sendMessage(messageComponent("guildInviteExpired"));
                 return;
             }
@@ -90,7 +91,7 @@ public class AcceptSubCommand extends GuildSubCommand
             return;
         }
         String playerName = player.getName();
-        module.getGuildMutationService().addMember(guild, player.getUniqueId(), true).whenComplete((unused, throwable) ->
+        module.getGuildMutationService().addMember(guild, new Actor(player.getUniqueId(), false), player.getUniqueId(), true).whenComplete((unused, throwable) ->
         {
             if (throwable != null)
             {

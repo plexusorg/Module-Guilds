@@ -3,6 +3,7 @@ package dev.plex.command.sub;
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
+import dev.plex.guild.Actor;
 import dev.plex.guild.data.Guest;
 import dev.plex.util.DurationParser;
 import java.time.Duration;
@@ -50,7 +51,7 @@ public final class GuestSubCommand extends GuildSubCommand
 
     @Override
     public Component executeSubCommand(@NotNull CommandSender sender, @Nullable Player player,
-                                       @Nullable String first, @Nullable String remaining)
+                                       @Nullable String first, @Nullable String remaining, GuildContext context)
     {
         assert player != null;
         boolean add = ADD.equalsIgnoreCase(first);
@@ -58,12 +59,12 @@ public final class GuestSubCommand extends GuildSubCommand
         {
             return usage();
         }
-        Guild guild = guildOf(player);
+        Guild guild = context.guild();
         if (guild == null)
         {
             return messageComponent("guildNotFound");
         }
-        if (!guild.canManage(player.getUniqueId()))
+        if (!context.canManage())
         {
             return messageComponent("guildNotManager");
         }
@@ -74,7 +75,7 @@ public final class GuestSubCommand extends GuildSubCommand
             {
                 return usage();
             }
-            remove(player, guild, options[0]);
+            remove(player, guild, options[0], context.actor());
             return null;
         }
         Boolean editing = null;
@@ -102,11 +103,11 @@ public final class GuestSubCommand extends GuildSubCommand
             return messageComponent("guildGuestDurationInvalid",
                     Placeholder.unparsed("max", formatDuration(module.getGuestMaxDuration())));
         }
-        add(player, guild, options[0], editing, duration);
+        add(player, guild, options[0], editing, duration, context.actor());
         return null;
     }
 
-    private void add(Player player, Guild guild, String target, @Nullable Boolean editing, Duration duration)
+    private void add(Player player, Guild guild, String target, @Nullable Boolean editing, Duration duration, Actor actor)
     {
         resolvePlayer(target).whenComplete((targetId, lookupFailure) ->
         {
@@ -120,7 +121,7 @@ public final class GuestSubCommand extends GuildSubCommand
                 player.sendMessage(messageComponent("guildPlayerNotFound", Placeholder.unparsed("player", target)));
                 return;
             }
-            module.getGuildMutationService().addGuest(guild, player.getUniqueId(), targetId, editing, duration).whenComplete((guest, throwable) ->
+            module.getGuildMutationService().addGuest(guild, actor, targetId, editing, duration).whenComplete((guest, throwable) ->
             {
                 if (throwable != null)
                 {
@@ -136,7 +137,7 @@ public final class GuestSubCommand extends GuildSubCommand
         });
     }
 
-    private void remove(Player player, Guild guild, String target)
+    private void remove(Player player, Guild guild, String target, Actor actor)
     {
         resolvePlayer(target).whenComplete((resolvedId, failure) ->
         {
@@ -150,7 +151,7 @@ public final class GuestSubCommand extends GuildSubCommand
                 player.sendMessage(messageComponent("guildGuestNotFound", Placeholder.unparsed("player", target)));
                 return;
             }
-            module.getGuildMutationService().revokeGuest(guild, player.getUniqueId(), resolvedId).whenComplete((unused, throwable) ->
+            module.getGuildMutationService().revokeGuest(guild, actor, resolvedId).whenComplete((unused, throwable) ->
                     player.sendMessage(throwable == null
                             ? messageComponent("guildGuestRevoked", Placeholder.unparsed("player", target))
                             : failureMessage(throwable, null)));

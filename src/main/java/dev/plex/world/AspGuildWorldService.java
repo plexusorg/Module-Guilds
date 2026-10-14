@@ -12,6 +12,7 @@ import com.infernalsuite.asp.api.world.properties.SlimeProperties;
 import com.infernalsuite.asp.api.world.properties.SlimePropertyMap;
 import dev.plex.Guilds;
 import dev.plex.guild.Guild;
+import dev.plex.guild.Actor;
 import dev.plex.guild.data.GuildTimeMode;
 import dev.plex.guild.data.GuildWeatherMode;
 import dev.plex.util.DurationParser;
@@ -165,9 +166,9 @@ public final class AspGuildWorldService implements GuildWorldService
     }
 
     @Override
-    public CompletableFuture<World> generateWorld(Guild guild, GuildWorldType type, UUID actor)
+    public CompletableFuture<World> generateWorld(Guild guild, GuildWorldType type, Actor actor)
     {
-        return module.getGuildMutationService().generateWorld(guild, actor, () -> generateWorld(guild, type));
+        return module.getGuildMutationService().generateWorld(guild, actor, type.name(), () -> generateWorld(guild, type));
     }
 
     private synchronized CompletableFuture<World> generateWorld(Guild guild, GuildWorldType type)
@@ -265,7 +266,7 @@ public final class AspGuildWorldService implements GuildWorldService
     }
 
     @Override
-    public synchronized CompletableFuture<Void> resetWorld(Guild guild, UUID actor)
+    public synchronized CompletableFuture<Void> resetWorld(Guild guild, Actor actor)
     {
         UUID id = guild.getGuildUuid();
         if (stopped || resets.containsKey(id) || deletedWorlds.contains(guild.getWorldName()))
@@ -316,7 +317,7 @@ public final class AspGuildWorldService implements GuildWorldService
         return result;
     }
 
-    private CompletableFuture<Void> prepareReset(Guild guild)
+    private CompletableFuture<String> prepareReset(Guild guild)
     {
         return onGlobal(() ->
         {
@@ -345,22 +346,18 @@ public final class AspGuildWorldService implements GuildWorldService
             // An unload returns before ASP writes its final save. Never back up or replace the file under that write.
             return unload.thenCompose(unused -> asp.pendingSaves(guild.getWorldName())).thenCompose(unused -> onStorage(() ->
             {
-                files.prepareReset(guild.getWorldName());
-                return null;
+                return files.prepareReset(guild.getWorldName());
             }));
         });
     }
 
     @Override
-    public synchronized CompletableFuture<Void> deleteWorld(Guild guild)
+    public synchronized CompletableFuture<Void> closeWorld(Guild guild)
     {
         UUID id = guild.getGuildUuid();
         String worldName = guild.getWorldName();
-        // Close the name first: ensureWorld and resetWorld refuse it from here on, so nothing can load it again.
-        if (!deletedWorlds.add(worldName))
-        {
-            return CompletableFuture.completedFuture(null);
-        }
+        // Close the name first: ensureWorld, generateWorld, and resetWorld refuse it from here on, so nothing can load it again.
+        deletedWorlds.add(worldName);
         CompletableFuture<World> loading = loads.getOrDefault(id, CompletableFuture.completedFuture(null));
         CompletableFuture<Void> unloading = unloads.getOrDefault(id, CompletableFuture.completedFuture(null));
         emptySince.remove(id);
@@ -371,25 +368,52 @@ public final class AspGuildWorldService implements GuildWorldService
         })).thenCompose(loaded -> loaded == null ? CompletableFuture.completedFuture(null)
                 : evacuate(loaded.getBukkitWorld()).thenCompose(unused -> onGlobal(() ->
                 {
-                    if (!Bukkit.unloadWorld(loaded.getBukkitWorld(), false))
+                    if (!Bukkit.unloadWorld(loaded.getBukkitWorld(), true))
                     {
                         throw new IllegalStateException("Could not unload guild world " + worldName);
                     }
                     return null;
-                }))).thenCompose(unused -> asp.pendingSaves(worldName)).thenCompose(unused -> onStorage(() ->
-                {
-                    try
-                    {
-                        files.deleteWorld(worldName);
-                    }
-                    catch (UnknownWorldException ignored)
-                    {
-                        // The world was never created.
-                    }
-                    files.cancelReset(worldName);
-                    pendingResets.remove(worldName);
-                    return null;
-                }));
+                }))).thenCompose(unused -> asp.pendingSaves(worldName));
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteWorld(Guild guild)
+    {
+        String worldName = guild.getWorldName();
+        return closeWorld(guild).thenCompose(unused -> onStorage(() ->
+        {
+            files.deleteAll(worldName);
+            pendingResets.remove(worldName);
+            return null;
+        }));
+    }
+
+    @Override
+    public void openWorld(String worldName)
+    {
+        deletedWorlds.remove(worldName);
+    }
+
+    @Override
+    public CompletableFuture<Boolean> hasBackup(String backup)
+    {
+        return onStorage(() -> files.hasBackup(backup));
+    }
+
+    @Override
+    public synchronized CompletableFuture<String> restoreBackup(Guild guild, String backup)
+    {
+        UUID id = guild.getGuildUuid();
+        pendingResets.add(guild.getWorldName());
+        CompletableFuture<World> loading = loads.getOrDefault(id, CompletableFuture.completedFuture(null));
+        CompletableFuture<Void> unloading = unloads.getOrDefault(id, CompletableFuture.completedFuture(null));
+        return unloading.thenCompose(unused -> loading.handle((world, failure) -> null))
+                .thenCompose(unused -> prepareReset(guild)).thenCompose(current -> onStorage(() ->
+        {
+            files.restoreBackup(guild.getWorldName(), backup);
+            pendingResets.remove(guild.getWorldName());
+            return current;
+        }));
     }
 
     private CompletableFuture<Void> evacuate(World world)
@@ -659,7 +683,7 @@ public final class AspGuildWorldService implements GuildWorldService
     }
 
     // Runs without the service lock so region threads never wait on this save. The unloads entry keeps
-    // ensureWorld, resetWorld, deleteWorld, and generateWorld waiting until the unload completes.
+    // ensureWorld, resetWorld, closeWorld, and generateWorld waiting until the unload completes.
     private void finishIdleUnload(UUID id, SlimeWorldInstance loaded, boolean saved)
     {
         if (stopped)

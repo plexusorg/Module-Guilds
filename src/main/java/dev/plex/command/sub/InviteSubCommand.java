@@ -34,19 +34,19 @@ public class InviteSubCommand extends GuildSubCommand
     }
 
     @Override
-    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining, GuildContext context)
     {
         if (first == null || remaining != null)
         {
             return usage();
         }
         assert player != null;
-        Guild guild = guildOf(player);
+        Guild guild = context.guild();
         if (guild == null)
         {
             return messageComponent("guildNotFound");
         }
-        if (!guild.canManage(player.getUniqueId()))
+        if (!context.canManage())
         {
             return messageComponent("guildNotManager");
         }
@@ -65,7 +65,7 @@ public class InviteSubCommand extends GuildSubCommand
         }
         String inviterName = player.getName();
         String targetName = target.getName();
-        module.getGuildMutationService().createInvite(guild, player.getUniqueId(), target.getUniqueId()).whenComplete((unused, throwable) ->
+        module.getGuildMutationService().createInvite(guild, context.actor(), target.getUniqueId()).whenComplete((unused, throwable) ->
         {
             if (throwable != null)
             {

@@ -36,11 +36,11 @@ public final class InfoSubCommand extends GuildSubCommand
     }
 
     @Override
-    public Component executeSubCommand(@NotNull CommandSender sender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
+    public Component executeSubCommand(@NotNull CommandSender sender, @Nullable Player player, @Nullable String first, @Nullable String remaining, GuildContext context)
     {
-        if (first == null)
+        if (first == null || (context.actor().staffOverride() && context.guild() != null))
         {
-            Guild guild = guildOf(player);
+            Guild guild = context.guild();
             if (guild == null)
             {
                 return player == null ? usage() : messageComponent("guildNotFound");

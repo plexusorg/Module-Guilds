@@ -3,6 +3,7 @@ package dev.plex.command.sub;
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
+import dev.plex.guild.Actor;
 import dev.plex.world.GuildWorldType;
 import java.util.List;
 import java.util.Map;
@@ -36,39 +37,39 @@ public class WorldSubCommand extends GuildSubCommand
     }
 
     @Override
-    public Component executeSubCommand(@NotNull CommandSender sender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
+    public Component executeSubCommand(@NotNull CommandSender sender, @Nullable Player player, @Nullable String first, @Nullable String remaining, GuildContext context)
     {
         assert player != null;
         if (!module.isGuildWorldsEnabled())
         {
             return messageComponent("guildWorldsUnavailable");
         }
-        Guild guild = guildOf(player);
+        Guild guild = context.guild();
         if (guild == null)
         {
             return messageComponent("guildNotFound");
         }
         if (first == null)
         {
-            teleportInGuildWorld(player, guild, world -> spawnLocation(guild, world));
+            teleportInGuildWorld(player, guild, world -> spawnLocation(guild, world), context.actor());
             return null;
         }
         if (!first.equalsIgnoreCase("generate") && !first.equalsIgnoreCase("reset"))
         {
             return usage();
         }
-        if (!guild.isOwner(player.getUniqueId()))
+        if (!context.actor().staffOverride() && !guild.isOwner(context.actor().uuid()))
         {
             return messageComponent("guildNotOwner");
         }
         if (first.equalsIgnoreCase("generate"))
         {
-            return generate(player, guild, remaining);
+            return generate(player, guild, remaining, context.actor());
         }
-        return reset(player, guild, remaining);
+        return reset(player, guild, remaining, context.actor());
     }
 
-    private Component generate(Player player, Guild guild, String remaining)
+    private Component generate(Player player, Guild guild, String remaining, Actor actor)
     {
         if (remaining == null)
         {
@@ -85,12 +86,12 @@ public class WorldSubCommand extends GuildSubCommand
         }
         confirmations.remove(player.getUniqueId());
         player.sendMessage(messageComponent("guildWorldGenerating"));
-        module.getGuildWorldService().generateWorld(guild, type, player.getUniqueId()).whenComplete((world, failure) ->
+        module.getGuildWorldService().generateWorld(guild, type, actor).whenComplete((world, failure) ->
                 player.sendMessage(failure == null ? messageComponent("guildWorldGenerated") : failureMessage(failure, "guildWorldAlreadyGenerated")));
         return null;
     }
 
-    private Component reset(Player player, Guild guild, String remaining)
+    private Component reset(Player player, Guild guild, String remaining, Actor actor)
     {
         if (remaining != null && !remaining.equalsIgnoreCase("confirm"))
         {
@@ -104,7 +105,7 @@ public class WorldSubCommand extends GuildSubCommand
             return messageComponent("guildWorldResetConfirm",
                     Placeholder.unparsed("guild", guild.getName()),
                     Placeholder.unparsed("world", guild.getWorldName()),
-                    Placeholder.unparsed("command", "/guild world reset confirm"),
+                    Placeholder.unparsed("command", (actor.staffOverride() ? "/guild -o " + guild.getGuildUuid() + " world reset confirm" : "/guild world reset confirm")),
                     Placeholder.unparsed("days", Integer.toString(module.getConfig().getInt("guilds.worlds.backup-retention-days", 7))));
         }
         Confirmation confirmation = confirmations.remove(player.getUniqueId());
@@ -113,7 +114,7 @@ public class WorldSubCommand extends GuildSubCommand
             return messageComponent("guildWorldResetExpired");
         }
         player.sendMessage(messageComponent("guildWorldResetStarted", Placeholder.unparsed("guild", guild.getName())));
-        module.getGuildWorldService().resetWorld(guild, player.getUniqueId()).whenComplete((unused, failure) ->
+        module.getGuildWorldService().resetWorld(guild, actor).whenComplete((unused, failure) ->
         {
             if (failure != null)
             {

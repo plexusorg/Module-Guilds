@@ -22,6 +22,9 @@ import dev.plex.command.sub.VisitSubCommand;
 import dev.plex.command.sub.WarpSubCommand;
 import dev.plex.command.sub.WorldSubCommand;
 import dev.plex.guild.Guild;
+import dev.plex.guild.Actor;
+import dev.plex.command.sub.RecoverSubCommand;
+import dev.plex.command.sub.GuildSubCommand.GuildContext;
 import dev.plex.storage.entity.GuildInviteEntity;
 import io.papermc.paper.command.brigadier.CommandSourceStack;
 import java.time.Instant;
@@ -61,6 +64,7 @@ public class GuildCommand extends SimplePlexCommand
         subCommands.add(new GuestSubCommand(module));
         subCommands.add(new PrefixSubCommand(module));
         subCommands.add(new ResetWorldSubCommand(module));
+        subCommands.add(new RecoverSubCommand(module));
     }
 
     @Override
@@ -154,6 +158,10 @@ public class GuildCommand extends SimplePlexCommand
         {
             return messageComponent(module.isLoadFailed() ? "guildStorageFailed" : "guildLoading");
         }
+        if (label.equalsIgnoreCase("-o"))
+        {
+            return dispatchOverride(sender, player, first, remaining);
+        }
         if (label.equalsIgnoreCase("help"))
         {
             return help(sender, player);
@@ -163,7 +171,75 @@ public class GuildCommand extends SimplePlexCommand
         {
             return messageComponent("guildCommandNotFound");
         }
-        return subCommand.executeSubCommand(sender, player, first, remaining);
+        return subCommand.executeSubCommand(sender, player, first, remaining, new GuildContext(
+                player == null ? null : module.getGuildHolder().guild(player.getUniqueId()).orElse(null),
+                actor(player, false)));
+    }
+
+    private Actor actor(Player player, boolean staffOverride)
+    {
+        return new Actor(player == null ? null : player.getUniqueId(), player == null || staffOverride);
+    }
+
+    private boolean acceptsOverride(GuildSubCommand command)
+    {
+        return List.of("invite", "warp", "guest", "prefix", "world", "visit", "chat", "info", "leave").contains(command.getName());
+    }
+
+    private Guild findGuild(String target)
+    {
+        try
+        {
+            return module.getGuildHolder().guildById(UUID.fromString(target)).orElse(null);
+        }
+        catch (IllegalArgumentException exception)
+        {
+            return module.getGuildHolder().guildByName(target).orElse(null);
+        }
+    }
+
+    private Component dispatchOverride(CommandSender sender, Player player, String first, String remaining)
+    {
+        if (!sender.hasPermission("plex.guilds.others"))
+        {
+            return messageComponent("guildNotAllowed");
+        }
+        if (first == null)
+        {
+            return messageComponent("guildOverrideHelp");
+        }
+        String input = remaining == null ? first : first + " " + remaining;
+        Guild guild = findGuild(input);
+        String rest = null;
+        for (int end = input.length(); guild == null && (end = input.lastIndexOf(' ', end - 1)) >= 0;)
+        {
+            guild = findGuild(input.substring(0, end));
+            if (guild != null)
+            {
+                rest = input.substring(end + 1);
+            }
+        }
+        if (guild == null)
+        {
+            return messageComponent("guildInfoNotFound");
+        }
+        if (rest == null)
+        {
+            if (player == null)
+            {
+                return messageComponent("guildOverrideHelp");
+            }
+            module.getGuildMenuListener().open(player, guild, true);
+            return null;
+        }
+        String[] parts = rest.split(" ", 3);
+        GuildSubCommand command = getSubCommand(parts[0]);
+        if (command == null || !acceptsOverride(command) || !canRun(sender, player, command))
+        {
+            return messageComponent("guildOverrideRefused");
+        }
+        return command.executeSubCommand(sender, player, parts.length > 1 ? parts[1] : null,
+                parts.length > 2 ? parts[2] : null, new GuildContext(guild, actor(player, true)));
     }
 
     private Component help(CommandSender sender, Player player)
@@ -184,6 +260,10 @@ public class GuildCommand extends SimplePlexCommand
                         .hoverEvent(Component.text("Click to fill in this command")));
             }
         }
+        if (sender.hasPermission("plex.guilds.others"))
+        {
+            content = content.append(Component.newline()).append(messageComponent("guildOverrideHelp"));
+        }
         return content;
     }
 
@@ -191,6 +271,23 @@ public class GuildCommand extends SimplePlexCommand
                                                             SuggestionsBuilder builder, String first)
     {
         CommandSender sender = context.getSource().getSender();
+        if (string(context, "subcommand").equalsIgnoreCase("-o") && sender.hasPermission("plex.guilds.others"))
+        {
+            if (first == null)
+            {
+                return suggestMatching(builder, module.getGuildHolder().guilds().stream().map(Guild::getName).toList());
+            }
+            Guild target = findGuild(first);
+            if (target != null)
+            {
+                return suggestMatching(builder, subCommands.stream().filter(this::acceptsOverride)
+                        .filter(command -> canRun(sender, sender instanceof Player player ? player : null, command)).map(GuildSubCommand::getName).toList());
+            }
+            List<String> suffixes = module.getGuildHolder().guilds().stream().map(Guild::getName)
+                    .filter(name -> name.regionMatches(true, 0, first + " ", 0, first.length() + 1))
+                    .map(name -> name.substring(first.length() + 1)).toList();
+            return suggestMatching(builder, suffixes);
+        }
         GuildSubCommand subCommand = getSubCommand(string(context, "subcommand"));
         if (subCommand == null || !isUsable(sender, sender instanceof Player player ? player : null, subCommand))
         {
@@ -203,6 +300,10 @@ public class GuildCommand extends SimplePlexCommand
     {
         Player player = sender instanceof Player online ? online : null;
         List<String> names = Lists.newArrayList("help");
+        if (sender.hasPermission("plex.guilds.others"))
+        {
+            names.add("-o");
+        }
         subCommands.stream()
                 .filter(command -> isUsable(sender, player, command))
                 .forEach(command -> names.add(command.getName()));

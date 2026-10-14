@@ -3,4 +3,4 @@ main: dev.plex.Guilds
 description: Guilds, guild worlds, and guild chat
 version: 2.0.1-SNAPSHOT
 apiCompatibility: 1
-softdepend: [FastAsyncWorldEdit]
+softdepend: [FastAsyncWorldEdit, Oasis]

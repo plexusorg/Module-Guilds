@@ -31,17 +31,22 @@ public class ChatSubCommand extends GuildSubCommand
     }
 
     @Override
-    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining, GuildContext context)
     {
         assert player != null;
-        Guild guild = guildOf(player);
+        Guild guild = context.guild();
         Member member = guild == null ? null : guild.getMember(player.getUniqueId());
-        if (member == null)
+        if (guild == null || member == null && !context.actor().staffOverride())
         {
             return messageComponent("guildNotFound");
         }
         if (first == null)
         {
+            if (context.actor().staffOverride())
+            {
+                boolean enabled = module.getGuildRecoveryService().toggleChat(player.getUniqueId(), guild.getGuildUuid());
+                return messageComponent("guildChatToggled", Placeholder.unparsed("status", BooleanUtils.toStringOnOff(enabled)));
+            }
             member.setChat(!member.isChat());
             return messageComponent("guildChatToggled", Placeholder.unparsed("status", BooleanUtils.toStringOnOff(member.isChat())));
         }

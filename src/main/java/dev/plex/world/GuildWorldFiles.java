@@ -17,7 +17,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
-/** Owns atomic world snapshots, reset journals, and reset backup retention. */
+/** Owns atomic world snapshots, reset journals, reset backup retention, and world deletion. */
 final class GuildWorldFiles implements SlimeLoader
 {
     private static final Pattern WORLD_NAME = Pattern.compile("guild_[0-9a-f]{32}");
@@ -112,7 +112,7 @@ final class GuildWorldFiles implements SlimeLoader
         }
     }
 
-    void prepareReset(String worldName) throws IOException
+    String prepareReset(String worldName) throws IOException
     {
         Path journal = path(worldName, ".reset");
         if (Files.exists(journal, LinkOption.NOFOLLOW_LINKS))
@@ -122,7 +122,7 @@ final class GuildWorldFiles implements SlimeLoader
             {
                 throw new IOException("The pending reset backup is missing: " + backup);
             }
-            return;
+            return backup;
         }
         String backup = "none";
         if (worldExists(worldName))
@@ -143,6 +143,7 @@ final class GuildWorldFiles implements SlimeLoader
         // Keep the old file until its backup and this recovery marker both exist.
         Files.writeString(journal, backup, StandardOpenOption.CREATE_NEW);
         force(journal);
+        return backup;
     }
 
     void completeReset(String worldName) throws IOException
@@ -176,6 +177,46 @@ final class GuildWorldFiles implements SlimeLoader
                 }
             }
         }
+    }
+
+    boolean hasBackup(String name) throws IOException
+    {
+        return !"none".equals(name) && Files.isRegularFile(backupPath(name), LinkOption.NOFOLLOW_LINKS);
+    }
+
+    void restoreBackup(String worldName, String name) throws IOException
+    {
+        if ("none".equals(name))
+        {
+            Files.deleteIfExists(path(worldName, ".slime"));
+            cancelReset(worldName);
+            return;
+        }
+        if (!hasBackup(name))
+        {
+            throw new IOException("The guild world backup is missing");
+        }
+        saveWorld(worldName, Files.readAllBytes(backupPath(name)));
+        cancelReset(worldName);
+    }
+
+    void deleteAll(String worldName) throws IOException
+    {
+        GuildWorldDeletion.delete(directory, worldName);
+    }
+
+    private Path backupPath(String name) throws IOException
+    {
+        if (name == null || !BACKUP_NAME.matcher(name).matches() || Files.isSymbolicLink(backups))
+        {
+            throw new IOException("Invalid guild backup path");
+        }
+        Path file = backups.resolve(name);
+        if (Files.isSymbolicLink(file))
+        {
+            throw new IOException("The guild backup must not be a symbolic link");
+        }
+        return file;
     }
 
     private String readJournal(Path journal) throws IOException

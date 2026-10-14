@@ -11,7 +11,7 @@ import java.util.UUID;
  * Marks a guild menu inventory. The target is the member or guest that the screen shows, or null.
  * The page is the page that a list screen shows. On a member or guest screen, it is the page of the list to go back to.
  */
-public record GuildMenuInventoryHolder(Guild guild, Screen screen, UUID target, int page) implements InventoryHolder
+public record GuildMenuInventoryHolder(Guild guild, Screen screen, UUID target, int page, boolean staffOverride) implements InventoryHolder
 {
     public enum Screen
     {

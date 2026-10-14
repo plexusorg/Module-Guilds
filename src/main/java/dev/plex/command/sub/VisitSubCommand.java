@@ -31,10 +31,10 @@ public final class VisitSubCommand extends GuildSubCommand
 
     @Override
     public Component executeSubCommand(@NotNull CommandSender sender, @Nullable Player player,
-                                       @Nullable String first, @Nullable String remaining)
+                                       @Nullable String first, @Nullable String remaining, GuildContext context)
     {
         assert player != null;
-        if (first == null)
+        if (first == null && !context.actor().staffOverride())
         {
             return usage();
         }
@@ -42,12 +42,12 @@ public final class VisitSubCommand extends GuildSubCommand
         {
             return messageComponent("guildWorldsUnavailable");
         }
-        Guild guild = findGuild(arguments(first, remaining));
-        if (guild == null || !guild.canEnterWorld(player.getUniqueId()) && !player.hasPermission("plex.guilds.world.bypass"))
+        Guild guild = context.actor().staffOverride() ? context.guild() : findGuild(arguments(first, remaining));
+        if (guild == null || !context.actor().staffOverride() && !guild.canEnterWorld(player.getUniqueId()) && !player.hasPermission("plex.guilds.world.bypass"))
         {
             return messageComponent("guildWorldNoAccess");
         }
-        teleportInGuildWorld(player, guild, world -> spawnLocation(guild, world));
+        teleportInGuildWorld(player, guild, world -> spawnLocation(guild, world), context.actor());
         return null;
     }
 

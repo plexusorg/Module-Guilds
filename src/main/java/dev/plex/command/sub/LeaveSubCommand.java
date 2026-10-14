@@ -34,19 +34,19 @@ public class LeaveSubCommand extends GuildSubCommand
     }
 
     @Override
-    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining, GuildContext context)
     {
         assert player != null;
-        Guild guild = guildOf(player);
+        Guild guild = context.guild();
         if (guild == null)
         {
             return messageComponent("guildNotFound");
         }
         UUID playerUuid = player.getUniqueId();
         String playerName = player.getName();
-        if (!guild.isOwner(playerUuid))
+        if (!context.actor().staffOverride() && !guild.isOwner(playerUuid))
         {
-            module.getGuildMutationService().removeMember(guild, playerUuid, playerUuid).whenComplete((unused, throwable) ->
+            module.getGuildMutationService().removeMember(guild, context.actor(), playerUuid).whenComplete((unused, throwable) ->
             {
                 if (throwable != null)
                 {
@@ -60,10 +60,11 @@ public class LeaveSubCommand extends GuildSubCommand
         }
         if (!CONFIRM.equalsIgnoreCase(first) || remaining != null)
         {
-            return messageComponent("guildLeaveOwnerWarning", Placeholder.unparsed("command", "/guild leave confirm"))
-                    .clickEvent(ClickEvent.suggestCommand("/guild leave confirm"));
+            return messageComponent("guildLeaveOwnerWarning", Placeholder.unparsed("command", (context.actor().staffOverride() ? "/guild -o " + guild.getGuildUuid() + " leave confirm" : "/guild leave confirm")),
+                    Placeholder.unparsed("days", Integer.toString(module.getRetentionDays())))
+                    .clickEvent(ClickEvent.suggestCommand((context.actor().staffOverride() ? "/guild -o " + guild.getGuildUuid() + " leave confirm" : "/guild leave confirm")));
         }
-        module.getGuildMutationService().deleteGuild(guild, playerUuid).whenComplete((unused, throwable) ->
+        module.getGuildMutationService().deleteGuild(guild, context.actor()).whenComplete((unused, throwable) ->
         {
             if (throwable != null)
             {

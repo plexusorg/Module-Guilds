@@ -46,7 +46,7 @@ public class PrefixSubCommand extends GuildSubCommand
     }
 
     @Override
-    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining)
+    public Component executeSubCommand(@NotNull CommandSender commandSender, @Nullable Player player, @Nullable String first, @Nullable String remaining, GuildContext context)
     {
         assert player != null;
         boolean set = SET.equalsIgnoreCase(first);
@@ -54,12 +54,12 @@ public class PrefixSubCommand extends GuildSubCommand
         {
             return usage();
         }
-        Guild guild = guildOf(player);
+        Guild guild = context.guild();
         if (guild == null)
         {
             return messageComponent("guildNotFound");
         }
-        if (!guild.isOwner(player.getUniqueId()))
+        if (!context.actor().staffOverride() && !guild.isOwner(context.actor().uuid()))
         {
             return messageComponent("guildNotOwner");
         }
@@ -72,7 +72,7 @@ public class PrefixSubCommand extends GuildSubCommand
         {
             return messageComponent("guildPrefixInvalid");
         }
-        module.getGuildMutationService().updatePrefix(guild, player.getUniqueId(), prefix).whenComplete((unused, throwable) ->
+        module.getGuildMutationService().updatePrefix(guild, context.actor(), prefix).whenComplete((unused, throwable) ->
         {
             if (throwable != null)
             {

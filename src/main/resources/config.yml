@@ -5,6 +5,10 @@
 ###################
 
 guilds:
+  recovery:
+    # Keep disbanded guilds, their worlds, and the action log for this many days.
+    # Then the module deletes the guild, its world, its reset backups, and its Oasis block history.
+    retention-days: 7
   log-chat-message: true
   invites:
     # Maximum invites per guild in a rolling 24-hour window.

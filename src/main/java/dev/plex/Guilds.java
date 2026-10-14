@@ -8,6 +8,9 @@ import dev.plex.guild.Guild;
 import dev.plex.guild.GuildHolder;
 import dev.plex.guild.GuildMutationService;
 import dev.plex.handler.ChatHandlerImpl;
+import dev.plex.handler.GuildSessionListener;
+import dev.plex.guild.GuildRecoveryService;
+import dev.plex.guild.HistoryPurgeQueue;
 import dev.plex.handler.GuildMenuListener;
 import dev.plex.handler.GuildPrefixListener;
 import dev.plex.handler.GuildWorldAccessListener;
@@ -58,6 +61,9 @@ public class Guilds extends PlexModule
     private Runnable unregisterWorldEdit;
 
     private GuildRepository guildRepository;
+    private final GuildSessionListener guildSessionListener = new GuildSessionListener(this);
+    private final GuildRecoveryService guildRecoveryService = new GuildRecoveryService(this);
+    private final HistoryPurgeQueue historyPurgeQueue = new HistoryPurgeQueue(this);
     private ExecutorService executor;
 
     private ModuleConfiguration config;
@@ -85,6 +91,10 @@ public class Guilds extends PlexModule
         {
             throw new IllegalArgumentException("Guest durations must use <number>m, <number>h, or <number>d, and the default must not exceed the maximum");
         }
+        if (getRetentionDays() < 0)
+        {
+            throw new IllegalArgumentException("Guild recovery retention must not be negative");
+        }
         loadMessages("messages.yml");
         this.registerCommand(new GuildCommand(this));
     }
@@ -106,7 +116,7 @@ public class Guilds extends PlexModule
             throw new IllegalStateException("Failed to run Guilds migrations", e);
         }
         guildRepository = new JdbiGuildRepository(storage, executor, zoneId, api().messages()::playerText);
-        guildRepository.loadGuilds().whenComplete((guilds, throwable) ->
+        guildSessionListener.start().thenCompose(unused -> guildRepository.loadGuilds()).whenComplete((guilds, throwable) ->
         {
             if (throwable != null)
             {
@@ -114,10 +124,20 @@ public class Guilds extends PlexModule
                 getLogger().error("Failed to load guilds", throwable);
                 return;
             }
-            api().logging().debug("Finished loading {0} guilds", guilds.size());
-            guildHolder.replaceAll(guilds);
+            api().logging().debug("Finished loading {0} guilds and {1} pending guilds", guilds.active().size(), guilds.pending().size());
+            guildHolder.replaceAll(guilds.active(), guilds.pending());
+            if (guildWorldService != null)
+            {
+                guilds.pending().forEach(pending -> guildWorldService.closeWorld(pending.guild()).exceptionally(failure ->
+                {
+                    getLogger().error("Failed to close the world of disbanded guild {}", pending.guild().getGuildUuid(), failure);
+                    return null;
+                }));
+            }
             ready = true;
+            guildSessionListener.purge();
         });
+        registerListener(guildSessionListener);
         registerListener(new ChatHandlerImpl(this));
         registerListener(new GuildPrefixListener(this));
         registerListener(guildMenuListener);
@@ -148,12 +168,30 @@ public class Guilds extends PlexModule
         {
             guildWorldService.disable();
         }
+        if (guildRepository != null && executor != null)
+        {
+            guildSessionListener.close().exceptionally(failure ->
+            {
+                getLogger().error("Failed to close guild sessions at shutdown", failure);
+                return null;
+            }).join();
+        }
         guildHolder.clear();
         if (executor != null)
         {
             executor.shutdownNow();
             executor = null;
         }
+    }
+
+    public int getRetentionDays()
+    {
+        return config.getInt("guilds.recovery.retention-days", 7);
+    }
+
+    public long getRecoveryCutoff()
+    {
+        return System.currentTimeMillis() - Duration.ofDays(getRetentionDays()).toMillis();
     }
 
     public ExecutorService executor()

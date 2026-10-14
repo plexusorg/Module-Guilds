@@ -5,6 +5,7 @@ import dev.plex.api.player.PlexPlayerView;
 import dev.plex.gui.GuildMenuInventoryHolder;
 import dev.plex.gui.GuildMenuInventoryHolder.Screen;
 import dev.plex.guild.Guild;
+import dev.plex.guild.Actor;
 import dev.plex.guild.GuildMutationService;
 import dev.plex.guild.data.Guest;
 import dev.plex.guild.data.GuildRole;
@@ -114,7 +115,12 @@ public class GuildMenuListener implements Listener
     /** Opens the main screen. Call this from the player's region thread. */
     public void open(Player player, Guild guild)
     {
-        player.openInventory(build(player, guild, Screen.MAIN, null, 0, Map.of()));
+        open(player, guild, false);
+    }
+
+    public void open(Player player, Guild guild, boolean staffOverride)
+    {
+        player.openInventory(build(player, guild, Screen.MAIN, null, 0, Map.of(), new Actor(player.getUniqueId(), staffOverride)));
     }
 
     @EventHandler(priority = EventPriority.HIGH)
@@ -126,7 +132,7 @@ public class GuildMenuListener implements Listener
         }
         event.setCancelled(true);
         Inventory source = event.getInventory();
-        if (!hasAccess(player, holder.guild()))
+        if (!hasAccess(player, holder.guild(), holder.staffOverride()))
         {
             close(player, source);
             player.sendMessage(module.messageComponent("guildNotFound"));
@@ -157,20 +163,21 @@ public class GuildMenuListener implements Listener
     private void click(Player player, GuildMenuInventoryHolder holder, Inventory source, int slot, ItemStack item, Action action)
     {
         Guild guild = holder.guild();
+        Actor actor = actor(player, source);
         switch (action)
         {
             case WORLD ->
             {
                 close(player, source);
-                teleport(player, guild, null);
+                teleport(player, guild, null, actor);
             }
             case MEMBERS -> render(player, guild, Screen.MEMBERS, null, 0, source);
             case GUESTS -> render(player, guild, Screen.GUESTS, null, 0, source);
             case WARPS -> render(player, guild, Screen.WARPS, null, 0, source);
             case WORLD_SETTINGS -> render(player, guild, Screen.WORLD_SETTINGS, null, 0, source);
-            case TIME -> mutate(player, guild, source, mutationService.cycleTimeMode(guild, player.getUniqueId()), null,
+            case TIME -> mutate(player, guild, source, mutationService.cycleTimeMode(guild, actor), null,
                     name -> module.messageComponent("guildMenuWorldSettingsSet"), Screen.WORLD_SETTINGS, null, 0);
-            case WEATHER -> mutate(player, guild, source, mutationService.cycleWeatherMode(guild, player.getUniqueId()), null,
+            case WEATHER -> mutate(player, guild, source, mutationService.cycleWeatherMode(guild, actor), null,
                     name -> module.messageComponent("guildMenuWorldSettingsSet"), Screen.WORLD_SETTINGS, null, 0);
             case BACK ->
             {
@@ -194,6 +201,7 @@ public class GuildMenuListener implements Listener
     private void clickWarp(Player player, GuildMenuInventoryHolder holder, Inventory source, ItemStack item)
     {
         Guild guild = holder.guild();
+        Actor actor = actor(player, source);
         String name = item.getItemMeta().getPersistentDataContainer().get(WARP_KEY, PersistentDataType.STRING);
         CustomLocation location = name == null ? null : guild.getWarps().get(name);
         if (location == null)
@@ -203,13 +211,13 @@ public class GuildMenuListener implements Listener
             return;
         }
         close(player, source);
-        teleport(player, guild, location);
+        teleport(player, guild, location, actor);
     }
 
     private void clickSpawn(Player player, Guild guild, Inventory source)
     {
-        UUID viewer = player.getUniqueId();
-        if (!guild.canManage(viewer))
+        Actor viewer = actor(player, source);
+        if (!viewer.staffOverride() && !guild.canManage(viewer.uuid()))
         {
             deny(player, guild, Screen.MAIN, null, 0, source);
             return;
@@ -227,9 +235,9 @@ public class GuildMenuListener implements Listener
     private void clickPromote(Player player, GuildMenuInventoryHolder holder, Inventory source, int slot, ItemStack item)
     {
         Guild guild = holder.guild();
-        UUID viewer = player.getUniqueId();
+        Actor viewer = actor(player, source);
         UUID target = holder.target();
-        if (!guild.canPromote(viewer, target))
+        if (!viewer.staffOverride() && !guild.canPromote(viewer.uuid(), target))
         {
             deny(player, guild, Screen.MEMBER, target, holder.page(), source);
             return;
@@ -241,12 +249,13 @@ public class GuildMenuListener implements Listener
             {
                 if (player.getOpenInventory().getTopInventory() == source)
                 {
-                    source.setItem(slot, confirmOwnerItem());
+                    source.setItem(slot, confirmOwnerItem(viewer.staffOverride()));
                 }
             }, null));
             return;
         }
-        String key = role == GuildRole.OWNER ? "guildMenuOwnerTransferred" : "guildMenuPromoted";
+        String key = role == GuildRole.OWNER
+                ? (viewer.staffOverride() ? "guildMenuOwnerTransferredOverride" : "guildMenuOwnerTransferred") : "guildMenuPromoted";
         mutate(player, guild, source, mutationService.setRole(guild, viewer, target, role), target,
                 name -> module.messageComponent(key, Placeholder.unparsed("player", name)), Screen.MEMBER, target, holder.page());
     }
@@ -254,41 +263,44 @@ public class GuildMenuListener implements Listener
     private void clickDemote(Player player, GuildMenuInventoryHolder holder, Inventory source)
     {
         Guild guild = holder.guild();
+        Actor actor = actor(player, source);
         UUID target = holder.target();
-        if (!guild.canDemote(player.getUniqueId(), target))
+        if (!actor.staffOverride() && !guild.canDemote(actor.uuid(), target))
         {
             deny(player, guild, Screen.MEMBER, target, holder.page(), source);
             return;
         }
-        mutate(player, guild, source, mutationService.setRole(guild, player.getUniqueId(), target, GuildRole.MEMBER), target,
+        mutate(player, guild, source, mutationService.setRole(guild, actor, target, GuildRole.MEMBER), target,
                 name -> module.messageComponent("guildMenuDemoted", Placeholder.unparsed("player", name)), Screen.MEMBER, target, holder.page());
     }
 
     private void clickKick(Player player, GuildMenuInventoryHolder holder, Inventory source)
     {
         Guild guild = holder.guild();
+        Actor actor = actor(player, source);
         UUID target = holder.target();
-        if (!guild.canKick(player.getUniqueId(), target))
+        if (guild.isOwner(target) || (!actor.staffOverride() && !guild.canKick(actor.uuid(), target)))
         {
             deny(player, guild, Screen.MEMBER, target, holder.page(), source);
             return;
         }
-        mutate(player, guild, source, mutationService.removeMember(guild, player.getUniqueId(), target), target,
+        mutate(player, guild, source, mutationService.removeMember(guild, actor, target), target,
                 name -> module.messageComponent("guildMemberKicked", Placeholder.unparsed("player", name)), Screen.MEMBERS, null, holder.page());
     }
 
     private void clickMode(Player player, GuildMenuInventoryHolder holder, Inventory source)
     {
         Guild guild = holder.guild();
+        Actor actor = actor(player, source);
         UUID target = holder.target();
         Guest guest = activeGuest(guild, target);
-        if (!guild.canManage(player.getUniqueId()) || guest == null)
+        if ((!actor.staffOverride() && !guild.canManage(actor.uuid())) || guest == null)
         {
             deny(player, guild, Screen.GUEST, target, holder.page(), source);
             return;
         }
         boolean editing = !guest.editing();
-        CompletableFuture<Void> mutation = mutationService.setGuestMode(guild, player.getUniqueId(), target, editing).thenApply(unused -> null);
+        CompletableFuture<Void> mutation = mutationService.setGuestMode(guild, actor, target, editing).thenApply(unused -> null);
         mutate(player, guild, source, mutation, target, name -> module.messageComponent("guildMenuGuestModeSet",
                 Placeholder.unparsed("player", name), Placeholder.unparsed("mode", editing ? "build" : "view")), Screen.GUEST, target, holder.page());
     }
@@ -296,14 +308,15 @@ public class GuildMenuListener implements Listener
     private void clickExtend(Player player, GuildMenuInventoryHolder holder, Inventory source)
     {
         Guild guild = holder.guild();
+        Actor actor = actor(player, source);
         UUID target = holder.target();
-        if (!guild.canManage(player.getUniqueId()) || activeGuest(guild, target) == null)
+        if ((!actor.staffOverride() && !guild.canManage(actor.uuid())) || activeGuest(guild, target) == null)
         {
             deny(player, guild, Screen.GUEST, target, holder.page(), source);
             return;
         }
         Duration duration = module.getGuestDefaultDuration();
-        CompletableFuture<Void> mutation = mutationService.addGuest(guild, player.getUniqueId(), target, null, duration).thenApply(unused -> null);
+        CompletableFuture<Void> mutation = mutationService.addGuest(guild, actor, target, null, duration).thenApply(unused -> null);
         mutate(player, guild, source, mutation, target, name -> module.messageComponent("guildMenuGuestExtended",
                 Placeholder.unparsed("player", name), Placeholder.unparsed("time", formatDuration(duration))), Screen.GUEST, target, holder.page());
     }
@@ -311,13 +324,14 @@ public class GuildMenuListener implements Listener
     private void clickRemove(Player player, GuildMenuInventoryHolder holder, Inventory source)
     {
         Guild guild = holder.guild();
+        Actor actor = actor(player, source);
         UUID target = holder.target();
-        if (!guild.canManage(player.getUniqueId()) || activeGuest(guild, target) == null)
+        if ((!actor.staffOverride() && !guild.canManage(actor.uuid())) || activeGuest(guild, target) == null)
         {
             deny(player, guild, Screen.GUEST, target, holder.page(), source);
             return;
         }
-        mutate(player, guild, source, mutationService.revokeGuest(guild, player.getUniqueId(), target), target,
+        mutate(player, guild, source, mutationService.revokeGuest(guild, actor, target), target,
                 name -> module.messageComponent("guildGuestRevoked", Placeholder.unparsed("player", name)), Screen.GUESTS, null, holder.page());
     }
 
@@ -357,7 +371,7 @@ public class GuildMenuListener implements Listener
         return module.messageComponent("guildStorageFailed");
     }
 
-    private void teleport(Player player, Guild guild, CustomLocation location)
+    private void teleport(Player player, Guild guild, CustomLocation location, Actor actor)
     {
         if (!module.isGuildWorldsEnabled())
         {
@@ -386,7 +400,13 @@ public class GuildMenuListener implements Listener
                 return;
             }
             module.ownTask(player.getScheduler().run(module.plugin(), task ->
-                    player.teleportAsync(destination), null));
+            {
+                if (actor.staffOverride())
+                {
+                    module.getGuildRecoveryService().visit(player.getUniqueId(), guild);
+                }
+                player.teleportAsync(destination);
+            }, null));
         });
     }
 
@@ -405,20 +425,21 @@ public class GuildMenuListener implements Listener
      */
     private void render(Player player, Guild guild, Screen screen, UUID target, int page, Inventory source)
     {
-        Screen resolved = resolve(guild, player.getUniqueId(), screen, target);
+        Actor actor = actor(player, source);
+        Screen resolved = resolve(guild, actor, screen, target);
         names(subjects(guild, resolved, target, page)).thenAccept(names -> module.ownTask(player.getScheduler().run(module.plugin(), task ->
         {
             if (player.getOpenInventory().getTopInventory() != source)
             {
                 return;
             }
-            if (!hasAccess(player, guild))
+            if (!hasAccess(player, guild, actor.staffOverride()))
             {
                 player.closeInventory();
                 player.sendMessage(module.messageComponent("guildNotFound"));
                 return;
             }
-            Inventory next = build(player, guild, screen, target, page, names);
+            Inventory next = build(player, guild, screen, target, page, names, actor);
             if (((GuildMenuInventoryHolder) source.getHolder()).screen() == Screen.WORLD_SETTINGS
                     && ((GuildMenuInventoryHolder) next.getHolder()).screen() == Screen.WORLD_SETTINGS)
             {
@@ -436,30 +457,30 @@ public class GuildMenuListener implements Listener
      * Builds a screen. A list screen shows the page closest to the given page that still exists.
      * A member or guest screen keeps the page so that the back button returns to it.
      */
-    private Inventory build(Player player, Guild guild, Screen screen, UUID target, int page, Map<UUID, String> names)
+    private Inventory build(Player player, Guild guild, Screen screen, UUID target, int page, Map<UUID, String> names, Actor actor)
     {
-        Screen resolved = resolve(guild, player.getUniqueId(), screen, target);
+        Screen resolved = resolve(guild, actor, screen, target);
         return switch (resolved)
         {
-            case MAIN -> buildMain(player, guild);
-            case MEMBERS -> buildMembers(guild, page, names);
-            case MEMBER -> buildMember(player, guild, target, page, names);
-            case GUESTS -> buildGuests(guild, page, names);
-            case GUEST -> buildGuest(guild, target, page, names);
-            case WARPS -> buildWarps(guild, page);
-            case WORLD_SETTINGS -> buildWorldSettings(guild);
+            case MAIN -> buildMain(player, guild, actor);
+            case MEMBERS -> buildMembers(guild, page, names, actor);
+            case MEMBER -> buildMember(player, guild, target, page, names, actor);
+            case GUESTS -> buildGuests(guild, page, names, actor);
+            case GUEST -> buildGuest(guild, target, page, names, actor);
+            case WARPS -> buildWarps(guild, page, actor);
+            case WORLD_SETTINGS -> buildWorldSettings(guild, actor);
         };
     }
 
     /** Falls back to a parent screen when the viewer may not see the screen or its target is gone. */
-    private Screen resolve(Guild guild, UUID viewer, Screen screen, UUID target)
+    private Screen resolve(Guild guild, Actor viewer, Screen screen, UUID target)
     {
         return switch (screen)
         {
-            case GUESTS, WORLD_SETTINGS -> guild.canManage(viewer) ? screen : Screen.MAIN;
+            case GUESTS, WORLD_SETTINGS -> (viewer.staffOverride() || guild.canManage(viewer.uuid())) ? screen : Screen.MAIN;
             case GUEST ->
             {
-                if (!guild.canManage(viewer))
+                if (!viewer.staffOverride() && !guild.canManage(viewer.uuid()))
                 {
                     yield Screen.MAIN;
                 }
@@ -491,12 +512,12 @@ public class GuildMenuListener implements Listener
         };
     }
 
-    private Inventory buildMain(Player player, Guild guild)
+    private Inventory buildMain(Player player, Guild guild, Actor actor)
     {
-        UUID viewer = player.getUniqueId();
-        Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, Screen.MAIN, null, 0), SMALL_SIZE, title(guild.getName()));
+        Actor viewer = actor;
+        Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, Screen.MAIN, null, 0, actor.staffOverride()), SMALL_SIZE, title(guild.getName()));
         inventory.setItem(INFO_SLOT, item(Material.NAME_TAG, guild.getName(), NamedTextColor.GOLD, List.of(
-                label("Your role", roleName(guild.getRole(viewer)), NamedTextColor.AQUA),
+                label("Your role", roleName(guild.getRole(viewer.uuid())), NamedTextColor.AQUA),
                 label("Members", String.valueOf(guild.getMembers().size()), NamedTextColor.AQUA)
         ), null));
         inventory.setItem(WORLD_SLOT, item(Material.GRASS_BLOCK, "Go to world", NamedTextColor.GREEN, List.of(
@@ -508,7 +529,7 @@ public class GuildMenuListener implements Listener
         inventory.setItem(WARPS_SLOT, item(Material.ENDER_PEARL, "Warps", NamedTextColor.LIGHT_PURPLE, List.of(
                 line("Teleport to a guild warp", NamedTextColor.GRAY)
         ), Action.WARPS));
-        if (guild.canManage(viewer))
+        if (viewer.staffOverride() || guild.canManage(viewer.uuid()))
         {
             inventory.setItem(GUESTS_SLOT, item(Material.OAK_DOOR, "Guests", NamedTextColor.YELLOW, List.of(
                     line("Manage who can visit the guild world", NamedTextColor.GRAY)
@@ -521,11 +542,11 @@ public class GuildMenuListener implements Listener
         return inventory;
     }
 
-    private Inventory buildWorldSettings(Guild guild)
+    private Inventory buildWorldSettings(Guild guild, Actor actor)
     {
         GuildTimeMode time = guild.getTimeMode();
         GuildWeatherMode weather = guild.getWeatherMode();
-        Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, Screen.WORLD_SETTINGS, null, 0), SMALL_SIZE, title("World settings"));
+        Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, Screen.WORLD_SETTINGS, null, 0, actor.staffOverride()), SMALL_SIZE, title("World settings"));
         inventory.setItem(FIRST_ACTION_SLOT, item(Material.CLOCK, "Time: " + time.label(), NamedTextColor.YELLOW, List.of(
                 line("Click to set " + time.next().label(), NamedTextColor.GRAY)
         ), Action.TIME));
@@ -549,11 +570,11 @@ public class GuildMenuListener implements Listener
         ), Action.SPAWN);
     }
 
-    private Inventory buildMembers(Guild guild, int page, Map<UUID, String> names)
+    private Inventory buildMembers(Guild guild, int page, Map<UUID, String> names, Actor actor)
     {
         List<Member> all = sortedMembers(guild);
         int current = clampPage(all.size(), page);
-        Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, Screen.MEMBERS, null, current), LARGE_SIZE, title("Members"));
+        Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, Screen.MEMBERS, null, current, actor.staffOverride()), LARGE_SIZE, title("Members"));
         Set<String> online = onlineNames();
         List<Member> members = page(all, current);
         for (int i = 0; i < members.size(); i++)
@@ -569,26 +590,27 @@ public class GuildMenuListener implements Listener
         return inventory;
     }
 
-    private Inventory buildMember(Player player, Guild guild, UUID target, int page, Map<UUID, String> names)
+    private Inventory buildMember(Player player, Guild guild, UUID target, int page, Map<UUID, String> names, Actor actor)
     {
-        UUID viewer = player.getUniqueId();
+        Actor viewer = actor;
         String name = names.getOrDefault(target, target.toString());
-        Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, Screen.MEMBER, target, page), SMALL_SIZE, title(name));
+        Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, Screen.MEMBER, target, page, actor.staffOverride()), SMALL_SIZE, title(name));
         inventory.setItem(HEAD_SLOT, head(target, name, memberLore(guild.getMember(target), name, onlineNames()), null));
-        if (guild.canPromote(viewer, target))
+        if (guild.getRole(target) != GuildRole.OWNER && (viewer.staffOverride() || guild.canPromote(viewer.uuid(), target)))
         {
             boolean toOwner = guild.getRole(target) == GuildRole.OFFICER;
             inventory.setItem(FIRST_ACTION_SLOT, item(Material.EMERALD, toOwner ? "Make owner" : "Promote to officer", NamedTextColor.GREEN, List.of(
-                    line(toOwner ? "You become an officer" : "Officers can invite, manage guests, and set warps", NamedTextColor.GRAY)
+                    toOwner && actor.staffOverride() ? module.messageComponent("guildMenuOwnerOverrideHint")
+                            : line(toOwner ? "You become an officer" : "Officers can invite, manage guests, and set warps", NamedTextColor.GRAY)
             ), Action.PROMOTE));
         }
-        if (guild.canDemote(viewer, target))
+        if (guild.getRole(target) == GuildRole.OFFICER && (viewer.staffOverride() || guild.canDemote(viewer.uuid(), target)))
         {
             inventory.setItem(SECOND_ACTION_SLOT, item(Material.REDSTONE, "Demote to member", NamedTextColor.GOLD, List.of(
                     line("Remove the officer role", NamedTextColor.GRAY)
             ), Action.DEMOTE));
         }
-        if (guild.canKick(viewer, target))
+        if (!guild.isOwner(target) && (viewer.staffOverride() || guild.canKick(viewer.uuid(), target)))
         {
             inventory.setItem(THIRD_ACTION_SLOT, item(Material.BARRIER, "Kick", NamedTextColor.RED, List.of(
                     line("Remove this player from the guild", NamedTextColor.GRAY)
@@ -598,21 +620,21 @@ public class GuildMenuListener implements Listener
         return inventory;
     }
 
-    private ItemStack confirmOwnerItem()
+    private ItemStack confirmOwnerItem(boolean staffOverride)
     {
         ItemStack itemStack = item(Material.GOLD_BLOCK, "Click again to confirm", NamedTextColor.GOLD, List.of(
                 line("This player becomes the guild owner", NamedTextColor.GRAY),
-                line("You become an officer", NamedTextColor.GRAY)
+                staffOverride ? module.messageComponent("guildMenuOwnerOverrideHint") : line("You become an officer", NamedTextColor.GRAY)
         ), Action.PROMOTE);
         itemStack.editMeta(meta -> meta.getPersistentDataContainer().set(CONFIRM_KEY, PersistentDataType.BOOLEAN, true));
         return itemStack;
     }
 
-    private Inventory buildGuests(Guild guild, int page, Map<UUID, String> names)
+    private Inventory buildGuests(Guild guild, int page, Map<UUID, String> names, Actor actor)
     {
         List<Guest> all = sortedGuests(guild);
         int current = clampPage(all.size(), page);
-        Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, Screen.GUESTS, null, current), LARGE_SIZE, title("Guests"));
+        Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, Screen.GUESTS, null, current, actor.staffOverride()), LARGE_SIZE, title("Guests"));
         List<Guest> guests = page(all, current);
         for (int i = 0; i < guests.size(); i++)
         {
@@ -633,15 +655,15 @@ public class GuildMenuListener implements Listener
         return inventory;
     }
 
-    private Inventory buildGuest(Guild guild, UUID target, int page, Map<UUID, String> names)
+    private Inventory buildGuest(Guild guild, UUID target, int page, Map<UUID, String> names, Actor actor)
     {
         Guest guest = guild.getGuests().get(target);
         if (guest == null)
         {
-            return buildGuests(guild, page, names);
+            return buildGuests(guild, page, names, actor);
         }
         String name = names.getOrDefault(target, target.toString());
-        Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, Screen.GUEST, target, page), SMALL_SIZE, title(name));
+        Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, Screen.GUEST, target, page, actor.staffOverride()), SMALL_SIZE, title(name));
         inventory.setItem(HEAD_SLOT, head(target, name, guestLore(guest), null));
         inventory.setItem(FIRST_ACTION_SLOT, guest.editing()
                 ? item(Material.ENDER_EYE, "Switch to view", NamedTextColor.AQUA, List.of(
@@ -658,11 +680,11 @@ public class GuildMenuListener implements Listener
         return inventory;
     }
 
-    private Inventory buildWarps(Guild guild, int page)
+    private Inventory buildWarps(Guild guild, int page, Actor actor)
     {
         List<String> all = guild.getWarps().keySet().stream().sorted().toList();
         int current = clampPage(all.size(), page);
-        Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, Screen.WARPS, null, current), LARGE_SIZE, title("Warps"));
+        Inventory inventory = Bukkit.createInventory(new GuildMenuInventoryHolder(guild, Screen.WARPS, null, current, actor.staffOverride()), LARGE_SIZE, title("Warps"));
         List<String> warps = page(all, current);
         for (int i = 0; i < warps.size(); i++)
         {
@@ -757,9 +779,16 @@ public class GuildMenuListener implements Listener
         return target == null ? null : guild.getActiveGuest(target);
     }
 
-    private boolean hasAccess(Player player, Guild guild)
+    private Actor actor(Player player, Inventory source)
     {
-        return module.getGuildHolder().guild(player.getUniqueId()).orElse(null) == guild && guild.isMember(player.getUniqueId());
+        GuildMenuInventoryHolder holder = (GuildMenuInventoryHolder) source.getHolder();
+        return new Actor(player.getUniqueId(), holder.staffOverride() && player.hasPermission("plex.guilds.others"));
+    }
+
+    private boolean hasAccess(Player player, Guild guild, boolean staffOverride)
+    {
+        return module.getGuildHolder().guildById(guild.getGuildUuid()).orElse(null) == guild
+                && (staffOverride && player.hasPermission("plex.guilds.others") || guild.isMember(player.getUniqueId()));
     }
 
     private boolean inGuildWorld(Player player, Guild guild)

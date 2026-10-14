@@ -1,6 +1,7 @@
 package dev.plex.world;
 
 import dev.plex.guild.Guild;
+import dev.plex.guild.Actor;
 import org.bukkit.Location;
 import org.bukkit.World;
 
@@ -20,14 +21,9 @@ public interface GuildWorldService
 
     CompletableFuture<Void> applySettings(Guild guild);
 
-    CompletableFuture<World> generateWorld(Guild guild, GuildWorldType type, java.util.UUID actor);
+    CompletableFuture<World> generateWorld(Guild guild, GuildWorldType type, Actor actor);
 
-    default CompletableFuture<Void> resetWorld(Guild guild)
-    {
-        return resetWorld(guild, null);
-    }
-
-    CompletableFuture<Void> resetWorld(Guild guild, java.util.UUID actor);
+    CompletableFuture<Void> resetWorld(Guild guild, Actor actor);
 
     boolean isResetting(String worldName);
 
@@ -38,11 +34,20 @@ public interface GuildWorldService
     CompletableFuture<Location> safeLocation(Location location);
 
     /**
-     * Permanently deletes the guild world with no backup. Evacuates its players, unloads it without a save,
-     * and removes its file. The world name stays closed after this call, also when the deletion fails.
-     * Completes normally when the world does not exist.
+     * Closes the world name, then unloads the world and waits for its saves. ensureWorld, generateWorld, and resetWorld
+     * refuse a closed name. The world file stays.
      */
+    CompletableFuture<Void> closeWorld(Guild guild);
+
+    /** Closes the world, then deletes its file, reset journal, and reset backups. The name stays closed. */
     CompletableFuture<Void> deleteWorld(Guild guild);
+
+    /** Opens a closed world name again. */
+    void openWorld(String worldName);
+
+    CompletableFuture<Boolean> hasBackup(String backup);
+
+    CompletableFuture<String> restoreBackup(Guild guild, String backup);
 
     void disable();
 }

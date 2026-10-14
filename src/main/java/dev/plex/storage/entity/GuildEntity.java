@@ -21,6 +21,8 @@ public class GuildEntity
     private Double spawnZ;
     private Float spawnYaw;
     private Float spawnPitch;
+    private Long deletedAt;
+    private String deletedBy;
 
     public GuildEntity()
     {

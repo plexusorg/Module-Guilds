@@ -20,6 +20,13 @@ public class ChatHandlerImpl implements Listener
     public void doChat(AsyncChatEvent event)
     {
         Player player = event.getPlayer();
+        var target = module.getGuildRecoveryService().chatTarget(player.getUniqueId());
+        if (target != null && player.hasPermission("plex.guilds.others"))
+        {
+            module.sendChat(target, player.getName(), event.message());
+            event.setCancelled(true);
+            return;
+        }
         module.getGuildHolder().guild(player.getUniqueId()).ifPresent(guild ->
         {
             Member member = guild.getMember(player.getUniqueId());

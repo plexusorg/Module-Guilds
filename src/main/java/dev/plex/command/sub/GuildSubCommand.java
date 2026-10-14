@@ -5,6 +5,7 @@ import dev.plex.command.CommandSpec;
 import dev.plex.command.exception.AmbiguousPlayerException;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
+import dev.plex.guild.Actor;
 import dev.plex.guild.GuildPrefixTakenException;
 import dev.plex.guild.GuildInviteLimitException;
 import dev.plex.util.CustomLocation;
@@ -70,7 +71,7 @@ public abstract class GuildSubCommand
     }
 
     public abstract Component executeSubCommand(@NotNull CommandSender sender, @Nullable Player player,
-                                                @Nullable String first, @Nullable String remaining);
+                                                @Nullable String first, @Nullable String remaining, GuildContext context);
 
     public @NotNull List<String> suggestSubCommand(@NotNull CommandSender sender, @Nullable String first)
     {
@@ -179,7 +180,7 @@ public abstract class GuildSubCommand
     }
 
     /** Loads the guild world, then teleports the player to a safe spot on the player's scheduler. The caller checks that guild worlds are enabled. */
-    protected void teleportInGuildWorld(Player player, Guild guild, Function<World, Location> destination)
+    protected void teleportInGuildWorld(Player player, Guild guild, Function<World, Location> destination, Actor actor)
     {
         player.sendMessage(messageComponent("guildWorldLoading"));
         module.getGuildWorldService().ensureWorld(guild)
@@ -204,6 +205,10 @@ public abstract class GuildSubCommand
             }
             ScheduledTask scheduled = player.getScheduler().run(module.plugin(), task ->
             {
+                if (actor.staffOverride())
+                {
+                    module.getGuildRecoveryService().visit(player.getUniqueId(), guild);
+                }
                 if (!module.getGuildWorldProtectionListener().canEnter(player.getUniqueId(), location.getWorld()))
                 {
                     player.sendMessage(messageComponent("guildWorldNoAccess"));
@@ -240,6 +245,14 @@ public abstract class GuildSubCommand
             return duration.toHours() + "h";
         }
         return duration.toMinutes() + "m";
+    }
+
+    public record GuildContext(Guild guild, Actor actor)
+    {
+        public boolean canManage()
+        {
+            return guild != null && (actor.staffOverride() || guild.canManage(actor.uuid()));
+        }
     }
 
     public record HelpEntry(String usage, String description, String suggestion)
