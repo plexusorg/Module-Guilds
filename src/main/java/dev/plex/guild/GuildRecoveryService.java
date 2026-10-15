@@ -198,6 +198,7 @@ public final class GuildRecoveryService
             guild.getInviteHistory().addAll(pending.guild().getInviteHistory());
             module.getGuildHolder().addGuild(guild);
             module.getGuildHolder().removePending(guild.getGuildUuid());
+            module.getGuildWorldIndex().record("RESTORE", guild, actor.actor().uuid());
             if (module.isGuildWorldsEnabled())
             {
                 module.getGuildWorldService().openWorld(guild.getWorldName());

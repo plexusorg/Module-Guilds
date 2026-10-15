@@ -66,6 +66,10 @@ public class WorldSubCommand extends GuildSubCommand
         {
             return generate(player, guild, remaining, context.actor());
         }
+        if (!context.actor().staffOverride() && !player.hasPermission("plex.guilds.world.reset"))
+        {
+            return messageComponent("guildWorldResetStaffOnly", Placeholder.unparsed("guild", guild.getName()));
+        }
         return reset(player, guild, remaining, context.actor());
     }
 
@@ -136,7 +140,7 @@ public class WorldSubCommand extends GuildSubCommand
         }
         if (first == null)
         {
-            return List.of("generate", "reset");
+            return sender.hasPermission("plex.guilds.world.reset") ? List.of("generate", "reset") : List.of("generate");
         }
         return switch (first.toLowerCase(java.util.Locale.ROOT))
         {

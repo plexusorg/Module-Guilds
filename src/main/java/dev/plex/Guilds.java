@@ -11,6 +11,7 @@ import dev.plex.handler.ChatHandlerImpl;
 import dev.plex.handler.GuildSessionListener;
 import dev.plex.guild.GuildRecoveryService;
 import dev.plex.guild.HistoryPurgeQueue;
+import dev.plex.guild.PendingGuild;
 import dev.plex.handler.GuildMenuListener;
 import dev.plex.handler.GuildPrefixListener;
 import dev.plex.handler.GuildWorldAccessListener;
@@ -22,6 +23,7 @@ import dev.plex.api.storage.ModuleStorage;
 import dev.plex.storage.GuildRepository;
 import dev.plex.storage.JdbiGuildRepository;
 import dev.plex.util.DurationParser;
+import dev.plex.world.GuildWorldIndex;
 import dev.plex.world.GuildWorldService;
 import dev.plex.world.AspGuildWorldService;
 import lombok.Getter;
@@ -39,6 +41,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -64,6 +67,7 @@ public class Guilds extends PlexModule
     private final GuildSessionListener guildSessionListener = new GuildSessionListener(this);
     private final GuildRecoveryService guildRecoveryService = new GuildRecoveryService(this);
     private final HistoryPurgeQueue historyPurgeQueue = new HistoryPurgeQueue(this);
+    private final GuildWorldIndex guildWorldIndex = new GuildWorldIndex(this);
     private ExecutorService executor;
 
     private ModuleConfiguration config;
@@ -126,6 +130,7 @@ public class Guilds extends PlexModule
             }
             api().logging().debug("Finished loading {0} guilds and {1} pending guilds", guilds.active().size(), guilds.pending().size());
             guildHolder.replaceAll(guilds.active(), guilds.pending());
+            guildWorldIndex.seed(Stream.concat(guilds.active().stream(), guilds.pending().stream().map(PendingGuild::guild)).toList());
             if (guildWorldService != null)
             {
                 guilds.pending().forEach(pending -> guildWorldService.closeWorld(pending.guild()).exceptionally(failure ->

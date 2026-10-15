@@ -38,6 +38,7 @@ guildLeft: "<green>You left the guild."
 guildMemberLeft: "<yellow><player> left the guild."
 guildLeaveOwnerWarning: "<red><bold>Disband this guild?</bold><newline><red>All members leave the guild. Staff can restore it for <days> days. Then the module deletes the guild, its world, and its block history.<newline><gray>To keep the guild, make another member the owner in the /guild menu.<newline><gold>To disband the guild, enter <yellow><command>"
 guildDisbanded: "<red><player> disbanded the guild <guild>."
+guildDisbandStaffOnly: "<red>Only staff can disband <guild>. Ask a staff member to disband it.<newline><gray>To leave the guild, make another member the owner in the /guild menu, then enter /guild leave."
 
 # Chat
 guildChatMessage: "<blue>[GUILD] <aqua><player> <yellow><content>"
@@ -81,7 +82,8 @@ guildGuestReceived: "<green><guild> added you as a <mode> guest for <duration>.<
 # World reset
 guildResetTargetNotFound: "<red>No guild matches '<target>'. Enter the guild UUID or full name."
 guildWorldResetConfirm: "<red>Reset the world for <guild>?<newline><yellow>This removes all blocks and entities in <world>. Players leave the world first. The guild and its members stay the same. The world spawn and warps in this world are removed. Generate a new world after the reset.<newline>A backup is kept for <days> days. Backups needed by an incomplete reset are kept until recovery.<newline>With Oasis, the reset also deletes the block history of the old world.<newline><gold>To confirm, enter <command>"
-guildWorldResetStarted: "<yellow>Resetting the world for <guild>..."
+guildWorldResetStaffOnly: "<red>Only staff can reset the world for <guild>. Ask a staff member to reset it."
+guildWorldResetStarted:"<yellow>Resetting the world for <guild>..."
 guildWorldResetFailed: "<red>Could not finish the world reset for <guild>. Check the server log. If the reset is incomplete, world access stays blocked."
 guildWorldResetComplete: "<green>Reset the world for <guild>. The guild and its members are unchanged. Enter /guild world generate <type> to create a new world."
 
@@ -99,7 +101,7 @@ guildMenuSpawnNotInWorld: "<red>Go to your guild world to set the spawn."
 
 # World generation and owner reset
 guildWorldNotGenerated: "<yellow>This guild has no world. Ask the owner to enter /guild world generate <overworld|nether|end|superflat>."
-guildWorldAlreadyGenerated: "<red>Your guild already has a world. Enter /guild world to visit, or /guild world reset to replace it."
+guildWorldAlreadyGenerated: "<red>Your guild already has a world. Enter /guild world to visit it. To replace it, ask a staff member to reset it."
 guildWorldGenerating: "<yellow>Generating your guild world..."
 guildWorldGenerated: "<green>Your guild world is ready. Enter /guild world to visit."
 guildWorldResetExpired: "<red>Enter /guild world reset first. Then confirm within 60 seconds."

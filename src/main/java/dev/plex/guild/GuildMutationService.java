@@ -57,6 +57,7 @@ public final class GuildMutationService
                 .thenApply(created ->
                 {
                     module.getGuildHolder().addGuild(created);
+                    module.getGuildWorldIndex().record("CREATE", created, actor.uuid());
                     return created;
                 });
     }
@@ -181,6 +182,7 @@ public final class GuildMutationService
         return module.getGuildRepository().markDeleted(guild.getGuildUuid(), now, actor.uuid(), action).thenRun(() ->
         {
             module.getGuildHolder().addPending(new PendingGuild(guild, now, actor.uuid()));
+            module.getGuildWorldIndex().record("DISBAND", guild, actor.uuid());
             // Without the active entry, canEnter is false for everyone in this world.
             module.getGuildHolder().removeGuild(guild.getGuildUuid());
             for (Member member : guild.getMembers())
@@ -234,6 +236,7 @@ public final class GuildMutationService
                     .thenRun(() ->
                     {
                         module.getGuildHolder().removePending(guildUuid);
+                        module.getGuildWorldIndex().record("PURGE", pending.guild(), null);
                         if (module.isGuildWorldsEnabled())
                         {
                             module.getGuildWorldService().openWorld(worldName);

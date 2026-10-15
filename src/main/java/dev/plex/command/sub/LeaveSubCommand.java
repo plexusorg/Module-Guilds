@@ -58,6 +58,10 @@ public class LeaveSubCommand extends GuildSubCommand
             });
             return null;
         }
+        if (!context.actor().staffOverride() && !player.hasPermission("plex.guilds.disband"))
+        {
+            return messageComponent("guildDisbandStaffOnly", Placeholder.unparsed("guild", guild.getName()));
+        }
         if (!CONFIRM.equalsIgnoreCase(first) || remaining != null)
         {
             return messageComponent("guildLeaveOwnerWarning", Placeholder.unparsed("command", (context.actor().staffOverride() ? "/guild -o " + guild.getGuildUuid() + " leave confirm" : "/guild leave confirm")),
@@ -82,6 +86,7 @@ public class LeaveSubCommand extends GuildSubCommand
     public @NotNull List<String> suggestSubCommand(@NotNull CommandSender sender, @Nullable String first)
     {
         Guild guild = sender instanceof Player player ? guildOf(player) : null;
-        return first == null && guild != null && guild.isOwner(((Player) sender).getUniqueId()) ? List.of(CONFIRM) : List.of();
+        return first == null && guild != null && guild.isOwner(((Player) sender).getUniqueId()) && sender.hasPermission("plex.guilds.disband")
+                ? List.of(CONFIRM) : List.of();
     }
 }
