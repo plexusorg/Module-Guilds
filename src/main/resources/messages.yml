@@ -83,7 +83,7 @@ guildGuestReceived: "<green><guild> added you as a <mode> guest for <duration>.<
 guildResetTargetNotFound: "<red>No guild matches '<target>'. Enter the guild UUID or full name."
 guildWorldResetConfirm: "<red>Reset the world for <guild>?<newline><yellow>This removes all blocks and entities in <world>. Players leave the world first. The guild and its members stay the same. The world spawn and warps in this world are removed. Generate a new world after the reset.<newline>A backup is kept for <days> days. Backups needed by an incomplete reset are kept until recovery.<newline>With Oasis, the reset also deletes the block history of the old world.<newline><gold>To confirm, enter <command>"
 guildWorldResetStaffOnly: "<red>Only staff can reset the world for <guild>. Ask a staff member to reset it."
-guildWorldResetStarted:"<yellow>Resetting the world for <guild>..."
+guildWorldResetStarted: "<yellow>Resetting the world for <guild>..."
 guildWorldResetFailed: "<red>Could not finish the world reset for <guild>. Check the server log. If the reset is incomplete, world access stays blocked."
 guildWorldResetComplete: "<green>Reset the world for <guild>. The guild and its members are unchanged. Enter /guild world generate <type> to create a new world."
 
