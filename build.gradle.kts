@@ -23,7 +23,7 @@ repositories {
         forRepository {
             maven {
                 name = "oasis"
-                url = uri("https://nexus.telesphoreo.me/repository/oasis-snapshots/")
+                url = uri("https://telesphorepo.com/maven/oasis-snapshots/")
             }
         }
         filter {
@@ -36,7 +36,7 @@ repositories {
     }
 
     maven {
-        url = uri("https://nexus.telesphoreo.me/repository/plex/")
+        url = uri("https://telesphorepo.com/maven/plex/")
     }
 
     mavenCentral()
