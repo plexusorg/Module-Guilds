@@ -19,6 +19,15 @@ public interface GuildWorldService
 
     CompletableFuture<World> ensureWorld(Guild guild);
 
+    /**
+     * Loads the world as ensureWorld does and keeps it loaded until releaseWorld: the idle unload skips a held world.
+     * A hold whose future fails ends by itself; every other hold needs one releaseWorld.
+     */
+    CompletableFuture<World> holdWorld(Guild guild);
+
+    /** Ends one hold of the world. The idle unload counts the world again once no hold is left. */
+    void releaseWorld(String worldName);
+
     CompletableFuture<Void> applySettings(Guild guild);
 
     CompletableFuture<World> generateWorld(Guild guild, GuildWorldType type, Actor actor);

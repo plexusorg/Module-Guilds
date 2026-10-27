@@ -50,6 +50,8 @@ public final class AspGuildWorldService implements GuildWorldService
     private final Map<UUID, CompletableFuture<Void>> resets = new ConcurrentHashMap<>();
     private final Map<UUID, CompletableFuture<Void>> unloads = new HashMap<>();
     private final Map<UUID, Long> emptySince = new HashMap<>();
+    // Holds by world name, such as an Oasis rollback that writes into the world. The idle unload skips a held world.
+    private final Map<String, Integer> holds = new ConcurrentHashMap<>();
     private final Set<String> pendingResets = ConcurrentHashMap.newKeySet();
     private final Set<String> deletedWorlds = ConcurrentHashMap.newKeySet();
     private final AtomicBoolean cleanupQueued = new AtomicBoolean();
@@ -163,6 +165,26 @@ public final class AspGuildWorldService implements GuildWorldService
         loads.put(id, result);
         result.whenComplete((world, failure) -> loads.remove(id, result));
         return result;
+    }
+
+    @Override
+    public synchronized CompletableFuture<World> holdWorld(Guild guild)
+    {
+        String worldName = guild.getWorldName();
+        holds.merge(worldName, 1, Integer::sum);
+        return ensureWorld(guild).whenComplete((world, failure) ->
+        {
+            if (failure != null)
+            {
+                releaseWorld(worldName);
+            }
+        });
+    }
+
+    @Override
+    public void releaseWorld(String worldName)
+    {
+        holds.computeIfPresent(worldName, (name, count) -> count == 1 ? null : count - 1);
     }
 
     @Override
@@ -634,7 +656,8 @@ public final class AspGuildWorldService implements GuildWorldService
                 continue;
             }
             if (loads.containsKey(id) || resets.containsKey(id) || pendingResets.contains(loaded.getName())
-                    || deletedWorlds.contains(loaded.getName()) || !loaded.getBukkitWorld().getPlayers().isEmpty())
+                    || deletedWorlds.contains(loaded.getName()) || holds.containsKey(loaded.getName())
+                    || !loaded.getBukkitWorld().getPlayers().isEmpty())
             {
                 emptySince.remove(id);
                 continue;
@@ -693,7 +716,7 @@ public final class AspGuildWorldService implements GuildWorldService
         World world = loaded.getBukkitWorld();
         // A player can arrive without ensureWorld while the save runs. Never evacuate an idle world.
         if (!saved || resets.containsKey(id) || pendingResets.contains(loaded.getName())
-                || deletedWorlds.contains(loaded.getName()) || !world.getPlayers().isEmpty())
+                || deletedWorlds.contains(loaded.getName()) || holds.containsKey(loaded.getName()) || !world.getPlayers().isEmpty())
         {
             world.setAutoSave(true);
             return;

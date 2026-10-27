@@ -9,7 +9,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.bukkit.Bukkit;
-import org.jetbrains.annotations.Nullable;
 
 /**
  * Sends the recorded history purges to Oasis, one at a time, and deletes each row when its purge ends.
@@ -20,8 +19,6 @@ public final class HistoryPurgeQueue
     private final Guilds module;
     private final AtomicBoolean running = new AtomicBoolean();
     private final AtomicBoolean requested = new AtomicBoolean();
-    // Only the running drain reads or sets the hook.
-    private GuildOasisHook oasis;
 
     public HistoryPurgeQueue(Guilds module)
     {
@@ -40,7 +37,7 @@ public final class HistoryPurgeQueue
         CompletableFuture<Void> run;
         try
         {
-            GuildOasisHook hook = hook();
+            GuildOasisHook hook = module.oasis();
             run = hook == null ? CompletableFuture.completedFuture(null)
                     : module.getGuildRepository().historyPurges().thenCompose(rows -> purge(hook, rows, 0));
         }
@@ -69,19 +66,6 @@ public final class HistoryPurgeQueue
                 drain();
             }
         });
-    }
-
-    private @Nullable GuildOasisHook hook()
-    {
-        if (!Bukkit.getPluginManager().isPluginEnabled("Oasis"))
-        {
-            return null;
-        }
-        if (oasis == null)
-        {
-            oasis = new GuildOasisHook(module.plugin());
-        }
-        return oasis;
     }
 
     private CompletableFuture<Void> purge(GuildOasisHook hook, List<HistoryPurge> rows, int index)

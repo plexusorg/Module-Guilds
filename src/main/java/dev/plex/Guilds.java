@@ -17,6 +17,7 @@ import dev.plex.handler.GuildPrefixListener;
 import dev.plex.handler.GuildWorldAccessListener;
 import dev.plex.handler.GuildWorldProtectionListener;
 import dev.plex.handler.GuildWorldEntityProtectionListener;
+import dev.plex.hook.GuildOasisHook;
 import dev.plex.hook.GuildWorldEditHook;
 import dev.plex.module.PlexModule;
 import dev.plex.api.storage.ModuleStorage;
@@ -32,6 +33,7 @@ import net.kyori.adventure.text.TextReplacementConfig;
 import net.kyori.adventure.text.event.ClickEvent;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
 import org.bukkit.entity.Player;
+import org.jetbrains.annotations.Nullable;
 
 import java.sql.SQLException;
 import java.time.Duration;
@@ -62,6 +64,7 @@ public class Guilds extends PlexModule
 
     private GuildWorldService guildWorldService;
     private Runnable unregisterWorldEdit;
+    private GuildOasisHook oasis;
 
     private GuildRepository guildRepository;
     private final GuildSessionListener guildSessionListener = new GuildSessionListener(this);
@@ -77,6 +80,8 @@ public class Guilds extends PlexModule
     private int inviteDailyLimit;
     private volatile boolean ready;
     private volatile boolean loadFailed;
+    // Completes when the guilds are in the holder, the moment ready turns true, or fails when they cannot load.
+    private volatile CompletableFuture<Void> guildsLoaded = new CompletableFuture<>();
 
     @Override
     public void load()
@@ -109,7 +114,14 @@ public class Guilds extends PlexModule
         executor = Executors.newThreadPerTaskExecutor(Thread.ofVirtual().name("Plex-Guilds-", 0).factory());
         ready = false;
         loadFailed = false;
+        CompletableFuture<Void> loaded = new CompletableFuture<>();
+        guildsLoaded = loaded;
         enableGuildWorlds();
+        GuildOasisHook hook = oasis();
+        if (hook != null && guildWorldService != null)
+        {
+            hook.loadGuildWorlds(guildHolder, guildWorldService, loaded);
+        }
         ModuleStorage storage = api().storage().forModule(this);
         try
         {
@@ -126,6 +138,7 @@ public class Guilds extends PlexModule
             {
                 loadFailed = true;
                 getLogger().error("Failed to load guilds", throwable);
+                loaded.completeExceptionally(throwable);
                 return;
             }
             api().logging().debug("Finished loading {0} guilds and {1} pending guilds", guilds.active().size(), guilds.pending().size());
@@ -140,6 +153,7 @@ public class Guilds extends PlexModule
                 }));
             }
             ready = true;
+            loaded.complete(null);
             guildSessionListener.purge();
         });
         registerListener(guildSessionListener);
@@ -164,10 +178,16 @@ public class Guilds extends PlexModule
     public void disable()
     {
         ready = false;
+        guildsLoaded.completeExceptionally(new IllegalStateException("Guilds stopped before its guilds loaded"));
         if (unregisterWorldEdit != null)
         {
             unregisterWorldEdit.run();
             unregisterWorldEdit = null;
+        }
+        if (oasis != null)
+        {
+            oasis.stopLoadingGuildWorlds();
+            oasis = null;
         }
         if (guildWorldService != null)
         {
@@ -203,6 +223,20 @@ public class Guilds extends PlexModule
     {
         if (executor == null) throw new IllegalStateException("Guilds is not enabled");
         return executor;
+    }
+
+    /** The Oasis hook, or null while Oasis is not enabled. */
+    public synchronized @Nullable GuildOasisHook oasis()
+    {
+        if (!Bukkit.getPluginManager().isPluginEnabled("Oasis"))
+        {
+            return null;
+        }
+        if (oasis == null)
+        {
+            oasis = new GuildOasisHook(plugin());
+        }
+        return oasis;
     }
 
     public boolean isGuildWorldsEnabled()
