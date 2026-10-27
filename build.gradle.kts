@@ -11,7 +11,7 @@ repositories {
         forRepository {
             maven {
                 name = "scissors"
-                url = uri("https://nexus.telesphoreo.me/repository/scissors-snapshots/")
+                url = uri("https://telesphorepo.com/maven/scissors-asp/")
             }
         }
         filter {
