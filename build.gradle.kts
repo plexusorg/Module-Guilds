@@ -52,7 +52,7 @@ dependencies {
     compileOnly("org.projectlombok:lombok:1.18.48")
     annotationProcessor("org.projectlombok:lombok:1.18.48")
     compileOnly("com.oasis:oasis-api:3.0-SNAPSHOT")
-    compileOnly("io.github.scissorsmc:scissors-asp-api:${providers.gradleProperty("scissorsAspApiVersion").getOrElse("26.2")}")
+    compileOnly("io.github.scissorsmc:scissors-asp-api:26.2.build.+")
     implementation("org.apache.commons:commons-lang3:3.21.0")
     compileOnly("dev.plex:api:2.0") {
         exclude(group = "io.papermc.paper", module = "paper-api")
