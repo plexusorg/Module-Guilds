@@ -1,8 +1,9 @@
 package dev.plex.hook;
 
+import com.oasis.api.Failure;
 import com.oasis.api.Oasis;
 import com.oasis.api.OasisApi;
-import com.oasis.api.OasisException;
+import com.oasis.api.Outcome;
 import com.oasis.api.Selection;
 import com.oasis.api.WorldLoader;
 import dev.plex.guild.Guild;
@@ -11,7 +12,6 @@ import dev.plex.world.GuildWorldService;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionException;
 import java.util.regex.Pattern;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
@@ -87,23 +87,24 @@ public final class GuildOasisHook
      */
     public CompletableFuture<Long> purge(String world, Instant until)
     {
-        // Oasis does not check the name, and a wrong name purges a real world.
+        // Oasis refuses a name it does not know, but the name of another world it knows purges that world.
         if (!WORLD_NAME.matcher(world).matches())
         {
             return CompletableFuture.failedFuture(new IllegalArgumentException("Not a guild world: " + world));
         }
-        return oasis.purges().purge(Selection.all().in(world, null).until(until)).start().result().handle((purged, failure) ->
+        return oasis.purges().purge(Selection.all().in(world).until(until)).start().result().thenApply(purged ->
         {
-            if (failure == null)
+            // A guild world that never logged an edit is unknown to Oasis, so it has no history to purge.
+            if (purged.failure().map(failure -> failure.reason() == Failure.Reason.NO_SUCH_WORLD).orElse(false))
             {
-                return purged.deleted();
+                return 0L;
             }
-            Throwable cause = failure instanceof CompletionException && failure.getCause() != null ? failure.getCause() : failure;
-            if (cause instanceof OasisException refusal)
+            if (purged.outcome() != Outcome.FINISHED)
             {
-                throw new Refused(refusal.failure().reason() + ": " + refusal.failure().message());
+                throw new Refused(purged.failure().map(failure -> failure.reason() + ": " + failure.message())
+                        .orElse(purged.outcome().toString()) + " after " + purged.deleted() + " deleted edits");
             }
-            throw new CompletionException(cause);
+            return purged.deleted();
         });
     }
 
