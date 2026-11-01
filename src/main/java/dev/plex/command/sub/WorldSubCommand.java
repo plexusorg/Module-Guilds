@@ -4,10 +4,13 @@ import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
 import dev.plex.guild.Actor;
+import dev.plex.guild.GuildActionNode;
+import dev.plex.guild.GuildPermissionException;
 import dev.plex.world.GuildWorldType;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.tag.resolver.Placeholder;
@@ -66,9 +69,9 @@ public class WorldSubCommand extends GuildSubCommand
         {
             return generate(player, guild, remaining, context.actor());
         }
-        if (!context.actor().staffOverride() && !player.hasPermission("plex.guilds.world.reset"))
+        if (!GuildActionNode.WORLD_RESET.allows(player, context.actor()))
         {
-            return messageComponent("guildWorldResetStaffOnly", Placeholder.unparsed("guild", guild.getName()));
+            return locked(GuildActionNode.WORLD_RESET);
         }
         return reset(player, guild, remaining, context.actor());
     }
@@ -120,6 +123,11 @@ public class WorldSubCommand extends GuildSubCommand
         player.sendMessage(messageComponent("guildWorldResetStarted", Placeholder.unparsed("guild", guild.getName())));
         module.getGuildWorldService().resetWorld(guild, actor).whenComplete((unused, failure) ->
         {
+            if ((failure instanceof CompletionException ? failure.getCause() : failure) instanceof GuildPermissionException)
+            {
+                player.sendMessage(failureMessage(failure, null));
+                return;
+            }
             if (failure != null)
             {
                 module.getLogger().error("Failed to reset guild world {}", guild.getWorldName(), failure);
@@ -140,14 +148,29 @@ public class WorldSubCommand extends GuildSubCommand
         }
         if (first == null)
         {
-            return sender.hasPermission("plex.guilds.world.reset") ? List.of("generate", "reset") : List.of("generate");
+            return canReset(sender) ? List.of("generate", "reset") : List.of("generate");
         }
         return switch (first.toLowerCase(java.util.Locale.ROOT))
         {
             case "generate" -> List.of("overworld", "nether", "end", "superflat");
-            case "reset" -> List.of("confirm");
+            case "reset" -> canReset(sender) ? List.of("confirm") : List.of();
             default -> List.of();
         };
+    }
+
+    @Override
+    public List<HelpEntry> helpEntries(@Nullable Player player)
+    {
+        if (player != null && canReset(player))
+        {
+            return super.helpEntries(player);
+        }
+        return List.of(new HelpEntry(getUsage().replace("|reset [confirm]", ""), "Visit or generate your guild world", "/guild world "));
+    }
+
+    private static boolean canReset(CommandSender sender)
+    {
+        return sender.hasPermission(GuildActionNode.WORLD_RESET.getNode());
     }
 
     private record Confirmation(UUID guildId, long expiresAt)

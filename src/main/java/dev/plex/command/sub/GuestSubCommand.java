@@ -4,6 +4,7 @@ import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
 import dev.plex.guild.Actor;
+import dev.plex.guild.GuildActionNode;
 import dev.plex.guild.data.Guest;
 import dev.plex.util.DurationParser;
 import java.time.Duration;
@@ -44,8 +45,10 @@ public final class GuestSubCommand extends GuildSubCommand
     @Override
     public List<HelpEntry> helpEntries(@Nullable Player player)
     {
-        return List.of(
-                new HelpEntry("/guild guest add <player> [view|build] [time]", "Let a player view or build in your guild world (time: 30m, 12h, 7d)", "/guild guest add "),
+        HelpEntry add = player != null && canBuild(player)
+                ? new HelpEntry("/guild guest add <player> [view|build] [time]", "Let a player view or build in your guild world (time: 30m, 12h, 7d)", "/guild guest add ")
+                : new HelpEntry("/guild guest add <player> [view] [time]", "Let a player view your guild world (time: 30m, 12h, 7d)", "/guild guest add ");
+        return List.of(add,
                 new HelpEntry("/guild guest remove <player>", "Remove a guest", "/guild guest remove "));
     }
 
@@ -158,6 +161,11 @@ public final class GuestSubCommand extends GuildSubCommand
         });
     }
 
+    private static boolean canBuild(CommandSender sender)
+    {
+        return sender.hasPermission(GuildActionNode.GUEST_BUILD.getNode());
+    }
+
     private String mode(Guest guest)
     {
         return guest.editing() ? "build" : "view";
@@ -198,7 +206,7 @@ public final class GuestSubCommand extends GuildSubCommand
         String[] arguments = first.split(" ");
         if (arguments.length == 2 && ADD.equalsIgnoreCase(arguments[0]))
         {
-            return List.of("view", "build");
+            return canBuild(sender) ? List.of("view", "build") : List.of("view");
         }
         Guild guild = sender instanceof Player player ? guildOf(player) : null;
         if (!REMOVE.equalsIgnoreCase(first) || guild == null)

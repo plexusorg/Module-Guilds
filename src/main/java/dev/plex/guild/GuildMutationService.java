@@ -28,7 +28,8 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Owns durable guild mutations and their in-memory projection.
  * Each mutation that has an actor checks the actor's permission again inside the guild's serial queue.
- * Failures: SecurityException when the actor is not allowed, IllegalArgumentException for an invalid target or value,
+ * Failures: SecurityException when the actor is not allowed (GuildPermissionException when the actor's role allows the
+ * action but the actor lacks its {@link GuildActionNode}), IllegalArgumentException for an invalid target or value,
  * IllegalStateException when the guild no longer exists or its world is being reset.
  */
 public final class GuildMutationService
@@ -62,7 +63,7 @@ public final class GuildMutationService
                 });
     }
 
-    /** Kicks a member (actor is not the member) or leaves the guild (actor is the member). The owner cannot leave. */
+    /** Kicks a member (actor is not the member; needs {@link GuildActionNode#KICK}) or leaves the guild (actor is the member). The owner cannot leave. */
     public CompletableFuture<Void> removeMember(Guild guild, Actor actor, UUID memberUuid)
     {
         CompletableFuture<Long> session = module.getGuildSessionListener().session(actor.uuid());
@@ -81,6 +82,10 @@ public final class GuildMutationService
             if (!actor.staffOverride() && !leave && !guild.canKick(actor.uuid(), memberUuid))
             {
                 throw new SecurityException("You cannot remove this member");
+            }
+            if (!leave)
+            {
+                GuildActionNode.KICK.require(actor);
             }
             return module.getGuildRepository().removeMember(guild.getGuildUuid(), memberUuid, action(guild, actor, sessionId, "REMOVE_MEMBER", GuildState.object("player", memberUuid, "role", guild.getRole(memberUuid), "joined", guild.getMember(memberUuid).getJoinedAt()), null)).thenRun(() ->
             {
@@ -154,7 +159,7 @@ public final class GuildMutationService
     }
 
     /**
-     * Disbands the guild. The guild waits for finalization, and staff can restore it until then.
+     * Disbands the guild. Needs {@link GuildActionNode#DISBAND}. The guild waits for finalization, and staff can restore it until then.
      */
     public CompletableFuture<Void> deleteGuild(Guild guild, Actor actor)
     {
@@ -166,6 +171,7 @@ public final class GuildMutationService
             {
                 throw new SecurityException("Only the guild owner can disband the guild");
             }
+            GuildActionNode.DISBAND.require(actor);
             return disband(guild, actor, sessionId, null);
         }));
     }
@@ -268,6 +274,7 @@ public final class GuildMutationService
     /**
      * Promotes MEMBER to OFFICER or OFFICER to OWNER, or demotes OFFICER to MEMBER. Only the owner can change roles.
      * Promotion to OWNER makes the old owner an OFFICER in the same transaction.
+     * A change to OWNER needs {@link GuildActionNode#TRANSFER}; any other change needs {@link GuildActionNode#ROLES}.
      */
     public CompletableFuture<Void> setRole(Guild guild, Actor actor, UUID targetId, GuildRole role)
     {
@@ -287,6 +294,7 @@ public final class GuildMutationService
             {
                 throw new SecurityException("You cannot give this role to this member");
             }
+            (role == GuildRole.OWNER ? GuildActionNode.TRANSFER : GuildActionNode.ROLES).require(actor);
             if (role != GuildRole.OWNER)
             {
                 return module.getGuildRepository().updateRole(guild.getGuildUuid(), targetId, role, action(guild, actor, sessionId, "SET_ROLE",
@@ -312,6 +320,7 @@ public final class GuildMutationService
      * Adds a guest or resets the expiry with the requested mode.
      * A null mode keeps an active guest's mode; a new guest gets view mode.
      * The duration must be positive and not more than the configured maximum.
+     * A guest that ends up in build mode needs {@link GuildActionNode#GUEST_BUILD}.
      */
     public CompletableFuture<Guest> addGuest(Guild guild, Actor actor, UUID playerId, @Nullable Boolean editing, Duration duration)
     {
@@ -324,7 +333,7 @@ public final class GuildMutationService
                 Instant.now().plus(duration).truncatedTo(ChronoUnit.MILLIS)));
     }
 
-    /** Switches an active guest between build (editing) and view mode. The expiry does not change. */
+    /** Switches an active guest between build (editing) and view mode. The expiry does not change. Build mode needs {@link GuildActionNode#GUEST_BUILD}. */
     public CompletableFuture<Guest> setGuestMode(Guild guild, Actor actor, UUID playerId, boolean editing)
     {
         return upsertGuest(guild, actor, playerId, existing ->
@@ -456,6 +465,7 @@ public final class GuildMutationService
             {
                 throw new SecurityException("Only the owner can reset this world");
             }
+            GuildActionNode.WORLD_RESET.require(actor);
             String worldName = guild.getWorldName();
             var locations = GuildState.object("spawn", guild.getSpawn(), "warps", guild.getWarps());
             // The prepared world is unloaded and saved, so no edit of the old world comes after this cut.
@@ -491,6 +501,10 @@ public final class GuildMutationService
                 throw new IllegalArgumentException("Guild members cannot be guests");
             }
             Guest guest = update.apply(guild.getActiveGuest(playerId));
+            if (guest.editing())
+            {
+                GuildActionNode.GUEST_BUILD.require(actor);
+            }
             return module.getGuildRepository().upsertGuest(guild.getGuildUuid(), guest, action(guild, actor, sessionId, "GUEST_SET", GuildState.value(guild.getActiveGuest(playerId)), GuildState.value(guest)))
                     .thenRun(() -> guild.getGuests().put(playerId, guest))
                     .thenRun(() -> result.complete(guest));

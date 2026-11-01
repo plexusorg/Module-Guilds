@@ -6,6 +6,8 @@ import dev.plex.command.exception.AmbiguousPlayerException;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
 import dev.plex.guild.Actor;
+import dev.plex.guild.GuildActionNode;
+import dev.plex.guild.GuildPermissionException;
 import dev.plex.guild.GuildPrefixTakenException;
 import dev.plex.guild.GuildInviteLimitException;
 import dev.plex.util.CustomLocation;
@@ -95,6 +97,12 @@ public abstract class GuildSubCommand
         return module.messageComponent(key, placeholders);
     }
 
+    /** The message for an action whose permission node the player lacks. */
+    protected Component locked(GuildActionNode node)
+    {
+        return messageComponent("guildActionLocked", Placeholder.unparsed("action", node.getAction()));
+    }
+
     protected Component usage()
     {
         return messageComponent("correctUsagePrefix")
@@ -142,6 +150,10 @@ public abstract class GuildSubCommand
         if (cause instanceof AmbiguousPlayerException ambiguous)
         {
             return messageComponent("playerAmbiguous", Placeholder.unparsed("players", String.join(", ", ambiguous.getMatchingNames())));
+        }
+        if (cause instanceof GuildPermissionException locked)
+        {
+            return locked(locked.getNode());
         }
         if (cause instanceof SecurityException)
         {

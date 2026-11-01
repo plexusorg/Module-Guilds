@@ -6,7 +6,9 @@ import dev.plex.gui.GuildMenuInventoryHolder;
 import dev.plex.gui.GuildMenuInventoryHolder.Screen;
 import dev.plex.guild.Guild;
 import dev.plex.guild.Actor;
+import dev.plex.guild.GuildActionNode;
 import dev.plex.guild.GuildMutationService;
+import dev.plex.guild.GuildPermissionException;
 import dev.plex.guild.data.Guest;
 import dev.plex.guild.data.GuildRole;
 import dev.plex.guild.data.GuildTimeMode;
@@ -243,6 +245,10 @@ public class GuildMenuListener implements Listener
             return;
         }
         GuildRole role = guild.getRole(target) == GuildRole.MEMBER ? GuildRole.OFFICER : GuildRole.OWNER;
+        if (locked(player, viewer, role == GuildRole.OWNER ? GuildActionNode.TRANSFER : GuildActionNode.ROLES, guild, Screen.MEMBER, target, holder.page(), source))
+        {
+            return;
+        }
         if (role == GuildRole.OWNER && !item.getItemMeta().getPersistentDataContainer().has(CONFIRM_KEY))
         {
             module.ownTask(player.getScheduler().run(module.plugin(), task ->
@@ -270,6 +276,10 @@ public class GuildMenuListener implements Listener
             deny(player, guild, Screen.MEMBER, target, holder.page(), source);
             return;
         }
+        if (locked(player, actor, GuildActionNode.ROLES, guild, Screen.MEMBER, target, holder.page(), source))
+        {
+            return;
+        }
         mutate(player, guild, source, mutationService.setRole(guild, actor, target, GuildRole.MEMBER), target,
                 name -> module.messageComponent("guildMenuDemoted", Placeholder.unparsed("player", name)), Screen.MEMBER, target, holder.page());
     }
@@ -282,6 +292,10 @@ public class GuildMenuListener implements Listener
         if (guild.isOwner(target) || (!actor.staffOverride() && !guild.canKick(actor.uuid(), target)))
         {
             deny(player, guild, Screen.MEMBER, target, holder.page(), source);
+            return;
+        }
+        if (locked(player, actor, GuildActionNode.KICK, guild, Screen.MEMBER, target, holder.page(), source))
+        {
             return;
         }
         mutate(player, guild, source, mutationService.removeMember(guild, actor, target), target,
@@ -300,6 +314,10 @@ public class GuildMenuListener implements Listener
             return;
         }
         boolean editing = !guest.editing();
+        if (editing && locked(player, actor, GuildActionNode.GUEST_BUILD, guild, Screen.GUEST, target, holder.page(), source))
+        {
+            return;
+        }
         CompletableFuture<Void> mutation = mutationService.setGuestMode(guild, actor, target, editing).thenApply(unused -> null);
         mutate(player, guild, source, mutation, target, name -> module.messageComponent("guildMenuGuestModeSet",
                 Placeholder.unparsed("player", name), Placeholder.unparsed("mode", editing ? "build" : "view")), Screen.GUEST, target, holder.page());
@@ -310,9 +328,14 @@ public class GuildMenuListener implements Listener
         Guild guild = holder.guild();
         Actor actor = actor(player, source);
         UUID target = holder.target();
-        if ((!actor.staffOverride() && !guild.canManage(actor.uuid())) || activeGuest(guild, target) == null)
+        Guest guest = activeGuest(guild, target);
+        if ((!actor.staffOverride() && !guild.canManage(actor.uuid())) || guest == null)
         {
             deny(player, guild, Screen.GUEST, target, holder.page(), source);
+            return;
+        }
+        if (guest.editing() && locked(player, actor, GuildActionNode.GUEST_BUILD, guild, Screen.GUEST, target, holder.page(), source))
+        {
             return;
         }
         Duration duration = module.getGuestDefaultDuration();
@@ -341,6 +364,23 @@ public class GuildMenuListener implements Listener
         render(player, guild, screen, target, page, source);
     }
 
+    /** Sends the locked message and shows the screen again when the player lacks the node. Returns true in that case. */
+    private boolean locked(Player player, Actor actor, GuildActionNode node, Guild guild, Screen screen, UUID target, int page, Inventory source)
+    {
+        if (node.allows(player, actor))
+        {
+            return false;
+        }
+        player.sendMessage(lockedMessage(node));
+        render(player, guild, screen, target, page, source);
+        return true;
+    }
+
+    private Component lockedMessage(GuildActionNode node)
+    {
+        return module.messageComponent("guildActionLocked", Placeholder.unparsed("action", node.getAction()));
+    }
+
     /**
      * Sends the result of a mutation and then shows the next screen, if the player still has the source menu open.
      * The name of the subject, when there is one, is looked up after the mutation for the success message.
@@ -359,6 +399,10 @@ public class GuildMenuListener implements Listener
     private Component failureMessage(Throwable failure)
     {
         Throwable cause = failure instanceof CompletionException && failure.getCause() != null ? failure.getCause() : failure;
+        if (cause instanceof GuildPermissionException locked)
+        {
+            return lockedMessage(locked.getNode());
+        }
         if (cause instanceof SecurityException)
         {
             return module.messageComponent("guildMenuActionDenied");
@@ -466,7 +510,7 @@ public class GuildMenuListener implements Listener
             case MEMBERS -> buildMembers(guild, page, names, actor);
             case MEMBER -> buildMember(player, guild, target, page, names, actor);
             case GUESTS -> buildGuests(guild, page, names, actor);
-            case GUEST -> buildGuest(guild, target, page, names, actor);
+            case GUEST -> buildGuest(player, guild, target, page, names, actor);
             case WARPS -> buildWarps(guild, page, actor);
             case WORLD_SETTINGS -> buildWorldSettings(guild, actor);
         };
@@ -599,25 +643,43 @@ public class GuildMenuListener implements Listener
         if (guild.getRole(target) != GuildRole.OWNER && (viewer.staffOverride() || guild.canPromote(viewer.uuid(), target)))
         {
             boolean toOwner = guild.getRole(target) == GuildRole.OFFICER;
-            inventory.setItem(FIRST_ACTION_SLOT, item(Material.EMERALD, toOwner ? "Make owner" : "Promote to officer", NamedTextColor.GREEN, List.of(
-                    toOwner && actor.staffOverride() ? module.messageComponent("guildMenuOwnerOverrideHint")
-                            : line(toOwner ? "You become an officer" : "Officers can invite, manage guests, and set warps", NamedTextColor.GRAY)
-            ), Action.PROMOTE));
+            inventory.setItem(FIRST_ACTION_SLOT, gated(player, actor, toOwner ? GuildActionNode.TRANSFER : GuildActionNode.ROLES,
+                    Material.EMERALD, toOwner ? "Make owner" : "Promote to officer", NamedTextColor.GREEN, List.of(
+                            toOwner && actor.staffOverride() ? module.messageComponent("guildMenuOwnerOverrideHint")
+                                    : line(toOwner ? "You become an officer" : "Officers can invite, manage guests, and set warps", NamedTextColor.GRAY)
+                    ), Action.PROMOTE));
         }
         if (guild.getRole(target) == GuildRole.OFFICER && (viewer.staffOverride() || guild.canDemote(viewer.uuid(), target)))
         {
-            inventory.setItem(SECOND_ACTION_SLOT, item(Material.REDSTONE, "Demote to member", NamedTextColor.GOLD, List.of(
+            inventory.setItem(SECOND_ACTION_SLOT, gated(player, actor, GuildActionNode.ROLES, Material.REDSTONE, "Demote to member", NamedTextColor.GOLD, List.of(
                     line("Remove the officer role", NamedTextColor.GRAY)
             ), Action.DEMOTE));
         }
         if (!guild.isOwner(target) && (viewer.staffOverride() || guild.canKick(viewer.uuid(), target)))
         {
-            inventory.setItem(THIRD_ACTION_SLOT, item(Material.BARRIER, "Kick", NamedTextColor.RED, List.of(
+            inventory.setItem(THIRD_ACTION_SLOT, gated(player, actor, GuildActionNode.KICK, Material.BARRIER, "Kick", NamedTextColor.RED, List.of(
                     line("Remove this player from the guild", NamedTextColor.GRAY)
             ), Action.KICK));
         }
         inventory.setItem(SMALL_BACK_SLOT, backItem());
         return inventory;
+    }
+
+    /**
+     * Builds the button when the player has the node. Otherwise builds a gray button with the same name and action
+     * and the locked lore line, and a click sends the locked message.
+     */
+    private ItemStack gated(Player player, Actor actor, GuildActionNode node, Material material, String name, NamedTextColor color,
+                            List<Component> lore, Action action)
+    {
+        if (node.allows(player, actor))
+        {
+            return item(material, name, color, lore, action);
+        }
+        return item(Material.GRAY_DYE, name, NamedTextColor.GRAY, List.of(
+                module.messageComponent("guildMenuActionLocked", Placeholder.unparsed("action", node.getAction()))
+                        .decorationIfAbsent(TextDecoration.ITALIC, TextDecoration.State.FALSE)
+        ), action);
     }
 
     private ItemStack confirmOwnerItem(boolean staffOverride)
@@ -655,7 +717,7 @@ public class GuildMenuListener implements Listener
         return inventory;
     }
 
-    private Inventory buildGuest(Guild guild, UUID target, int page, Map<UUID, String> names, Actor actor)
+    private Inventory buildGuest(Player player, Guild guild, UUID target, int page, Map<UUID, String> names, Actor actor)
     {
         Guest guest = guild.getGuests().get(target);
         if (guest == null)
@@ -668,11 +730,12 @@ public class GuildMenuListener implements Listener
         inventory.setItem(FIRST_ACTION_SLOT, guest.editing()
                 ? item(Material.ENDER_EYE, "Switch to view", NamedTextColor.AQUA, List.of(
                         line("The guest can only look around", NamedTextColor.GRAY)), Action.MODE)
-                : item(Material.BRICKS, "Switch to build", NamedTextColor.GREEN, List.of(
+                : gated(player, actor, GuildActionNode.GUEST_BUILD, Material.BRICKS, "Switch to build", NamedTextColor.GREEN, List.of(
                         line("The guest can break, place, and interact", NamedTextColor.GRAY)), Action.MODE));
-        inventory.setItem(SECOND_ACTION_SLOT, item(Material.CLOCK, "Extend", NamedTextColor.YELLOW, List.of(
-                line("Set the time left to " + formatDuration(module.getGuestDefaultDuration()), NamedTextColor.GRAY)
-        ), Action.EXTEND));
+        List<Component> extendLore = List.of(line("Set the time left to " + formatDuration(module.getGuestDefaultDuration()), NamedTextColor.GRAY));
+        inventory.setItem(SECOND_ACTION_SLOT, guest.editing()
+                ? gated(player, actor, GuildActionNode.GUEST_BUILD, Material.CLOCK, "Extend", NamedTextColor.YELLOW, extendLore, Action.EXTEND)
+                : item(Material.CLOCK, "Extend", NamedTextColor.YELLOW, extendLore, Action.EXTEND));
         inventory.setItem(THIRD_ACTION_SLOT, item(Material.BARRIER, "Remove", NamedTextColor.RED, List.of(
                 line("End guest access now", NamedTextColor.GRAY)
         ), Action.REMOVE));

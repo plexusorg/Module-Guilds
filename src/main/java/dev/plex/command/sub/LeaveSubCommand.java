@@ -3,6 +3,7 @@ package dev.plex.command.sub;
 import dev.plex.Guilds;
 import dev.plex.command.source.RequiredCommandSource;
 import dev.plex.guild.Guild;
+import dev.plex.guild.GuildActionNode;
 import java.util.List;
 import java.util.UUID;
 import net.kyori.adventure.text.Component;
@@ -58,9 +59,9 @@ public class LeaveSubCommand extends GuildSubCommand
             });
             return null;
         }
-        if (!context.actor().staffOverride() && !player.hasPermission("plex.guilds.disband"))
+        if (!GuildActionNode.DISBAND.allows(player, context.actor()))
         {
-            return messageComponent("guildDisbandStaffOnly", Placeholder.unparsed("guild", guild.getName()));
+            return locked(GuildActionNode.DISBAND);
         }
         if (!CONFIRM.equalsIgnoreCase(first) || remaining != null)
         {
@@ -86,7 +87,7 @@ public class LeaveSubCommand extends GuildSubCommand
     public @NotNull List<String> suggestSubCommand(@NotNull CommandSender sender, @Nullable String first)
     {
         Guild guild = sender instanceof Player player ? guildOf(player) : null;
-        return first == null && guild != null && guild.isOwner(((Player) sender).getUniqueId()) && sender.hasPermission("plex.guilds.disband")
+        return first == null && guild != null && guild.isOwner(((Player) sender).getUniqueId()) && sender.hasPermission(GuildActionNode.DISBAND.getNode())
                 ? List.of(CONFIRM) : List.of();
     }
 }
