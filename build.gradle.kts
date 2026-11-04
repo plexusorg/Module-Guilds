@@ -54,7 +54,7 @@ dependencies {
     compileOnly("com.oasis:oasis-api:3.0-SNAPSHOT")
     compileOnly("io.github.scissorsmc:scissors-asp-api:26.2.build.+")
     implementation("org.apache.commons:commons-lang3:3.21.0")
-    compileOnly("dev.plex:api:2.0") {
+    compileOnly("dev.plex:api:2.0.1-SNAPSHOT") {
         exclude(group = "io.papermc.paper", module = "paper-api")
     }
     implementation("org.jetbrains:annotations:26.1.0")
