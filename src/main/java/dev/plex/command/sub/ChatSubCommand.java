@@ -50,7 +50,7 @@ public class ChatSubCommand extends GuildSubCommand
             member.setChat(!member.isChat());
             return messageComponent("guildChatToggled", Placeholder.unparsed("status", BooleanUtils.toStringOnOff(member.isChat())));
         }
-        module.sendChat(guild, player.getName(), module.api().messages().playerText(arguments(first, remaining)));
+        module.sendChat(guild, player, module.api().messages().playerText(arguments(first, remaining)), false);
         return null;
     }
 }

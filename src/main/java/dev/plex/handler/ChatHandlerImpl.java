@@ -23,7 +23,7 @@ public class ChatHandlerImpl implements Listener
         var target = module.getGuildRecoveryService().chatTarget(player.getUniqueId());
         if (target != null && player.hasPermission("plex.guilds.others"))
         {
-            module.sendChat(target, player.getName(), event.message());
+            module.sendChat(target, player, event.message(), event.isAsynchronous());
             event.setCancelled(true);
             return;
         }
@@ -35,7 +35,7 @@ public class ChatHandlerImpl implements Listener
                 return;
             }
 
-            module.sendChat(guild, player.getName(), event.message());
+            module.sendChat(guild, player, event.message(), event.isAsynchronous());
             event.setCancelled(true);
         });
     }

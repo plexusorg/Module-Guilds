@@ -4,6 +4,7 @@ import org.bukkit.Bukkit;
 
 import dev.plex.command.GuildCommand;
 import dev.plex.api.config.ModuleConfiguration;
+import dev.plex.api.event.ChatChannelMessageEvent;
 import dev.plex.guild.Guild;
 import dev.plex.guild.GuildHolder;
 import dev.plex.guild.GuildMutationService;
@@ -28,6 +29,7 @@ import dev.plex.world.GuildWorldIndex;
 import dev.plex.world.GuildWorldService;
 import dev.plex.world.AspGuildWorldService;
 import lombok.Getter;
+import net.kyori.adventure.key.Key;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.TextReplacementConfig;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -55,6 +57,8 @@ public class Guilds extends PlexModule
             .match("https?://[-a-zA-Z0-9+&@#/%?=~_|!:,.;]*[-a-zA-Z0-9+&@#/%=~_|]")
             .replacement((match, builder) -> builder.clickEvent(ClickEvent.openUrl(match.group())))
             .build();
+
+    private static final Key CHAT_CHANNEL = Key.key("guilds", "chat");
 
     private final GuildHolder guildHolder = new GuildHolder();
     private final GuildMutationService guildMutationService = new GuildMutationService(this);
@@ -261,11 +265,18 @@ public class Guilds extends PlexModule
         guildWorldService.enable();
     }
 
-    public void sendChat(Guild guild, String senderName, Component message)
+    public void sendChat(Guild guild, Player sender, Component message, boolean async)
     {
+        String senderName = sender.getName();
         Component content = message.replaceText(CHAT_LINKS);
-        broadcastToGuild(guild, messageComponent("guildChatMessage",
-                Placeholder.unparsed("player", senderName), Placeholder.component("content", content)),
+        Component line = messageComponent("guildChatMessage",
+                Placeholder.unparsed("player", senderName), Placeholder.component("content", content));
+        if (!new ChatChannelMessageEvent(sender, CHAT_CHANNEL, guild.getGuildUuid().toString(), message, async).callEvent())
+        {
+            sender.sendMessage(line);
+            return;
+        }
+        broadcastToGuild(guild, line,
                 messageComponent("guildChatSpyMessage",
                         Placeholder.unparsed("guild", guild.getName()),
                         Placeholder.unparsed("player", senderName), Placeholder.component("content", content)));
