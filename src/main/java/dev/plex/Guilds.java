@@ -268,18 +268,34 @@ public class Guilds extends PlexModule
     public void sendChat(Guild guild, Player sender, Component message, boolean async)
     {
         String senderName = sender.getName();
+        UUID senderUuid = sender.getUniqueId();
+        UUID guildUuid = guild.getGuildUuid();
         Component content = message.replaceText(CHAT_LINKS);
         Component line = messageComponent("guildChatMessage",
                 Placeholder.unparsed("player", senderName), Placeholder.component("content", content));
-        if (!new ChatChannelMessageEvent(sender, CHAT_CHANNEL, guild.getGuildUuid().toString(), message, async).callEvent())
+        // A listener that held the message delivers it later to the guild as it is then; the sender saw it already.
+        Runnable lateDelivery = () -> guildHolder.guildById(guildUuid).ifPresent(current ->
+                deliverChat(current, senderName, content, line, senderUuid));
+        if (!new ChatChannelMessageEvent(sender, CHAT_CHANNEL, guildUuid.toString(), message, async, lateDelivery).callEvent())
         {
             sender.sendMessage(line);
             return;
         }
+        deliverChat(guild, senderName, content, line, null);
+    }
+
+    public CompletableFuture<Void> broadcastToGuild(Guild guild, Component message)
+    {
+        return broadcastToGuild(guild, message, null, null);
+    }
+
+    private void deliverChat(Guild guild, String senderName, Component content, Component line, @Nullable UUID except)
+    {
         broadcastToGuild(guild, line,
                 messageComponent("guildChatSpyMessage",
                         Placeholder.unparsed("guild", guild.getName()),
-                        Placeholder.unparsed("player", senderName), Placeholder.component("content", content)));
+                        Placeholder.unparsed("player", senderName), Placeholder.component("content", content)),
+                except);
         if (config.getBoolean("guilds.log-chat-message"))
         {
             Bukkit.getConsoleSender().sendMessage(messageComponent("guildChatConsoleLog",
@@ -289,12 +305,8 @@ public class Guilds extends PlexModule
         }
     }
 
-    public CompletableFuture<Void> broadcastToGuild(Guild guild, Component message)
-    {
-        return broadcastToGuild(guild, message, null);
-    }
-
-    private CompletableFuture<Void> broadcastToGuild(Guild guild, Component message, Component spyMessage)
+    private CompletableFuture<Void> broadcastToGuild(Guild guild, Component message, @Nullable Component spyMessage,
+                                                     @Nullable UUID except)
     {
         CompletableFuture<Void> completion = new CompletableFuture<>();
         Set<UUID> recipients = guild.getMembers().stream().map(member -> member.getUuid()).collect(Collectors.toSet());
@@ -302,6 +314,10 @@ public class Guilds extends PlexModule
         {
             for (Player player : List.copyOf(Bukkit.getOnlinePlayers()))
             {
+                if (player.getUniqueId().equals(except))
+                {
+                    continue;
+                }
                 if (recipients.contains(player.getUniqueId()))
                 {
                     player.sendMessage(message);
