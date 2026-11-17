@@ -27,6 +27,7 @@ import org.jdbi.v3.core.JdbiException;
 import org.jetbrains.annotations.Nullable;
 
 import java.time.Instant;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -502,7 +503,7 @@ public class JdbiGuildRepository implements GuildRepository
         }, executor);
     }
 
-    private static GuildEntity guildMapRow(java.sql.ResultSet rs) throws java.sql.SQLException
+    private static GuildEntity guildMapRow(ResultSet rs) throws SQLException
     {
         GuildEntity e = new GuildEntity();
         e.setGuildUuid(rs.getString("guild_uuid"));
@@ -514,14 +515,32 @@ public class JdbiGuildRepository implements GuildRepository
         e.setTimeMode(rs.getString("time_mode"));
         e.setWeatherMode(rs.getString("weather_mode"));
         e.setSpawnWorld(rs.getString("spawn_world"));
-        e.setSpawnX(rs.getObject("spawn_x", Double.class));
-        e.setSpawnY(rs.getObject("spawn_y", Double.class));
-        e.setSpawnZ(rs.getObject("spawn_z", Double.class));
-        e.setSpawnYaw(rs.getObject("spawn_yaw", Float.class));
-        e.setSpawnPitch(rs.getObject("spawn_pitch", Float.class));
-        e.setDeletedAt(rs.getObject("deleted_at", Long.class));
+        e.setSpawnX(nullableDouble(rs, "spawn_x"));
+        e.setSpawnY(nullableDouble(rs, "spawn_y"));
+        e.setSpawnZ(nullableDouble(rs, "spawn_z"));
+        e.setSpawnYaw(nullableFloat(rs, "spawn_yaw"));
+        e.setSpawnPitch(nullableFloat(rs, "spawn_pitch"));
+        e.setDeletedAt(nullableLong(rs, "deleted_at"));
         e.setDeletedBy(rs.getString("deleted_by"));
         return e;
+    }
+
+    private static @Nullable Double nullableDouble(ResultSet rs, String column) throws SQLException
+    {
+        double value = rs.getDouble(column);
+        return rs.wasNull() ? null : value;
+    }
+
+    private static @Nullable Float nullableFloat(ResultSet rs, String column) throws SQLException
+    {
+        float value = rs.getFloat(column);
+        return rs.wasNull() ? null : value;
+    }
+
+    private static @Nullable Long nullableLong(ResultSet rs, String column) throws SQLException
+    {
+        long value = rs.getLong(column);
+        return rs.wasNull() ? null : value;
     }
 
     private static GuildMemberEntity memberMapRow(java.sql.ResultSet rs) throws java.sql.SQLException
@@ -733,9 +752,9 @@ public class JdbiGuildRepository implements GuildRepository
         }), executor);
     }
 
-    private static GuildAction actionMapRow(java.sql.ResultSet rs) throws java.sql.SQLException
+    private static GuildAction actionMapRow(ResultSet rs) throws SQLException
     {
-        return new GuildAction(rs.getLong("id"), rs.getObject("session_id", Long.class),
+        return new GuildAction(rs.getLong("id"), nullableLong(rs, "session_id"),
                 new Actor(rs.getString("actor_uuid") == null ? null : UUID.fromString(rs.getString("actor_uuid")), rs.getBoolean("staff_override")),
                 UUID.fromString(rs.getString("guild_uuid")), rs.getString("type"), rs.getLong("created_at"),
                 rs.getString("before_state") == null ? null : JsonParser.parseString(rs.getString("before_state")),
@@ -750,7 +769,7 @@ public class JdbiGuildRepository implements GuildRepository
                         " s WHERE player_uuid = :player AND (ended_at IS NULL OR ended_at >= :cutoff) ORDER BY started_at DESC")
                 .bind("player", playerUuid.toString()).bind("cutoff", cutoff)
                 .map((rs, ctx) -> new GuildSession(rs.getLong("id"), playerUuid, rs.getString("player_name"),
-                        rs.getLong("started_at"), rs.getObject("ended_at", Long.class), rs.getLong("action_count"))).list()), executor);
+                        rs.getLong("started_at"), nullableLong(rs, "ended_at"), rs.getLong("action_count"))).list()), executor);
     }
 
     @Override
