@@ -48,12 +48,12 @@ repositories {
 
 dependencies {
     compileOnly(platform("com.intellectualsites.bom:bom-newest:1.56"))
-    compileOnly("com.fastasyncworldedit:FastAsyncWorldEdit-Core")
+    compileOnly("com.fastasyncworldedit:FastAsyncWorldEdit-Core:2.16.2")
     compileOnly("org.projectlombok:lombok:1.18.48")
     annotationProcessor("org.projectlombok:lombok:1.18.48")
     compileOnly("com.oasis:oasis-api:3.0-SNAPSHOT")
     compileOnly("io.github.scissorsmc:scissors-asp-api:26.2.build.+")
-    implementation("org.apache.commons:commons-lang3:3.21.0")
+    implementation("org.apache.commons:commons-lang3:3.22.0")
     compileOnly("dev.plex:api:2.0.1-SNAPSHOT") {
         exclude(group = "io.papermc.paper", module = "paper-api")
     }
@@ -69,7 +69,7 @@ java {
 }
 
 checkstyle {
-    toolVersion = "14.3.0"
+    toolVersion = "14.4.0"
     configFile = rootProject.file("config/checkstyle/checkstyle.xml")
 }
 
