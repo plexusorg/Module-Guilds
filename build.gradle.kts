@@ -3,6 +3,7 @@ plugins {
     checkstyle
     `maven-publish`
     id("com.gradleup.shadow") version "9.6.1"
+    id("dev.plex.updater") version "1.1"
 }
 
 repositories {
@@ -82,8 +83,7 @@ publishing {
 }
 
 tasks.getByName<Jar>("jar") {
-    archiveBaseName.set("Module-Guilds")
-    archiveVersion.set("")
+    enabled = false
 }
 
 tasks.shadowJar {
